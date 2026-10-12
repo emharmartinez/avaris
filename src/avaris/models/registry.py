@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,6 +13,10 @@ META_FILE = "meta.json"
 MODEL_FILE = "model.joblib"
 
 Entry = dict[str, Any]
+TARGETS = frozenset({"home_win", "margin", "total"})
+# Run IDs and targets become path parts: no separators or "..", so a promote or load can
+# never reach (and unpickle) a file outside models_dir
+RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
 
 class FeatureHashMismatch(Exception):
@@ -33,8 +38,15 @@ class Registry:
         self.models_dir = models_dir
         self.path = models_dir / REGISTRY_FILE
 
+    def run_dir(self, target: str, run_id: str) -> Path:
+        if target not in TARGETS:
+            raise ValueError(f"unknown target {target!r}")
+        if not RUN_ID_RE.fullmatch(run_id):
+            raise ValueError(f"invalid run ID {run_id!r}")
+        return self.models_dir / target / run_id
+
     def read_meta(self, target: str, run_id: str) -> dict[str, Any]:
-        meta_path = self.models_dir / target / run_id / META_FILE
+        meta_path = self.run_dir(target, run_id) / META_FILE
         if not meta_path.exists():
             raise FileNotFoundError(f"no {target} artifact {run_id} in {self.models_dir}")
         return json.loads(meta_path.read_text())
@@ -46,8 +58,9 @@ class Registry:
         return list(self._entry(self._load(), target)["candidates"])
 
     def find_run(self, run_id: str) -> str:
-        for meta_path in sorted(self.models_dir.glob(f"*/{run_id}/{META_FILE}")):
-            return meta_path.parent.parent.name
+        for target in sorted(TARGETS):
+            if (self.run_dir(target, run_id) / META_FILE).exists():
+                return target
         raise FileNotFoundError(f"no artifact {run_id} in {self.models_dir}")
 
     def register(self, target: str, run_id: str, current_hash: str, tolerance: float) -> Decision:
@@ -82,7 +95,7 @@ class Registry:
         meta = self.read_meta(target, run_id)
         # Refuse before loading: a stale feature set would silently mispredict
         _check_hash(meta, current_hash)
-        return joblib.load(self.models_dir / target / run_id / MODEL_FILE), meta
+        return joblib.load(self.run_dir(target, run_id) / MODEL_FILE), meta
 
     def _load(self) -> dict[str, Entry]:
         return json.loads(self.path.read_text()) if self.path.exists() else {}

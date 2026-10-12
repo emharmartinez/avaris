@@ -184,3 +184,16 @@ def test_find_run(reg: Registry) -> None:
     assert reg.find_run("r1") == "home_win"
     with pytest.raises(FileNotFoundError):
         reg.find_run("nope")
+
+
+@pytest.mark.parametrize("run_id", ["../../outside/evil", "a/b", "..", ""])
+def test_run_ids_that_leave_models_dir_are_refused(reg: Registry, run_id: str) -> None:
+    with pytest.raises(ValueError):
+        reg.find_run(run_id)
+    with pytest.raises(ValueError):
+        reg.promote("home_win", run_id, HASH)
+
+
+def test_unknown_target_is_refused(reg: Registry) -> None:
+    with pytest.raises(ValueError):
+        reg.read_meta("../x", "r1")

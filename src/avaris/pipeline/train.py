@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from importlib.metadata import version
+from pathlib import Path
 from typing import Any
 
 import joblib
@@ -31,7 +32,8 @@ class TrainResult:
 def git_sha() -> str:
     try:
         out = subprocess.run(
-            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True, timeout=10
+            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True, timeout=10,
+            cwd=Path(__file__).parent,
         )
         return out.stdout.strip()
     except (OSError, subprocess.SubprocessError):
