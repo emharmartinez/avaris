@@ -86,6 +86,7 @@ All gates must be green at the end of every phase.
 ## Project Status
 
 - Fill out change logs CHANGELOG.md, README, ADR(Architecture Decision Records).md and STATUS.md proactively
+- Report to the user for every completed phase. This is your checkpoint.
 
 ## Subagents
 
