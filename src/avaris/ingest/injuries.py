@@ -92,10 +92,19 @@ def _header_ts(pdf: bytes) -> datetime:
     return to_utc(local.replace(tzinfo=ET))
 
 
+def _is_reason_continuation(player_name: str | None, status: str | None) -> bool:
+    return status is None and bool(player_name) and str(player_name).startswith("(")
+
+
 def parse_report(pdf: bytes) -> ParsedReport:
     report_ts = _header_ts(pdf)
     rows = []
     for e in _process_pdf(pdf):
+        if _is_reason_continuation(e.player_name, e.current_status) and rows:
+            # A wrapped reason with a comma, e.g. "(Nasal Fracture, Face Mask)", is read as
+            # a player name on its own row; it belongs to the previous row's reason
+            rows[-1]["reason"] = f"{rows[-1]['reason'] or ''} {e.player_name}".strip()
+            continue
         status = STATUSES.get(e.current_status or "")
         if status is None and e.player_name is None and (e.reason or "") == NOT_SUBMITTED:
             status = "not_submitted"

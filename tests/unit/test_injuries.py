@@ -208,3 +208,13 @@ def test_exact_season_name_beats_a_teammate_with_the_same_initial(tmp_path: Path
         datetime(2022, 1, 15, 22, 30),
     )
     assert out.iloc[0]["player_id"] == 999
+
+
+def test_wrapped_reason_continuation_is_not_a_player() -> None:
+    # The parser splits "(Nasal Fracture, Face Mask)" onto its own row as a player name
+    report = parse_report((FIXTURES / "Injury-Report_2026-03-27_05_30PM.pdf").read_bytes())
+    df = report.entries
+    assert not df["player_name"].str.startswith("(").any()
+    mem = df[(df["matchup"] == "HOU@MEM") & df["reason"].str.contains("Face Mask", na=False)]
+    assert len(mem) == 1
+    assert mem.iloc[0]["player_name"] != ""

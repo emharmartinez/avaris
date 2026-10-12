@@ -88,7 +88,9 @@ def test_injury_coverage_passes_when_every_game_has_a_decision_report() -> None:
 
 def test_injury_coverage_gap_fails() -> None:
     failures = check_injuries(pd.DataFrame([injury_row(with_decision_report=1229)]), today=TODAY)
-    assert failures == ["2021-22: 1229 of 1230 regular-season games in a report by tip-off - 60"]
+    assert failures == [
+        "2021-22: 1229 of 1230 regular-season games with a report by tip-off - 60"
+    ]
 
 
 def test_injury_coverage_skips_in_progress_season() -> None:
@@ -118,3 +120,19 @@ def test_previous_evening_placeholder_does_not_cover_a_game(tmp_path: Path) -> N
         "status": "not_submitted", "reason": "NOT YET SUBMITTED",
     }]))
     assert records_by(injury_report(con), "season")["2021-22"]["with_decision_report"] == 0
+
+
+def test_game_absent_from_an_in_window_report_is_covered(tmp_path: Path) -> None:
+    # Neither team listed a player, so the game is not in the report, but the report exists
+    con = connect(tmp_path / "a.duckdb")
+    upsert(con, "games", pd.DataFrame([{
+        "game_id": "g", "season": "2023-24", "season_type": "regular",
+        "game_date_et": date(2023, 10, 25), "tip_off_utc": datetime(2023, 10, 25, 23, 0),
+        "home_team_id": 1, "away_team_id": 2, "status": "final", "neutral_site": False,
+    }]))
+    upsert(con, "injury_report_files", pd.DataFrame([{
+        "slot_ts": datetime(2023, 10, 25, 21, 30), "report_ts": datetime(2023, 10, 25, 21, 30),
+        "url": "u", "status": "ok", "n_entries": 50, "fetched_at": datetime(2023, 10, 26),
+        "message": None,
+    }]))
+    assert records_by(injury_report(con), "season")["2023-24"]["with_decision_report"] == 1

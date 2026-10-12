@@ -121,10 +121,11 @@ with g as (
     where season_type = 'regular' and season >= ? and tip_off_utc is not null
 ),
 covered as (
-    -- A report from the previous evening (placeholder rows) does not count
-    select distinct i.game_id from injury_reports i join g using (game_id)
-    where i.report_ts between g.tip_off_utc - interval 12 hour
-        and g.tip_off_utc - interval 60 minute
+    -- A report fetched within 12 h before the cutoff; a game can be absent from it when
+    -- neither team lists a player. The previous evening's report does not count
+    select distinct g.game_id from g join injury_report_files f
+        on f.status = 'ok' and f.report_ts between g.tip_off_utc - interval 12 hour
+            and g.tip_off_utc - interval 60 minute
 ),
 entries as (
     select g.season,
@@ -141,7 +142,7 @@ group by g.season order by g.season
 
 
 def injury_report(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
-    # Per season from 2021-22: regular-season games listed in an injury report between
+    # Per season from 2021-22: regular-season games with an injury report fetched between
     # tip-off - 12 h and tip-off - 60 min, and report rows without a player ID
     report = con.execute(INJURY_SQL, [FIRST_INJURY_SEASON]).df()
     count_cols = report.columns.drop("season")
@@ -161,7 +162,7 @@ def check_injuries(report: pd.DataFrame, today: date) -> list[str]:
         if row["with_decision_report"] != row["regular_games"]:
             failures.append(
                 f"{season}: {row['with_decision_report']} of {row['regular_games']} "
-                "regular-season games in a report by tip-off - 60"
+                "regular-season games with a report by tip-off - 60"
             )
         named, unmatched = row["named_entries"], row["unmatched_players"]
         if named and unmatched / named >= MAX_UNMATCHED_PLAYER_RATE:
