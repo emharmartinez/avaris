@@ -101,3 +101,8 @@ All gates must be green at the end of every phase.
 
 - Always ensure `git status` clean once done with task. Do not leave it dirty.
 - Commit often but ask the user first before pushing
+- Track deferred work as GitHub issues: whenever new tech debt is deferred for later, or a bug or issue surfaces that is out of scope for the current work, create a GitHub issue for it — deferred work must never live only in chat, commit messages, or code comments.
+
+## User Input
+
+- State in your report what the user need to do, what commands to run that is blocking you(Again always try outside of sandbox first), etc
