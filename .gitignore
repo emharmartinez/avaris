@@ -31,3 +31,6 @@ web/playwright-report/
 artifacts/
 .coverage
 htmlcov/
+
+# Local GitHub identity for issue skills
+.github/config.json
