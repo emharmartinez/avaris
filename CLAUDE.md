@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-- **Greenfield.** No code exists yet. The source of truth is `docs/plans/plan-for-this-first-snug-fox.md`: it holds the stack, design, layout and six phases, each with a "Done when". Read it before starting a phase.
+- **Greenfield.** No code exists yet. The source of truth is `docs/plans/avaris-nba-betting-model-build-plan.md`: it holds the stack, design, layout and six phases, each with a "Done when". Read it before starting a phase.
 - Avaris is a personal, single-user, local-only NBA betting model for moneyline, spread and total. Do not add accounts, auth, hosting, multi-tenancy or billing code.
 
 ## Commands

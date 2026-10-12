@@ -51,4 +51,4 @@ One entry per binding decision. Newest first. Status is `accepted`, `superseded`
 
 - **Date:** 2026-10-11 · **Status:** accepted
 - **Decision:** personal, single-user, local-only. Python 3.12 + uv, DuckDB, scikit-learn + LightGBM, FastAPI serving a statically exported Next.js + shadcn/ui PWA. nba_api for stats, The Odds API for odds behind `CreditGuard`, official NBA injury reports. Market odds are never a model feature; they enter only through the betting-layer blend.
-- **Why:** see `docs/plans/plan-for-this-first-snug-fox.md`.
+- **Why:** see `docs/plans/avaris-nba-betting-model-build-plan.md`.
