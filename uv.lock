@@ -62,6 +62,7 @@ source = { editable = "." }
 dependencies = [
     { name = "duckdb" },
     { name = "httpx" },
+    { name = "joblib" },
     { name = "lightgbm" },
     { name = "nba-injury-report" },
     { name = "optuna" },
@@ -89,6 +90,7 @@ dev = [
 requires-dist = [
     { name = "duckdb", specifier = ">=1.5.6" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "joblib", specifier = ">=1.6.0" },
     { name = "lightgbm", specifier = ">=4.7.0" },
     { name = "nba-injury-report", specifier = "==0.1.0" },
     { name = "optuna", specifier = ">=5.0.0" },
