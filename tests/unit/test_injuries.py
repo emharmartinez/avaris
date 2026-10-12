@@ -169,3 +169,17 @@ def test_resolve_entries_falls_back_to_first_initial_and_last_name(tmp_path: Pat
         datetime(2022, 1, 15, 22, 30),
     )
     assert out.iloc[0]["player_id"] == 203095
+
+
+def test_resolve_entries_falls_back_to_other_seasons(tmp_path: Path) -> None:
+    con = _db(tmp_path)
+    upsert(con, "rosters", pd.DataFrame([{
+        "season": "2020-21", "team_id": 1610612765, "player_id": 1629045,
+        "player_name": "Chris Smith", "position": None, "how_acquired": None,
+    }]))
+    out = resolve_entries(
+        con,
+        _entries(("TOR@MIL", "Toronto Raptors", "Smith, Chris", "out")),
+        datetime(2022, 1, 15, 22, 30),
+    )
+    assert out.iloc[0]["player_id"] == 1629045

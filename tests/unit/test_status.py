@@ -2,7 +2,7 @@ from datetime import date
 
 import pandas as pd
 
-from avaris.ingest.status import check_report, expected_regular_games
+from avaris.ingest.status import check_injuries, check_report, expected_regular_games
 
 TODAY = date(2026, 10, 12)
 
@@ -64,3 +64,34 @@ def test_missing_logs_rosters_and_unknown_venues_fail() -> None:
 
 def test_empty_report_fails() -> None:
     assert check_report(pd.DataFrame(), today=TODAY)
+
+
+def injury_row(**overrides: object) -> dict[str, object]:
+    row: dict[str, object] = {
+        "season": "2021-22", "regular_games": 1230, "with_decision_report": 1230,
+        "named_entries": 1000, "unmatched_players": 10,
+    }
+    return {**row, **overrides}
+
+
+def test_injury_coverage_passes_when_every_game_has_a_decision_report() -> None:
+    assert check_injuries(pd.DataFrame([injury_row()]), today=TODAY) == []
+
+
+def test_injury_coverage_gap_fails() -> None:
+    failures = check_injuries(pd.DataFrame([injury_row(with_decision_report=1229)]), today=TODAY)
+    assert failures == ["2021-22: 1229 of 1230 regular-season games in a report by tip-off - 60"]
+
+
+def test_injury_coverage_skips_in_progress_season() -> None:
+    row = injury_row(season="2026-27", with_decision_report=0)
+    assert check_injuries(pd.DataFrame([row]), today=TODAY) == []
+
+
+def test_injury_unmatched_player_rate_over_five_percent_fails() -> None:
+    failures = check_injuries(pd.DataFrame([injury_row(unmatched_players=60)]), today=TODAY)
+    assert failures == ["2021-22: 60 of 1000 injury rows without a player ID (6.00%, limit < 5%)"]
+
+
+def test_no_injury_reports_fails() -> None:
+    assert check_injuries(pd.DataFrame(), today=TODAY) == ["no injury reports ingested"]

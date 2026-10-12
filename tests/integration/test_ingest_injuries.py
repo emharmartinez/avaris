@@ -11,6 +11,8 @@ import respx
 from avaris.db import connect, upsert
 from avaris.ingest.injuries import BASE_URL, InjuryClient, ingest_injuries
 from avaris.ingest.stats_client import Throttle
+from avaris.ingest.status import injury_report
+from tests.conftest import records_by
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "injuries"
 NOW = datetime(2022, 1, 20, 12, 0)
@@ -85,3 +87,15 @@ def test_recent_missing_slot_is_retried_later(
                     max_step_back=0)
     files = con.execute("select count(*) from injury_report_files").fetchone()
     assert files == (0,)
+
+
+def test_injury_report_counts_games_covered_by_decision_time(
+    con: duckdb.DuckDBPyConnection, tmp_path: Path, injury_api: respx.MockRouter
+) -> None:
+    client = InjuryClient(tmp_path / "cache", Throttle(0.0), retry_wait_s=0.0)
+    ingest_injuries(con, client, ["2021-22"], now_utc=NOW, max_step_back=0)
+    row = records_by(injury_report(con), "season")["2021-22"]
+    assert row["regular_games"] == 1
+    assert row["with_decision_report"] == 1
+    # Only Jrue Holiday is in the fixture rosters
+    assert row["named_entries"] - row["unmatched_players"] == 1

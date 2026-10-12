@@ -128,11 +128,13 @@ def _initial_key(normalized: str) -> str:
 
 
 class PlayerIndex:
-    # Player IDs by normalized name, scoped to a team-season first, then the whole season
+    # Player IDs by normalized name: team-season first, then the season, then any season
+    # (long-term injured players can miss a whole season's rosters and logs)
     def __init__(self, players: pd.DataFrame) -> None:
         self._team: dict[tuple[str, int, str], set[int]] = {}
         self._initial: dict[tuple[str, int, str], set[int]] = {}
         self._season: dict[tuple[str, str], set[int]] = {}
+        self._any: dict[str, set[int]] = {}
         for season, team_id, player_id, name in players.itertuples(index=False):
             norm = normalize_name(str(name))
             if not norm:
@@ -141,6 +143,7 @@ class PlayerIndex:
             self._team.setdefault((season, int(team_id), norm), set()).add(pid)
             self._initial.setdefault((season, int(team_id), _initial_key(norm)), set()).add(pid)
             self._season.setdefault((season, norm), set()).add(pid)
+            self._any.setdefault(norm, set()).add(pid)
 
     @classmethod
     def load(cls, con: duckdb.DuckDBPyConnection) -> "PlayerIndex":
@@ -160,6 +163,7 @@ class PlayerIndex:
             self._team.get((season, team_id, norm)),
             self._initial.get((season, team_id, _initial_key(norm))),
             self._season.get((season, norm)),
+            self._any.get(norm),
         ):
             if ids and len(ids) == 1:
                 return next(iter(ids))
