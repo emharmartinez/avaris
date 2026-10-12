@@ -11,13 +11,13 @@ import typer
 from avaris.config import DEFAULT_CONFIG_PATH, ModelsSettings, Settings, load_settings
 from avaris.db import connect
 from avaris.features.build import build_features, feature_hash, write_features
-from avaris.ingest.injuries import InjuryClient, ingest_injuries
+from avaris.ingest.injuries import ingest_injuries
 from avaris.ingest.runner import ingest_stats
-from avaris.ingest.stats_client import RawCache, StatsClient, Throttle
 from avaris.ingest.status import check_injuries, check_report, injury_report, season_report
 from avaris.models.dataset import with_targets
 from avaris.models.ladder import TARGETS
 from avaris.models.registry import Registry
+from avaris.pipeline.daily import make_injury_client, make_stats_client
 from avaris.seasons import (
     season_for_date,
     season_label,
@@ -91,12 +91,7 @@ def ingest_stats_command(
     seasons = season_range(
         from_season or settings.stats.first_season, to_season or season_for_date(today)
     )
-    client = StatsClient(
-        cache=RawCache(settings.paths.cache_dir),
-        throttle=Throttle(settings.stats.min_interval_s),
-        timeout_s=settings.stats.timeout_s,
-        max_attempts=settings.stats.max_attempts,
-    )
+    client = make_stats_client(settings)
     con = connect(settings.paths.db_path)
     try:
         ingest_stats(
@@ -130,12 +125,7 @@ def ingest_injuries_command(
     seasons = season_range(
         from_season or cfg.first_season, to_season or season_for_date(today_et())
     )
-    client = InjuryClient(
-        settings.paths.cache_dir,
-        Throttle(cfg.min_interval_s),
-        timeout_s=cfg.timeout_s,
-        max_attempts=cfg.max_attempts,
-    )
+    client = make_injury_client(settings)
     con = connect(settings.paths.db_path)
     try:
         summary = ingest_injuries(
