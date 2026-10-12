@@ -46,9 +46,10 @@ def compare_rungs(
     rows, preds = [], []
     for target in targets:
         for rung in RUNGS:
-            params = settings.target(target).params(rung)
-            p = walk_forward(data, target, rung, params, settings.seed, seasons, refit,
-                             oof_seasons=settings.oof_seasons)
+            cfg = settings.target(target)
+            p = walk_forward(data, target, rung, cfg.params(rung), settings.seed, seasons, refit,
+                             oof_seasons=settings.oof_seasons,
+                             isotonic=cfg.calibration == "isotonic")
             rows.extend(summarize(target, rung, p))
             preds.append(p.assign(target=target, rung=rung))
             progress(f"{target} {rung}: done")

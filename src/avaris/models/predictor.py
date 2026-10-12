@@ -54,6 +54,11 @@ def oof_predictions(
     # Season-wise forward chaining over the last oof_seasons seasons of data: fit on
     # earlier seasons, predict the season
     seasons = sorted(data.loc[data[target].notna(), "season"].unique())
+    if len(seasons) < 2:
+        raise ValueError(
+            f"calibration needs out-of-fold predictions: at least 2 labelled seasons, got "
+            f"{len(seasons)}"
+        )
     frames = []
     for season in seasons[1:][-oof_seasons:]:
         x_train, y_train = xy(data[data["season"] < season], target)
@@ -66,11 +71,11 @@ def oof_predictions(
     return pd.concat(frames, ignore_index=True)
 
 
-def calibrate(target: str, rung: str, oof: pd.DataFrame) -> Calibration:
+def calibrate(target: str, rung: str, oof: pd.DataFrame, isotonic: bool = True) -> Calibration:
     y, raw = oof["y"].to_numpy(), oof["raw"].to_numpy()
     cal = Calibration(oof_metrics=score(target, y, raw))
     if target == "home_win":
-        if rung != "elo":
+        if isotonic and rung != "elo":
             cal.calibrator = IsotonicCalibrator().fit(raw, y)
     else:
         cal.sigma = fit_sigma(y - raw, oof["season_type"])
@@ -79,10 +84,11 @@ def calibrate(target: str, rung: str, oof: pd.DataFrame) -> Calibration:
 
 def fit_predictor(
     data: pd.DataFrame, target: str, rung: str, params: dict[str, Any], seed: int,
-    oof_seasons: int,
+    oof_seasons: int, isotonic: bool = True,
 ) -> GamePredictor:
     # Calibration and sigma from out-of-fold predictions, then a refit on every row
-    cal = calibrate(target, rung, oof_predictions(data, target, rung, params, seed, oof_seasons))
+    oof = oof_predictions(data, target, rung, params, seed, oof_seasons)
+    cal = calibrate(target, rung, oof, isotonic)
     x, y = xy(data, target)
     model = make_rung(target, rung, params, seed).fit(x, y)
     return GamePredictor(target, rung, params, model, cal)

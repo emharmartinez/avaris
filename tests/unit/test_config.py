@@ -49,6 +49,7 @@ def test_model_settings_defaults_and_overrides(tmp_path: Path) -> None:
     s = load_settings(tmp_path / "missing.toml")
     assert s.models.home_win.rung == "elo"
     assert s.models.promote_tolerance == 0.02
+    assert s.models.home_win.calibration == "isotonic"
     assert s.models.models_dir == Path("artifacts/models")
     cfg = tmp_path / "config.toml"
     cfg.write_text(

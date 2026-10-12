@@ -84,3 +84,43 @@ def test_fit_predictor_predicts_unplayed_games_with_report_availability(
     out = predictor.predict(future, availability="report")
     assert len(out) == len(future)
     assert np.isfinite(out["pred"]).all() and (out["sigma"] > 0).all()
+
+
+def test_isotonic_calibration_can_be_turned_off(data: pd.DataFrame) -> None:
+    raw = walk_forward(data, "home_win", "linear", {}, 7, ["2021-22"], "season", calibrated=False)
+    off = walk_forward(data, "home_win", "linear", {}, 7, ["2021-22"], "season", oof_seasons=1,
+                       isotonic=False)
+    on = walk_forward(data, "home_win", "linear", {}, 7, ["2021-22"], "season", oof_seasons=1)
+    np.testing.assert_allclose(off["pred"], raw["pred"])
+    assert not np.allclose(on["pred"], raw["pred"])
+
+
+def test_calibration_fits_only_on_seasons_before_the_test_season(
+    data: pd.DataFrame, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from avaris.models import predictor
+
+    fits: list[int] = []
+    real = predictor.make_rung
+
+    def recording(*args: Any) -> Any:
+        model = real(*args)
+        fit = model.fit
+
+        def record(x: pd.DataFrame, y: np.ndarray) -> Any:
+            fits.append(len(x))
+            return fit(x, y)
+
+        model.fit = record  # type: ignore[method-assign]
+        return model
+
+    monkeypatch.setattr(predictor, "make_rung", recording)
+    walk_forward(data, "margin", "linear", {}, 7, ["2021-22"], "season", oof_seasons=1)
+    labelled = data[data["margin"].notna()]
+    # One OOF fit: trained on 2019-20, predicting 2020-21; nothing from 2021-22
+    assert fits == [int((labelled["season"] < "2020-21").sum())]
+
+
+def test_calibration_needs_two_labelled_seasons(data: pd.DataFrame) -> None:
+    with pytest.raises(ValueError, match="at least 2 labelled seasons"):
+        walk_forward(data, "margin", "elo", {}, 7, ["2020-21"], "season")

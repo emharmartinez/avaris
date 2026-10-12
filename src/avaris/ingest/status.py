@@ -125,7 +125,7 @@ covered as (
     -- A report fetched within the decision window (decision_time.py); a game can be absent
     -- from it when neither team lists a player
     select distinct g.game_id from g join injury_report_files f
-        on f.status = 'ok' and f.report_ts between g.tip_off_utc - $lead - $window
+        on f.status = 'ok' and f.report_ts between g.tip_off_utc - $window
             and g.tip_off_utc - $lead
 ),
 entries as (

@@ -2,7 +2,7 @@ import hashlib
 import math
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Literal
 
 import duckdb
@@ -28,7 +28,7 @@ NO_FANS_SEASON = "2020-21"
 POSTSEASON = frozenset({"playoffs", "play_in"})
 
 # Bump when feature semantics change: artifacts trained on another version are refused
-FEATURE_VERSION = 1
+FEATURE_VERSION = 2
 MODEL_FEATURES = [
     "home_court", "no_fans", "is_preseason", "is_postseason",
     "elo_diff", "elo_prob", "elo_margin",
@@ -114,15 +114,20 @@ class _Loop:
         return played
 
     @staticmethod
-    def _reports(con: duckdb.DuckDBPyConnection) -> dict[tuple[datetime, int], dict[int, str]]:
-        # (report_ts, team) -> player -> status
+    def _reports(
+        con: duckdb.DuckDBPyConnection,
+    ) -> dict[tuple[datetime, int, date], dict[int, str]]:
+        # (report_ts, team, game date) -> player -> status; a report also lists later days
         df = con.execute(
-            "select report_ts, team_id, player_id, status from injury_reports "
+            "select report_ts, team_id, game_date_et, player_id, status from injury_reports "
             "where player_id is not null"
         ).df()
-        reports: dict[tuple[datetime, int], dict[int, str]] = defaultdict(dict)
+        reports: dict[tuple[datetime, int, date], dict[int, str]] = defaultdict(dict)
         for r in _records(df):
-            key = (pd.Timestamp(r["report_ts"]).to_pydatetime(), int(r["team_id"]))
+            key = (
+                pd.Timestamp(r["report_ts"]).to_pydatetime(), int(r["team_id"]),
+                pd.Timestamp(r["game_date_et"]).date(),
+            )
             reports[key][int(r["player_id"])] = str(r["status"])
         return reports
 
@@ -160,7 +165,7 @@ class _Loop:
             self.elo.update(home, away, season, int(game["home_pts"]), int(game["away_pts"]), hca)
         self.league_total.add(float(game["home_pts"]) + float(game["away_pts"]))
         box = self.boxes.get(str(game["game_id"]), {})
-        if home in box and away in box:
+        if home in box and away in box and _usable(box[home]) and _usable(box[away]):
             league_rtg, league_pace = self.league_rtg.value, self.league_pace.value
             for team, opp in ((home, away), (away, home)):
                 ortg, drtg, pace = game_ratings(box[team], box[opp])
@@ -214,9 +219,10 @@ class _Loop:
                 "pace": row[f"{side}_pace"], "net_l10": row[f"{side}_net_l10"],
                 "gp": row[f"{side}_gp"],
             })
+            # Unknown in preseason and before the team's first game of the season
             full, lost_actual, lost_report = (
-                (math.nan,) * 3 if preseason
-                else self.availability(game_id, season, team, report_ts)
+                (math.nan,) * 3 if preseason or row[f"{side}_gp"] == 0
+                else self.availability(game, team, report_ts)
             )
             row[f"{side}_full_strength"] = full
             row[f"{side}_lost_actual"] = lost_actual
@@ -227,21 +233,24 @@ class _Loop:
         self.feature_rows.append(row)
 
     def availability(
-        self, game_id: str, season: str, team: int, report_ts: datetime | None
+        self, game: dict[str, Any], team: int, report_ts: datetime | None
     ) -> tuple[float, float, float]:
-        # Full strength = sum of rate x expected minutes over the team's player set.
-        # Actual: set members who did not play. Report: players listed at decision_ts
-        listed = self.reports.get((report_ts, team), {}) if report_ts else {}
+        # The player set: the team's members plus players listed on its decision report
+        # (a player hurt since before the season, at last season's rate). Full strength =
+        # sum of rate x expected minutes over the set. Actual: set players who did not
+        # play. Report: listed Out or Doubtful count 1, Questionable 0.5
+        game_id, season = str(game["game_id"]), str(game["season"])
+        day = pd.Timestamp(game["game_date_et"]).date()
+        listed = self.reports.get((report_ts, team, day), {}) if report_ts else {}
         members = self.players.members(team, season, listed=set(listed))
         played = self.played.get(game_id, {}).get(team)
         full = lost_actual = lost_report = 0.0
         for pid in sorted(members | set(listed)):
             rate, minutes = self.players.rate(pid, season)
             value = rate * minutes
-            absent_actual = None if played is None or pid not in members else pid not in played
+            absent_actual = None if played is None else pid not in played
             absent_report = REPORT_ABSENCE.get(listed.get(pid, ""), 0.0)
-            if pid in members:
-                full += value
+            full += value
             lost_actual += value * bool(absent_actual)
             lost_report += value * absent_report
             self.avail_rows.append({
@@ -250,6 +259,14 @@ class _Loop:
                 "report_status": listed.get(pid), "absent_report": absent_report,
             })
         return full, lost_actual if played is not None else math.nan, lost_report
+
+
+def _usable(box: dict[str, Any]) -> bool:
+    # A box row with a missing stat or no possessions would poison the running averages
+    values = [box[k] for k in ("pts", "fga", "fta", "oreb", "tov", "minutes")]
+    if any(pd.isna(v) for v in values):
+        return False
+    return box["fga"] + 0.44 * box["fta"] - box["oreb"] + box["tov"] > 0 and box["minutes"] > 0
 
 
 def _site(game: dict[str, Any]) -> tuple[int, int]:

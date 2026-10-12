@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import re
 from dataclasses import dataclass
@@ -115,6 +116,8 @@ def _failed_rules(
     meta: dict[str, Any], prod: dict[str, Any] | None, current_hash: str, tolerance: float
 ) -> list[str]:
     reasons = []
+    if not math.isfinite(meta["oof_metric"]) or meta["n_rows"] <= 0:
+        reasons.append(f"oof_metric {meta['oof_metric']} or n_rows {meta['n_rows']} unusable")
     if meta["feature_hash"] != current_hash:
         reasons.append(f"feature_hash {meta['feature_hash']} != current {current_hash}")
     if prod is None:

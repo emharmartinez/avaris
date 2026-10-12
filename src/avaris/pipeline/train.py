@@ -64,10 +64,11 @@ def train(
         cfg = settings.target(target)
         params = cfg.params()
         predictor = fit_predictor(rows, target, cfg.rung, params, settings.seed,
-                                  settings.oof_seasons)
+                                  settings.oof_seasons, cfg.calibration == "isotonic")
         labelled = rows[rows[target].notna()]
         meta = {
             "run_id": run_id, "target": target, "rung": cfg.rung, "params": params,
+            "calibration": cfg.calibration if target == "home_win" else None,
             "feature_hash": feature_hash(), "feature_version": FEATURE_VERSION,
             "features": MODEL_FEATURES, "availability": "actual",
             "n_rows": len(labelled), "through": through.isoformat(),

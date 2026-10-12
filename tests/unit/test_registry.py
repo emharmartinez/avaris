@@ -197,3 +197,10 @@ def test_run_ids_that_leave_models_dir_are_refused(reg: Registry, run_id: str) -
 def test_unknown_target_is_refused(reg: Registry) -> None:
     with pytest.raises(ValueError):
         reg.read_meta("../x", "r1")
+
+
+def test_non_finite_oof_metric_is_held(reg: Registry) -> None:
+    write_artifact(reg.models_dir, "r2", feature_hash=HASH, n_rows=200, oof_metric=float("nan"))
+    decision = reg.register("home_win", "r2", HASH, TOL)
+    assert not decision.promoted
+    assert any("unusable" in r for r in decision.reasons)

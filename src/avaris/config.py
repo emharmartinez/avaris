@@ -33,6 +33,7 @@ class InjurySettings(BaseModel):
 class TargetModelSettings(BaseModel):
     # The kept rung and frozen hyperparameters per rung (tuned on 2015-16 to 2019-20)
     rung: Literal["elo", "linear", "lgbm"] = "elo"
+    calibration: Literal["isotonic", "none"] = "isotonic"  # home_win only
     linear: dict[str, Any] = {}
     lgbm: dict[str, Any] = {}
 

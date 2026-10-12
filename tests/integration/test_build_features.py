@@ -182,6 +182,10 @@ def test_deleting_preseason_leaves_other_games_unchanged(
 
 def test_actual_vs_report_availability(built: FeatureSet) -> None:
     f = built.features
+    # Unknown before a team's first game of the season
+    first = f[(f["season_type"] == "regular") & (f["home_gp"] == 0)]
+    assert len(first) > 0 and first["home_full_strength"].isna().all()
+    f = f[f["home_gp"] > 0]
     reg = f[(f["season"] == "2021-22") & (f["season_type"] == "regular")]
     played = reg.dropna(subset=["home_lost_actual"])
     assert (played["home_lost_actual"] >= 0).all()
@@ -215,3 +219,61 @@ def test_write_features_replaces_tables(built: FeatureSet, synthetic_db: Path) -
         "select (select count(*) from features), (select count(*) from team_ratings)"
     ).fetchone()
     assert counts == (len(built.features), len(built.team_ratings))
+
+
+def test_report_entries_come_from_the_games_own_date(
+    built: FeatureSet, synthetic_db: Path
+) -> None:
+    # Reports also list the next day's games; those entries must not leak into today's
+    con = duckdb.connect(str(synthetic_db))
+    entries = con.execute(
+        "select report_ts, team_id, game_date_et, player_id, status from injury_reports"
+    ).df()
+    con.close()
+    avail = built.availability.merge(
+        built.features[["game_id", "report_ts", "game_date_et"]], on="game_id"
+    )
+    listed = avail[avail["report_status"].notna()]
+    assert len(listed) > 0
+    merged = listed.merge(
+        entries, on=["report_ts", "team_id", "game_date_et", "player_id"], how="left"
+    )
+    assert (merged["status"] == merged["report_status"]).all()
+
+
+def test_listed_player_without_games_this_season_joins_the_set(built: FeatureSet) -> None:
+    # BOS's star is hurt from 2021-22 round 4: once out of the set (10 misses) he is
+    # still counted while listed, in full strength and in both lost columns
+    from tests.fixtures.synthetic import INJURED_STAR
+
+    avail = built.availability.merge(built.features[["game_id", "season"]])
+    star = avail[(avail["player_id"] == INJURED_STAR) & (avail["season"] == "2021-22")]
+    listed = star[star["report_status"] == "out"]
+    assert len(listed) >= 10
+    assert (listed["absent_report"] == 1).all()
+    assert listed["absent_actual"].dropna().astype(bool).all()
+
+
+@pytest.mark.parametrize(("offset", "included"), [
+    (timedelta(minutes=-1), True), (timedelta(0), True), (timedelta(minutes=1), False),
+])
+def test_result_counts_from_tip_off_plus_3_hours(
+    synthetic_db: Path, offset: timedelta, included: bool
+) -> None:
+    # Move another game's tip so its result lands just before, at or just after this
+    # game's decision_ts; only the first two may feed the league average
+    target, other = "0022000041", "0022000042"  # same 2020-21 day, different teams
+    con = duckdb.connect(str(synthetic_db))
+    tip = con.execute("select tip_off_utc from games where game_id = ?", [target]).fetchone()
+    assert tip is not None
+    decision = tip[0] - timedelta(minutes=60)
+    con.execute("update games set tip_off_utc = ? where game_id = ?",
+                [decision - RESULT_LAG + offset, other])
+    con.close()
+    with_result = row(build(synthetic_db), target)["league_total"]
+    con = duckdb.connect(str(synthetic_db))
+    con.execute("update games set home_pts = null, away_pts = null, status = 'scheduled' "
+                "where game_id = ?", [other])
+    con.close()
+    without = row(build(synthetic_db), target)["league_total"]
+    assert (with_result != without) == included

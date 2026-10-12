@@ -29,6 +29,7 @@ def walk_forward(
     refit: Refit,
     calibrated: bool = True,
     oof_seasons: int = 3,
+    isotonic: bool = True,
 ) -> pd.DataFrame:
     # Train on every game before the block, predict the block. Calibration and sigma are
     # refitted once per test season from out-of-fold predictions on earlier seasons
@@ -40,8 +41,8 @@ def walk_forward(
         cal = Calibration()
         if calibrated:
             before = data[data["season"] < season]
-            cal = calibrate(target, rung, oof_predictions(before, target, rung, params, seed,
-                                                          oof_seasons))
+            oof = oof_predictions(before, target, rung, params, seed, oof_seasons)
+            cal = calibrate(target, rung, oof, isotonic)
         for block in _blocks(test, refit):
             start = block["game_date_et"].min()
             x_train, y_train = xy(data[data["game_date_et"] < start], target)

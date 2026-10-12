@@ -168,7 +168,8 @@ def _write_reports(
     lineups: dict[int, list[Player]],
 ) -> None:
     # 2021-22 only: an early report, the decision report (tip - 90 min) and a report after
-    # the decision cutoff (tip - 30 min) that adds a late scratch
+    # the decision cutoff (tip - 30 min) that adds a late scratch. Like real reports, each
+    # also lists the next day: there the team's first player is out
     season = str(game["season"])
     if season != LAST_SEASON or game["season_type"] == "preseason":
         return
@@ -198,6 +199,14 @@ def _write_reports(
                     "team_id": team, "player_name": f"Player, {p.player_id}",
                     "player_id": p.player_id, "status": status, "reason": "Injury",
                 })
+            first = roster[0]
+            league.reports.append({
+                "report_ts": report_ts,
+                "game_date_et": game["game_date_et"] + timedelta(days=1),  # type: ignore[operator]
+                "matchup": "next day", "game_id": None, "team_id": team,
+                "player_name": f"Player, {first.player_id}", "player_id": first.player_id,
+                "status": "out", "reason": "Rest",
+            })
         league.report_files.append({
             "slot_ts": report_ts, "report_ts": report_ts, "url": f"synthetic/{report_ts}",
             "status": "ok", "n_entries": entries, "fetched_at": report_ts, "message": None,
