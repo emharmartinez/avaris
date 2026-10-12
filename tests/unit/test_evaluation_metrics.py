@@ -59,9 +59,8 @@ def test_bootstrap_point_estimates_and_intervals() -> None:
     row = table[(table["model"] == "model") & (table["metric"] == "mae")].iloc[0]
     assert row["value"] == pytest.approx(np.mean(np.abs(preds["model"]["pred"] - y)))
     assert row["lo"] < row["value"] < row["hi"]
-    assert row["diff"] == pytest.approx(
-        row["value"] - table[(table["model"] == "elo") & (table["metric"] == "mae")]["value"].iloc[0]
-    )
+    elo = table[(table["model"] == "elo") & (table["metric"] == "mae")].iloc[0]
+    assert row["diff"] == pytest.approx(row["value"] - elo["value"])
     assert row["diff_hi"] < 0  # clearly better than the reference
     assert set(table["metric"]) == {"mae", "rmse", "coverage_80"}
     ref = table[table["model"] == "elo"]
