@@ -2,9 +2,16 @@
 
 One entry per binding decision. Newest first. Status is `accepted`, `superseded` or `proposed`.
 
-## ADR-013: Odds stored per game and snapshot in decimal; the API key never leaves the request
+## ADR-014: Avaris is an analytics model; The Odds API is dropped
 
 - **Date:** 2026-10-12 · **Status:** accepted
+- **Decision:** Avaris predicts every non-preseason game's home win probability, margin and total (N(μ, σ), 80% interval) and shows drivers, team ratings and injury impact. No odds, market blend, bets, staking or spend tracking. The odds client, `CreditGuard`, slot planner, backfill and de-vig code are deleted; migration 4 drops `odds_events`, `odds_snapshots` and `api_usage`. No scheduler: `avaris daily` is idempotent and runs on `serve` startup and from the UI Refresh button. `settle` becomes `score`.
+- **Why:** user decision. The historical odds backfill was paid-only and the goal is now accurate, calibrated predictions, not beating the market.
+- **Consequences:** evaluation uses log loss, Brier, MAE, RMSE, calibration and interval coverage against Elo and two naive baselines, not CLV. Nothing shows absolute quality against the market; a free historical-lines benchmark is a follow-up. Supersedes ADR-005, 006, 008, 011 and 013.
+
+## ADR-013: Odds stored per game and snapshot in decimal; the API key never leaves the request
+
+- **Date:** 2026-10-12 · **Status:** superseded by ADR-014
 - **Decision:** request `oddsFormat=decimal`. `odds_snapshots` holds every pregame outcome of the day's matched games per fetched snapshot, keyed by game, snapshot time, book, market and side, with `kind` = close (actual snapshot in [tip − 45, tip)), else decision, else open, else other. Events match games by both teams (either way round) and `commence_time` within 2 hours; moneyline and spread sides follow the stored game's home team. The key is passed only as the `apiKey` query parameter: cache paths are built from request fields, the ledger drops it, errors are scrubbed and raised `from None`, and httpx request logging is silenced.
 - **Why:** de-vig works on decimal prices; neutral-site events can list the other team as home; the key must not leak into files or logs.
 - **Consequences:** the American price for display is converted in the betting layer. Test fixtures are hand-built in the documented shape until the first paid run records real responses.
@@ -18,7 +25,7 @@ One entry per binding decision. Newest first. Status is `accepted`, `superseded`
 
 ## ADR-011: Snapshot slots are tip-time bands, shared by the backfill and live
 
-- **Date:** 2026-10-12 · **Status:** accepted
+- **Date:** 2026-10-12 · **Status:** superseded by ADR-014
 - **Decision:** `ingest/odds_slots.py` plans each game day as 1 opening snapshot (09:00 ET), 1 decision snapshot per tip-time band (matinee before 17:00 ET, early before 21:30, late) at the band's earliest `decision_ts`, and closing snapshots placed 2 min before a tip and covering tips within 35 min (45 min less the 10-minute historical snapshot gap). The backfill covers every game; live caps closing slots at `live_max_close_slots`.
 - **Why:** a snapshot after a game's `decision_ts` would leak; fixed clock slots miss matinee games entirely. The backfill must make the same decisions as live.
 - **Consequences:** matinee days cost one extra decision snapshot. A typical day is 1 open + 2 decision + 3-4 close snapshots, about 30-36k credits per season as planned.
@@ -39,7 +46,7 @@ One entry per binding decision. Newest first. Status is `accepted`, `superseded`
 
 ## ADR-008: Paper-trading gate before real stakes
 
-- **Date:** 2026-10-12 · **Status:** accepted
+- **Date:** 2026-10-12 · **Status:** superseded by ADR-014
 - **Decision:** the first 4 weeks of 2026-27 are paper bets. Real stakes start only if live CLV is positive and ROI sits inside the backtest's bootstrap interval.
 - **Why:** one holdout season is thin evidence of edge.
 - **Consequences:** `bets` carries a paper/real flag; Performance shows both.
@@ -52,38 +59,38 @@ One entry per binding decision. Newest first. Status is `accepted`, `superseded`
 
 ## ADR-006: Closing lines are captured live by a scheduler inside `avaris serve`
 
-- **Date:** 2026-10-12 · **Status:** accepted
+- **Date:** 2026-10-12 · **Status:** superseded by ADR-014
 - **Decision:** APScheduler in the server process runs a morning pass (no odds call), 2 decision slots and 3 closing slots per game day. No live opening snapshot on the free tier. Guard refusal order: opening, closing, decision. A refused closing snapshot marks CLV unavailable.
 - **Why:** historical odds are paid-only. After the downgrade the closing line exists only if a snapshot was taken near tip-off. 5 calls × 3 credits × 28 game days ≈ 420 of 500 free credits.
 - **Consequences:** the server must run on game days. Usage page shows next and missed runs.
 
 ## ADR-005: Spread and total edges are per book at the book's line
 
-- **Date:** 2026-10-12 · **Status:** accepted
+- **Date:** 2026-10-12 · **Status:** superseded by ADR-014
 - **Decision:** no cross-book median price for spreads or totals. Each book's de-vigged price is a fair probability at its own line; model P(cover) is evaluated at that line; bet goes to the largest edge. Moneyline keeps the cross-book median. `w` is per target. `spread` is the home line, negative when home is favored.
 - **Why:** books post different lines, so a median price across them is meaningless.
 
-## ADR-004: Regular season only for betting; `season_type` and `neutral_site` on `games`
+## ADR-004: `season_type` and `neutral_site` on `games`; preseason dropped
 
 - **Date:** 2026-10-12 · **Status:** accepted
-- **Decision:** preseason is dropped at ingest. Training uses regular season, play-in and playoffs with `season_type` as a feature. Betting simulation and live bets cover regular season only in v1. Neutral-site games get `home_court = 0` and venue-based travel.
-- **Why:** the Odds API lists preseason events; playoffs have different home court and rest effects and a small sample; the 2019-20 bubble sits inside the tuning window.
+- **Decision:** preseason is dropped at ingest. Training uses regular season, play-in and playoffs with `season_type` as a feature. Predictions cover every non-preseason game, play-in and playoffs included; headline metrics use the regular season and play-in and playoffs are reported separately (amended by ADR-014; was: betting on the regular season only). Neutral-site games get `home_court = 0` and venue-based travel.
+- **Why:** preseason rosters are not representative; playoffs have different home court and rest effects and a small sample; the 2019-20 bubble sits inside the tuning window.
 
-## ADR-003: One `decision_ts` per game freezes odds, injuries and features
+## ADR-003: One `decision_ts` per game freezes injuries and features
 
 - **Date:** 2026-10-12 · **Status:** accepted
-- **Decision:** `decision_ts` = latest injury report at or before tip-off − 60 min, else tip-off − 60 min. Pick odds are the last snapshot at or before `decision_ts`; closing line is the last snapshot within 45 min before tip-off. Same rule in backtests and live. Leakage test runs at timestamp granularity.
-- **Why:** without one instant, backtests use post-hoc availability while live picks are made before the injury report lands, and the backtest ROI is not believable.
-- **Consequences:** `daily` runs in passes (morning provisional, decision final). Timestamps are UTC; `game_date` is the ET date of tip-off.
+- **Decision:** `decision_ts` = latest injury report at or before tip-off − 60 min, else tip-off − 60 min. Same rule in backtests and live. Leakage test runs at timestamp granularity.
+- **Why:** without one instant, backtests use post-hoc availability while live picks are made before the injury report lands, and the backtest metrics are not believable. Amended by ADR-014: no odds are frozen at it.
+- **Consequences:** `daily` writes a provisional prediction before `decision_ts` and a final one after it; only final predictions are scored. Timestamps are UTC; `game_date` is the ET date of tip-off.
 
 ## ADR-002: Tuning on 2015-16 to 2019-20 only, frozen for 2020-21+, 2025-26 holdout used once
 
 - **Date:** 2026-10-11 · **Status:** accepted
-- **Decision:** Optuna and rung selection use walk-forward over 2015-16 to 2019-20 with one refit per season per trial. Hyperparameters and kept rung are frozen afterwards. `w` and thresholds are fitted walk-forward per season from 2020-21 (warm-up season). Production model retrains weekly with frozen hyperparameters and a registry with promotion rules.
-- **Why:** no tuning on scored seasons; evaluation is against the de-vigged close.
+- **Decision:** Optuna and rung selection use walk-forward over 2015-16 to 2019-20 with one refit per season per trial. Hyperparameters and kept rung are frozen afterwards. Production model retrains weekly with frozen hyperparameters and a registry with promotion rules.
+- **Why:** no tuning on scored seasons. Amended by ADR-014: the blend `w` and edge thresholds no longer exist.
 
 ## ADR-001: Stack and shape
 
 - **Date:** 2026-10-11 · **Status:** accepted
-- **Decision:** personal, single-user, local-only. Python 3.12 + uv, DuckDB, scikit-learn + LightGBM, FastAPI serving a statically exported Next.js + shadcn/ui PWA. nba_api for stats, The Odds API for odds behind `CreditGuard`, official NBA injury reports. Market odds are never a model feature; they enter only through the betting-layer blend.
-- **Why:** see `docs/plans/avaris-nba-betting-model-build-plan.md`.
+- **Decision:** personal, single-user, local-only. Python 3.12 + uv, DuckDB, scikit-learn + LightGBM, FastAPI serving a statically exported Next.js + shadcn/ui PWA. stats.nba.com for stats (ADR-009), official NBA injury reports. Amended by ADR-014: no odds source.
+- **Why:** see `docs/plans/avaris-nba-analytics-model-build-plan.md`.

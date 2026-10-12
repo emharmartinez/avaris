@@ -132,7 +132,7 @@ DuckDB tables: `games` (incl. `tip_off_utc`, `game_date_et`, `season_type`, `neu
 - Team ID mapping and arena CSV, plus a neutral-site venue list (bubble, international games, NBA Cup final).
 - **Done when:** the gates pass, `avaris ingest stats` has filled `games`, `team_games`, `player_games` and `rosters`, row counts match about 1,230 games per regular season, every game has a `season_type`, every game from 2020-21 on has a tip-off time, and the 2019-20 bubble games are tagged neutral.
 
-### Phase 2 — Injuries + odds removal
+### Phase 2 — Injuries + odds removal (done, PR #5)
 - **Already built** on branch `phase-2-odds-injuries`: injury report ingest mapped to player IDs, with `report_ts` so `decision_ts` can pick the right report; `decision_ts` resolution; the injury coverage check. Its done-when passes on real data (2021-22 to 2025-26).
 - **Remove the odds and betting code built before the pivot:**
   - Delete `ingest/odds_api.py`, `ingest/odds_slots.py`, `ingest/odds_backfill.py`, `ingest/odds_status.py`, `betting/`, and their tests (`test_odds_*`, `test_credit_guard.py`, `test_devig.py`, `tests/odds_payloads.py`, `tests/integration/test_odds_backfill.py`, `tests/e2e/test_cli_odds.py`).
@@ -146,7 +146,7 @@ DuckDB tables: `games` (incl. `tip_off_utc`, `game_date_et`, `season_type`, `neu
 - Close issue #3 (Odds API fixtures) once the odds code is gone.
 - **Done when:**
   - The injury done-when still passes: `avaris ingest status --check` shows every regular-season game from 2021-22 on with a report between tip-off − 12 h and tip-off − 60, and unmatched player rows below 5%.
-  - `grep -ri "odds\|devig\|CreditGuard" src tests` finds only migrations 2 and 3 in `db.py` and migration 4, and the real DB has no odds tables after migration 4.
+  - `grep -ri "odds\|devig\|CreditGuard" src tests` finds only migrations 2, 3 and 4 in `db.py` and the migration 4 test in `test_db.py`, and the real DB has no odds tables after migration 4.
   - The gates pass.
 
 ### Phase 3 — Features + models
