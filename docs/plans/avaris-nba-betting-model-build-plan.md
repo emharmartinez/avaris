@@ -16,7 +16,7 @@ The goal is to make money against the market. Betting lines are very efficient, 
 | Layer | Choice |
 |---|---|
 | Python env | Python 3.12 + **uv**; ruff, pyright, pytest |
-| Stats data | **nba_api**: one `LeagueGameLog` call per season covers every team-game and player-game line; `CommonTeamRoster` for rosters. `LeagueGameLog` has no tip-off time, so the NBA schedule endpoint (`ScoreboardV2` / `scheduleLeagueV2`) supplies tip-off time, `season_type` and today's slate |
+| Stats data | **stats.nba.com via a thin httpx client** (ADR-009; replaces `nba_api`): `leaguegamelog` per season and season type covers every team-game and player-game line; `commonteamroster` for rosters; `scheduleleaguev2` per season supplies tip-off time, `season_type`, venue and today's slate |
 | Odds data | **The Odds API** (httpx + tenacity): h2h/spreads/totals; historical from Jun 2020 (10-minute snapshots), 5-minute snapshots from Sep 2022. Events carry `commence_time` (UTC), used as the tip-off fallback for 2020-21+ |
 | Injuries | Official NBA pregame injury reports via `nba-injury-report` (2021-22+; AGPL, fine for personal use). **Verify in Phase 2** that the package exists and 2021-22 PDFs are still served before building on it |
 | Storage | **DuckDB** file + raw JSON/Parquet response cache; pandas |

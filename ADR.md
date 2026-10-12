@@ -2,6 +2,20 @@
 
 One entry per binding decision. Newest first. Status is `accepted`, `superseded` or `proposed`.
 
+## ADR-010: Neutral site = schedule flag or a venue that is not the home team's arena
+
+- **Date:** 2026-10-12 · **Status:** accepted
+- **Decision:** `neutral_site` is true when the schedule's `isNeutral` is set or the venue is not one of the home team's arenas in `src/avaris/data/arenas.csv`. Alternate home arenas (Spurs in Austin and the Alamodome, Bucks at Panther Arena, Raptors in Tampa 2020-21) are listed as home arenas. `neutral_venues.csv` holds coordinates for the bubble, international and Cup venues.
+- **Why:** `isNeutral` is only populated from 2024-25; the 2019-20 bubble and older London, Mexico City and Paris games carry no flag.
+- **Consequences:** `avaris ingest status` fails if a non-preseason game is played at a venue missing from both CSVs.
+
+## ADR-009: Thin httpx client for stats.nba.com instead of `nba_api`
+
+- **Date:** 2026-10-12 · **Status:** accepted
+- **Decision:** call `scheduleleaguev2`, `leaguegamelog` and `commonteamroster` directly with httpx, a full browser header set, a ~1 req/s throttle, tenacity retries and a gzip raw cache (`data/cache/final/` immutable for finished seasons, `live/` for the in-progress season, never read back).
+- **Why:** stats.nba.com hangs without the full header set; httpx calls can be mocked with respx (the planned test stack), while `nba_api` uses requests; the raw cache needs the response JSON anyway.
+- **Consequences:** endpoint parameters live in `ingest/endpoints.py`. Header changes on NBA's side are fixed in one place.
+
 ## ADR-008: Paper-trading gate before real stakes
 
 - **Date:** 2026-10-12 · **Status:** accepted

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-- **Greenfield.** No code exists yet. The source of truth is `docs/plans/avaris-nba-betting-model-build-plan.md`: it holds the stack, design, layout and six phases, each with a "Done when". Read it before starting a phase.
+- **In progress:** see `STATUS.md` for the current phase. The source of truth is `docs/plans/avaris-nba-betting-model-build-plan.md`: it holds the stack, design, layout and six phases, each with a "Done when". Read it before starting a phase.
 - Avaris is a personal, single-user, local-only NBA betting model for moneyline, spread and total. Do not add accounts, auth, hosting, multi-tenancy or billing code.
 
 ## Commands
@@ -33,7 +33,7 @@ All gates must be green at the end of every phase.
 ## Architecture
 
 - **Data flow:**
-  1. Ingest: `nba_api` stats, The Odds API odds and NBA injury reports go into a raw response cache and DuckDB.
+  1. Ingest: stats.nba.com stats (thin httpx client, ADR-009), The Odds API odds and NBA injury reports go into a raw response cache and DuckDB.
   2. Point-in-time features.
   3. Models for `home_win`, `margin` and `total`.
   4. Betting layer: de-vig, model/market blend, edge, staking.
@@ -65,7 +65,8 @@ All gates must be green at the end of every phase.
 ## Environment constraints
 
 - The sandbox blocks reading `.env.local` (Odds API key). Odds API commands and paid backfills are **user-run**: suggest `! uv run avaris odds ... --confirm`.
-- If the sandbox proxy blocks stats.nba.com, stats ingest is user-run too. Keep it throttled to about 1 request/sec.
+- stats.nba.com works from the sandbox with `allowed_domains: ["stats.nba.com"]`; it hangs unless the full browser header set in `ingest/stats_client.py` is sent. Keep it throttled to about 1 request/sec. If it gets blocked, stats ingest becomes user-run.
+- uv cannot write `~/.cache/uv` in the sandbox: prefix uv commands with `UV_CACHE_DIR=$TMPDIR/uv-cache`.
 - Installing Playwright's Chromium deps may need sudo: `! npx playwright install --with-deps chromium`.
 
 ## Task Tracking

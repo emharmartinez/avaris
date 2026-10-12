@@ -2,7 +2,18 @@
 
 ## Unreleased
 
+### Added
+- **Phase 1, foundation + stats data**
+  - uv project (Python 3.12) with ruff, pyright, pytest (`e2e` marker), `config.toml` with env overrides
+  - DuckDB schema with versioned migrations: `games`, `team_games`, `player_games`, `rosters`
+  - stats.nba.com client: browser headers, ~1 req/s throttle, retries, gzip raw cache
+  - `avaris ingest stats`: schedule (tip-off UTC, ET game date, `season_type`, venue, neutral site), team and player game logs, rosters for 2012-13 to the current season
+  - `avaris ingest status [--check]`: per-season counts and Phase 1 data checks
+  - `teams.csv`, `arenas.csv` and `neutral_venues.csv` reference data
+  - Unit, integration and CLI e2e tests on trimmed recorded responses
+
 ### Changed
+- **Plan / CLAUDE.md:** stats come from a thin httpx client instead of `nba_api` (ADR-009); neutral-site rule (ADR-010); sandbox notes for stats.nba.com and `UV_CACHE_DIR`
 - **Plan:** closed gaps in `docs/plans/avaris-nba-betting-model-build-plan.md` and added a Risks and mitigation table
   - One `decision_ts` per game freezes odds, injuries and features; leakage test at timestamp granularity
   - `tip_off_utc`, `game_date_et` (ET), `season_type` and `neutral_site` on `games`; preseason dropped; betting regular season only; bubble and neutral-site handling
