@@ -39,7 +39,10 @@ All gates must be green at the end of every phase.
   4. Betting layer: de-vig, model/market blend, edge, staking.
   5. Picks and bets are served by the FastAPI server and shown in the PWA.
 - **Evaluation is against the de-vigged closing line**, not raw accuracy. Walk-forward only. The **2025-26 season is a holdout used once**; never tune on it.
-- **Features must be as of tip-off.** The leakage test must hold: deleting rows after date D cannot change features for games on D.
+- **Features must be as of `decision_ts`** (one instant per game, default the latest injury report at or before tip-off minus 60 min). Odds, injuries and features are all frozen at it, in backtests and live. The leakage test must hold at timestamp granularity: deleting rows with `ts > decision_ts` cannot change that game's features.
+- **Regular season only for betting.** `season_type` and `neutral_site` live on `games`; preseason is dropped at ingest. `game_date` is the ET date of tip-off; timestamps are stored in UTC.
+- **Spread and total edges are per book, at that book's line.** Never take a cross-book median price for spreads or totals.
+- **Closing lines are captured live.** The scheduler inside `avaris serve` takes decision-time and closing snapshots through `CreditGuard`. If a snapshot is refused, CLV is marked unavailable rather than failing.
 - **Tuning uses 2015-16 to 2019-20 only.** Hyperparameters and the kept rung are frozen for 2020-21+. Blend `w` and edge thresholds are fitted walk-forward per season.
 - **Market odds are never a model feature.** They enter only through the betting-layer blend `p = w·model + (1−w)·market`.
 - **Single DuckDB writer.**
@@ -82,7 +85,7 @@ All gates must be green at the end of every phase.
 
 ## Project Status
 
-- Fill out change logs CHANGELOG.md, README and STATUS.md proactively
+- Fill out change logs CHANGELOG.md, README, ADR(Architecture Decision Records).md and STATUS.md proactively
 
 ## Subagents
 

@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Changed
+- **Plan:** closed gaps in `docs/plans/plan-for-this-first-snug-fox.md` and added a Risks and mitigation table
+  - One `decision_ts` per game freezes odds, injuries and features; leakage test at timestamp granularity
+  - `tip_off_utc`, `game_date_et` (ET), `season_type` and `neutral_site` on `games`; preseason dropped; betting regular season only; bubble and neutral-site handling
+  - Spread and total edges per book at the book's line; `w` per target; same-game correlation cap
+  - APScheduler inside `avaris serve` for morning, decision and closing snapshots; free-tier budget math and guard defaults
+  - Jobs table, job lock and status endpoint; `refetch_days` for in-progress season stats
+  - Optuna trials with one refit per season; Phase 2 smoke tests for injury PDFs and Odds API pricing; 4-week paper-trading gate
+- **CLAUDE.md:** `decision_ts`, regular-season-only, per-book spread/total and live closing-line rules
 - **Plan:** added production training to `docs/plans/plan-for-this-first-snug-fox.md`
   - `avaris train --through DATE`, artifact `meta.json`, and `registry.json` with promotion rules and a feature-hash check
   - Weekly retrain triggered by `avaris daily`, plus `POST /api/jobs/train`
