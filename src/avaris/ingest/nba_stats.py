@@ -53,6 +53,9 @@ def _common(raw: pd.DataFrame, season: str) -> pd.DataFrame:
 
 def parse_team_log(payload: dict[str, Any], season: str) -> pd.DataFrame:
     raw = result_frame(payload)
+    if not raw.empty:
+        # Cancelled games (BOS-IND, Apr 2013) are listed with no result and 0 minutes
+        raw = raw[raw["WL"].notna()].reset_index(drop=True)
     if raw.empty:
         return pd.DataFrame(columns=TEAM_GAME_COLUMNS)
     df = _common(raw, season)

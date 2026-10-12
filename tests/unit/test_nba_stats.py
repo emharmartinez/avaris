@@ -66,3 +66,19 @@ def test_roster_uses_requested_team() -> None:
     assert (roster["team_id"] == 1610612759).all()
     assert (roster["season"] == "2025-26").all()
     assert {"player_id", "player_name", "position", "how_acquired"} <= set(roster.columns)
+
+
+def test_unplayed_games_are_dropped_from_team_log() -> None:
+    # The cancelled 2013 BOS-IND game is listed with 0 minutes and no W/L
+    payload = load_stats_fixture("leaguegamelog", "2019-20_Regular-Season_T")
+    result = payload["resultSets"][0]
+    headers = result["headers"]
+    for template in result["rowSet"][:2]:
+        row = list(template)
+        row[headers.index("GAME_ID")] = "0021901999"
+        row[headers.index("WL")] = None
+        row[headers.index("MIN")] = 0
+        result["rowSet"].append(row)
+    log = parse_team_log(payload, "2019-20")
+    assert "0021901999" not in set(log["game_id"])
+    assert len(log) == len(result["rowSet"]) - 2
