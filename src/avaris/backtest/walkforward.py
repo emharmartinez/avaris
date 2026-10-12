@@ -3,6 +3,7 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 
+from avaris.analytics.drivers import explain
 from avaris.features.build import AvailabilityMode
 from avaris.models.dataset import xy
 from avaris.models.ladder import make_rung
@@ -32,10 +33,12 @@ def walk_forward(
     oof_seasons: int = 3,
     isotonic: bool = True,
     availability: AvailabilityMode = "actual",
+    drivers: bool = False,
 ) -> pd.DataFrame:
     # Train on every game before the block, predict the block. Calibration and sigma are
     # refitted once per test season from out-of-fold predictions on earlier seasons.
-    # `availability` applies to the test block only: training always sees who played
+    # `availability` applies to the test block only: training always sees who played.
+    # `drivers` adds each prediction's base, raw output and contribution per feature family
     rows = []
     for season in test_seasons:
         test = data[(data["season"] == season) & data[target].notna()]
@@ -50,14 +53,20 @@ def walk_forward(
             start = block["game_date_et"].min()
             x_train, y_train = xy(data[data["game_date_et"] < start], target, rung)
             x_test, y_test = xy(block, target, rung, availability)
-            raw = make_rung(target, rung, params, seed).fit(x_train, y_train).predict(x_test)
+            model = make_rung(target, rung, params, seed).fit(x_train, y_train)
+            raw = model.predict(x_test)
             out = finish(target, raw, block["season_type"], cal)
-            rows.append(pd.DataFrame({
+            frame = pd.DataFrame({
                 "game_id": block["game_id"].to_numpy(), "season": season,
                 "season_type": block["season_type"].to_numpy(),
                 "game_date_et": block["game_date_et"].to_numpy(), "y": y_test,
                 "pred": out["pred"].to_numpy(), "sigma": out["sigma"].to_numpy(dtype=float),
-            }))
+            })
+            if drivers:
+                d = explain(model, target, x_test)
+                families = d.families().add_prefix("drv_").reset_index(drop=True)
+                frame = pd.concat([frame.assign(base=d.base, raw=d.output), families], axis=1)
+            rows.append(frame)
     return pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
 
 

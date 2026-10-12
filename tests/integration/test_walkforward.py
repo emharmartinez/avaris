@@ -166,3 +166,19 @@ def test_baselines_read_season_to_date_inputs(data: pd.DataFrame) -> None:
                         calibrated=False)
     assert preds["pred"].nunique() > 1
     assert home["pred"].nunique() == 1
+
+
+@pytest.mark.parametrize("target", TARGETS)
+def test_walk_forward_drivers_sum_to_the_raw_output(data: pd.DataFrame, target: str) -> None:
+    from avaris.analytics.drivers import FAMILY_FEATURES
+
+    preds = walk_forward(data, target, "lgbm", LGBM, 7, ["2021-22"], "weekly", oof_seasons=1,
+                         isotonic=False, drivers=True)
+    families = [f"drv_{f}" for f in FAMILY_FEATURES]
+    assert set(families) <= set(preds.columns)
+    gap = preds["base"] + preds[families].sum(axis=1) - preds["raw"]
+    assert gap.abs().max() < 1e-6
+    without = walk_forward(data, target, "lgbm", LGBM, 7, ["2021-22"], "weekly", oof_seasons=1,
+                           isotonic=False)
+    assert "base" not in without.columns
+    np.testing.assert_allclose(preds["pred"], without["pred"])
