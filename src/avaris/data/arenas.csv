@@ -1,0 +1,63 @@
+venue,team_id,city,lat,lon,tz,altitude_m
+Philips Arena,1610612737,Atlanta,33.7573,-84.3963,America/New_York,320
+State Farm Arena,1610612737,Atlanta,33.7573,-84.3963,America/New_York,320
+TD Garden,1610612738,Boston,42.3662,-71.0621,America/New_York,5
+Barclays Center,1610612751,Brooklyn,40.6826,-73.9754,America/New_York,10
+Spectrum Center,1610612766,Charlotte,35.2251,-80.8392,America/New_York,229
+United Center,1610612741,Chicago,41.8807,-87.6742,America/Chicago,181
+Quicken Loans Arena,1610612739,Cleveland,41.4965,-81.6882,America/New_York,199
+Rocket Mortgage FieldHouse,1610612739,Cleveland,41.4965,-81.6882,America/New_York,199
+Rocket Arena,1610612739,Cleveland,41.4965,-81.6882,America/New_York,199
+American Airlines Center,1610612742,Dallas,32.7905,-96.8103,America/Chicago,131
+Pepsi Center,1610612743,Denver,39.7487,-105.0077,America/Denver,1609
+Ball Arena,1610612743,Denver,39.7487,-105.0077,America/Denver,1609
+Palace of Auburn Hills,1610612765,Auburn Hills,42.6967,-83.2456,America/Detroit,290
+Little Caesars Arena,1610612765,Detroit,42.3411,-83.0553,America/Detroit,183
+ORACLE Arena,1610612744,Oakland,37.7503,-122.2030,America/Los_Angeles,3
+Chase Center,1610612744,San Francisco,37.7680,-122.3877,America/Los_Angeles,5
+Toyota Center,1610612745,Houston,29.7508,-95.3621,America/Chicago,15
+Bankers Life Fieldhouse,1610612754,Indianapolis,39.7640,-86.1555,America/Indiana/Indianapolis,218
+Gainbridge Fieldhouse,1610612754,Indianapolis,39.7640,-86.1555,America/Indiana/Indianapolis,218
+STAPLES Center,1610612746,Los Angeles,34.0430,-118.2673,America/Los_Angeles,89
+Crypto.com Arena,1610612746,Los Angeles,34.0430,-118.2673,America/Los_Angeles,89
+Intuit Dome,1610612746,Inglewood,33.9450,-118.3410,America/Los_Angeles,30
+STAPLES Center,1610612747,Los Angeles,34.0430,-118.2673,America/Los_Angeles,89
+Crypto.com Arena,1610612747,Los Angeles,34.0430,-118.2673,America/Los_Angeles,89
+FedExForum,1610612763,Memphis,35.1382,-90.0506,America/Chicago,80
+AmericanAirlines Arena,1610612748,Miami,25.7814,-80.1870,America/New_York,2
+FTX Arena,1610612748,Miami,25.7814,-80.1870,America/New_York,2
+Miami-Dade Arena,1610612748,Miami,25.7814,-80.1870,America/New_York,2
+Kaseya Center,1610612748,Miami,25.7814,-80.1870,America/New_York,2
+BMO Harris Bradley Center,1610612749,Milwaukee,43.0436,-87.9170,America/Chicago,190
+Fiserv Forum,1610612749,Milwaukee,43.0451,-87.9172,America/Chicago,190
+Target Center,1610612750,Minneapolis,44.9795,-93.2761,America/Chicago,256
+Smoothie King Center,1610612740,New Orleans,29.9490,-90.0821,America/Chicago,1
+Madison Square Garden,1610612752,New York,40.7505,-73.9934,America/New_York,10
+Chesapeake Energy Arena,1610612760,Oklahoma City,35.4634,-97.5151,America/Chicago,366
+Paycom Center,1610612760,Oklahoma City,35.4634,-97.5151,America/Chicago,366
+Amway Center,1610612753,Orlando,28.5392,-81.3839,America/New_York,30
+Kia Center,1610612753,Orlando,28.5392,-81.3839,America/New_York,30
+Wells Fargo Center,1610612755,Philadelphia,39.9012,-75.1720,America/New_York,12
+Xfinity Mobile Arena,1610612755,Philadelphia,39.9012,-75.1720,America/New_York,12
+US Airways Center,1610612756,Phoenix,33.4457,-112.0712,America/Phoenix,331
+Talking Stick Resort Arena,1610612756,Phoenix,33.4457,-112.0712,America/Phoenix,331
+Phoenix Suns Arena,1610612756,Phoenix,33.4457,-112.0712,America/Phoenix,331
+Footprint Center,1610612756,Phoenix,33.4457,-112.0712,America/Phoenix,331
+PHX Arena,1610612756,Phoenix,33.4457,-112.0712,America/Phoenix,331
+Mortgage Matchup Center,1610612756,Phoenix,33.4457,-112.0712,America/Phoenix,331
+Moda Center,1610612757,Portland,45.5316,-122.6668,America/Los_Angeles,15
+Sleep Train Arena,1610612758,Sacramento,38.6491,-121.5180,America/Los_Angeles,9
+Golden 1 Center,1610612758,Sacramento,38.5802,-121.4997,America/Los_Angeles,9
+AT&T Center,1610612759,San Antonio,29.4270,-98.4375,America/Chicago,198
+Frost Bank Center,1610612759,San Antonio,29.4270,-98.4375,America/Chicago,198
+Air Canada Centre,1610612761,Toronto,43.6435,-79.3791,America/Toronto,76
+Scotiabank Arena,1610612761,Toronto,43.6435,-79.3791,America/Toronto,76
+Amalie Arena,1610612761,Tampa,27.9427,-82.4518,America/New_York,5
+EnergySolutions Arena,1610612762,Salt Lake City,40.7683,-111.9011,America/Denver,1288
+Vivint Smart Home Arena,1610612762,Salt Lake City,40.7683,-111.9011,America/Denver,1288
+Vivint Arena,1610612762,Salt Lake City,40.7683,-111.9011,America/Denver,1288
+Delta Center,1610612762,Salt Lake City,40.7683,-111.9011,America/Denver,1288
+Capital One Arena,1610612764,Washington,38.8981,-77.0209,America/New_York,20
+Alamodome,1610612759,San Antonio,29.4170,-98.4789,America/Chicago,198
+Moody Center,1610612759,Austin,30.2817,-97.7322,America/Chicago,160
+UW-Milwaukee Panther Arena,1610612749,Milwaukee,43.0410,-87.9190,America/Chicago,190

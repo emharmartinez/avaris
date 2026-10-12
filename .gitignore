@@ -15,7 +15,7 @@ __pycache__/
 # Data
 *.duckdb
 *.duckdb.wal
-data/
+/data/
 
 # Web
 web/node_modules/
