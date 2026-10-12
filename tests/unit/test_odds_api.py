@@ -240,3 +240,72 @@ def test_load_api_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     assert load_api_key(env) == "abc123"
     monkeypatch.setenv("ODDS_API_KEY", "from-env")
     assert load_api_key(env) == "from-env"
+
+
+def test_retry_after_transport_error_reprimes_and_counts_the_hidden_charge(
+    con: duckdb.DuckDBPyConnection, tmp_path: Path, api: respx.MockRouter
+) -> None:
+    # The server may charge a request whose response never arrived: the retry must see it
+    sports_used = iter(["100", "130", "160"])
+    api.get("/v4/sports").mock(side_effect=lambda _r: httpx.Response(
+        200, json=[], headers={"x-requests-used": next(sports_used),
+                               "x-requests-remaining": "4999000", "x-requests-last": "0"}
+    ))
+    api.get("/v4/historical/sports/basketball_nba/odds").mock(side_effect=[
+        httpx.ReadTimeout("timed out"),
+        httpx.Response(200, json=historical([event(["h2h", "spreads", "totals"])]), headers={
+            "x-requests-last": "30", "x-requests-used": "160",
+            "x-requests-remaining": "4998940",
+        }),
+    ])
+    client = make_client(con, tmp_path, max_credits_per_run=60)
+    client.prime()
+    client.historical_odds(SNAPSHOT, "open", *WINDOW)
+    assert client.guard.run_spent == 60  # the lost response's 30 credits are counted
+
+
+def test_retry_is_refused_when_the_hidden_charge_hits_the_cap(
+    con: duckdb.DuckDBPyConnection, tmp_path: Path, api: respx.MockRouter
+) -> None:
+    sports_used = iter(["100", "130"])
+    api.get("/v4/sports").mock(side_effect=lambda _r: httpx.Response(
+        200, json=[], headers={"x-requests-used": next(sports_used),
+                               "x-requests-remaining": "4999000", "x-requests-last": "0"}
+    ))
+    route = api.get("/v4/historical/sports/basketball_nba/odds").mock(
+        side_effect=httpx.ReadTimeout("timed out")
+    )
+    client = make_client(con, tmp_path, max_credits_per_run=30)
+    client.prime()
+    with pytest.raises(CreditRefused, match="per-run cap"):
+        client.historical_odds(SNAPSHOT, "open", *WINDOW)
+    assert route.call_count == 1
+
+
+def test_key_is_scrubbed_before_the_error_body_is_truncated(
+    con: duckdb.DuckDBPyConnection, tmp_path: Path, api: respx.MockRouter
+) -> None:
+    body = "x" * 190 + " " + KEY  # the 200-char cut falls inside the key
+    api.get("/v4/historical/sports/basketball_nba/odds").mock(
+        return_value=httpx.Response(401, text=body, headers=USAGE)
+    )
+    client = make_client(con, tmp_path)
+    client.prime()
+    with pytest.raises(OddsApiError) as info:
+        client.historical_odds(SNAPSHOT, "open", *WINDOW)
+    assert KEY[:6] not in str(info.value)
+    message = con.execute("select message from api_usage order by id desc limit 1").fetchone()
+    assert message is not None and KEY[:6] not in str(message[0])
+
+
+def test_undecodable_body_is_an_odds_api_error(
+    con: duckdb.DuckDBPyConnection, tmp_path: Path, api: respx.MockRouter
+) -> None:
+    api.get("/v4/historical/sports/basketball_nba/odds").mock(
+        return_value=httpx.Response(200, text="<html>not json</html>",
+                                    headers={**USAGE, "x-requests-last": "30"})
+    )
+    client = make_client(con, tmp_path)
+    client.prime()
+    with pytest.raises(OddsApiError, match="not JSON"):
+        client.historical_odds(SNAPSHOT, "open", *WINDOW)

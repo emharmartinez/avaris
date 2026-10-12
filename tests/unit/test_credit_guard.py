@@ -100,3 +100,10 @@ def test_ledger_row_never_contains_the_api_key(con: duckdb.DuckDBPyConnection) -
     assert params is not None
     assert "SECRET123" not in str(params[0])
     assert "h2h" in str(params[0])
+
+
+def test_zero_cost_is_free_only_for_priming(con: duckdb.DuckDBPyConnection) -> None:
+    g = guard(con)
+    g.authorize("/v4/sports", {}, cost=0, purpose="prime")
+    with pytest.raises(CreditRefused, match="no cost estimate"):
+        g.authorize("/v4/historical/x", {}, cost=0, purpose="open")

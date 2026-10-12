@@ -99,3 +99,27 @@ def test_injury_report_counts_games_covered_by_decision_time(
     assert row["with_decision_report"] == 1
     # Only Jrue Holiday is in the fixture rosters
     assert row["named_entries"] - row["unmatched_players"] == 1
+
+
+def test_non_pdf_response_is_never_cached(tmp_path: Path) -> None:
+    with respx.mock() as router:
+        router.get(url__startswith=BASE_URL).mock(
+            return_value=httpx.Response(200, content=b"<html>CDN error</html>")
+        )
+        client = InjuryClient(tmp_path / "cache", Throttle(0.0), max_attempts=1)
+        with pytest.raises(ValueError, match="not a PDF"):
+            client.get_pdf("Injury-Report_2022-01-15_05PM.pdf")
+    assert not list((tmp_path / "cache").rglob("*.pdf"))
+
+
+def test_unparseable_cached_report_is_dropped(
+    con: duckdb.DuckDBPyConnection, tmp_path: Path
+) -> None:
+    cache = tmp_path / "cache" / "final" / "injuries"
+    cache.mkdir(parents=True)
+    bad = cache / "Injury-Report_2022-01-15_05PM.pdf"
+    bad.write_bytes(b"%PDF-1.4 truncated")
+    client = InjuryClient(tmp_path / "cache", Throttle(0.0))
+    with pytest.raises(ValueError):
+        ingest_injuries(con, client, ["2021-22"], now_utc=NOW, max_step_back=0)
+    assert not bad.exists()  # the next run refetches it

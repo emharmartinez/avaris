@@ -74,14 +74,25 @@ class CreditGuard:
         self.clock = clock
         self.used: int | None = None  # credits used this billing month (x-requests-used)
         self.remaining: int | None = None
-        self.run_spent = 0
+        self._used_at_start: int | None = None
+        self._charged = 0  # sum of x-requests-last
+
+    @property
+    def run_spent(self) -> int:
+        # The usage delta also counts charges whose response never arrived
+        delta = (self.used or 0) - (self._used_at_start or 0)
+        return max(self._charged, delta)
 
     def prime(self, used: int, remaining: int) -> None:
+        if self._used_at_start is None:
+            self._used_at_start = used
         self.used, self.remaining = used, remaining
 
     def refusal(self, cost: int, purpose: str) -> str | None:
-        if cost == 0:
+        if purpose == "prime" and cost == 0:
             return None
+        if cost <= 0:
+            return "no cost estimate for a paid call"
         if self.used is None or self.remaining is None:
             return "guard not primed with current usage"
         lim = self.limits
@@ -117,7 +128,7 @@ class CreditGuard:
         used = _int_header(headers, "x-requests-used")
         remaining = _int_header(headers, "x-requests-remaining")
         if actual is not None:
-            self.run_spent += actual
+            self._charged += actual
         if used is not None:
             self.used = used
         if remaining is not None:
@@ -253,15 +264,25 @@ class OddsApiClient:
             self.requests_made += 1
             try:
                 response = self._http.get(endpoint, params={**params, "apiKey": self._key})
-            except httpx.TransportError as exc:
+            except httpx.HTTPError as exc:
                 message = self._scrub(f"{type(exc).__name__}: {exc}")
                 self.guard.record(endpoint, params, purpose, est_cost, {}, "error", message)
-                if attempt == self.max_attempts:
+                if not isinstance(exc, httpx.TransportError) or attempt == self.max_attempts:
                     raise OddsApiError(f"{endpoint} failed: {message}") from None
+                if purpose != "prime":
+                    # The lost request may have been charged: refresh usage before retrying
+                    self.prime()
             else:
                 if response.status_code == 200:
-                    return response.headers, response.json()
-                message = self._scrub(f"HTTP {response.status_code}: {response.text[:200]}")
+                    try:
+                        return response.headers, response.json()
+                    except ValueError:
+                        message = "response body is not JSON"
+                        self.guard.record(
+                            endpoint, params, purpose, est_cost, response.headers, "error", message
+                        )
+                        raise OddsApiError(f"{endpoint} failed: {message}") from None
+                message = self._scrub(f"HTTP {response.status_code}: {response.text}")[:200]
                 self.guard.record(
                     endpoint, params, purpose, est_cost, response.headers, "error", message
                 )

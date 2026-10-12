@@ -10,7 +10,13 @@ import typer
 from avaris.config import DEFAULT_CONFIG_PATH, Settings, load_settings
 from avaris.db import connect
 from avaris.ingest.injuries import InjuryClient, ingest_injuries
-from avaris.ingest.odds_api import CreditGuard, LedgerMismatch, OddsApiClient, load_api_key
+from avaris.ingest.odds_api import (
+    CreditGuard,
+    LedgerMismatch,
+    OddsApiClient,
+    OddsApiError,
+    load_api_key,
+)
 from avaris.ingest.odds_backfill import estimate_plan, plan_backfill, run_backfill
 from avaris.ingest.odds_status import check_odds, odds_report, reconcile_run, usage_report
 from avaris.ingest.runner import ingest_stats
@@ -18,7 +24,12 @@ from avaris.ingest.stats_client import RawCache, StatsClient, Throttle
 from avaris.ingest.status import check_injuries, check_report, injury_report, season_report
 from avaris.seasons import season_for_date, season_range, today_et
 
-app = typer.Typer(no_args_is_help=True, help="Avaris: personal NBA betting model.")
+# Never print locals in tracebacks: httpx request objects carry the Odds API key
+app = typer.Typer(
+    no_args_is_help=True,
+    help="Avaris: personal NBA betting model.",
+    pretty_exceptions_show_locals=False,
+)
 db_app = typer.Typer(no_args_is_help=True, help="DuckDB maintenance.")
 ingest_app = typer.Typer(no_args_is_help=True, help="Data ingest.")
 app.add_typer(db_app, name="db")
@@ -214,13 +225,20 @@ def odds_backfill_command(
         if not spend:
             typer.echo(f"Estimate only ({start} to {end}): pass --confirm to spend credits")
             return
-        client.prime()
+        try:
+            client.prime()
+        except OddsApiError as exc:
+            typer.echo(f"Stopped, Odds API error: {exc}")
+            raise typer.Exit(1) from None
         typer.echo(f"Run {run_id}: {guard.used} credits used this month, {guard.remaining} left")
         try:
             summary = run_backfill(con, client, plan, cfg, progress=typer.echo)
         except LedgerMismatch as exc:
             typer.echo(f"Stopped, ledger mismatch: {exc}")
-            raise typer.Exit(1) from exc
+            raise typer.Exit(1) from None
+        except OddsApiError as exc:
+            typer.echo(f"Stopped, Odds API error: {exc}")
+            raise typer.Exit(1) from None
         ledger, headers = reconcile_run(con, run_id)
         typer.echo(
             f"Done: {summary.calls} calls, {summary.cached} cached, {summary.rows} odds rows"

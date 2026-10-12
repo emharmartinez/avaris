@@ -239,11 +239,17 @@ class InjuryClient:
             return path.read_bytes()
         pdf = self._fetch(filename)
         if pdf is not None:
+            # A CDN error page served with 200 must not be cached as the report
+            if not pdf.startswith(b"%PDF-"):
+                raise ValueError(f"{filename}: response is not a PDF")
             path.parent.mkdir(parents=True, exist_ok=True)
             tmp = path.with_suffix(".tmp")
             tmp.write_bytes(pdf)
             tmp.replace(path)
         return pdf
+
+    def forget(self, filename: str) -> None:
+        (self.cache_dir / filename).unlink(missing_ok=True)
 
     def _fetch(self, filename: str) -> bytes | None:
         retrying = Retrying(
@@ -341,7 +347,12 @@ def _ingest_slot(
         summary.missing += 1
         upsert(con, "injury_report_files", pd.DataFrame([file_row]))
         return "missing"
-    report = parse_report(pdf)
+    try:
+        report = parse_report(pdf)
+    except ValueError:
+        # Drop the cached file so the next run refetches it
+        client.forget(filename)
+        raise
     entries = resolve_entries(con, report.entries, report.report_ts, players)
     con.begin()
     try:

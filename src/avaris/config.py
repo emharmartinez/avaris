@@ -1,7 +1,7 @@
 import tomllib
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 DEFAULT_CONFIG_PATH = Path("config.toml")
@@ -35,8 +35,8 @@ class GuardSettings(BaseModel):
 
 class OddsSettings(BaseModel):
     sport: str = "basketball_nba"
-    regions: list[str] = ["us"]
-    markets: list[str] = ["h2h", "spreads", "totals"]
+    regions: list[str] = Field(default=["us"], min_length=1)
+    markets: list[str] = Field(default=["h2h", "spreads", "totals"], min_length=1)
     first_date: str = "2020-12-22"
     timeout_s: float = 30.0
     max_attempts: int = 3
