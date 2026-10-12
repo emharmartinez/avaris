@@ -9,6 +9,7 @@ from avaris.db import MIGRATIONS, connect, upsert
 PHASE_1_TABLES = {"games", "team_games", "player_games", "rosters"}
 PHASE_2_TABLES = {"injury_report_files", "injury_reports"}
 DROPPED_TABLES = {"api_usage", "odds_events", "odds_snapshots"}  # migration 4
+PHASE_3_TABLES = {"features", "team_ratings"}
 
 
 def tables(con: duckdb.DuckDBPyConnection) -> set[str]:
@@ -20,7 +21,7 @@ def test_connect_creates_file_and_schema(tmp_path: Path) -> None:
     db_path = tmp_path / "nested" / "avaris.duckdb"
     con = connect(db_path)
     assert db_path.exists()
-    assert tables(con) >= PHASE_1_TABLES | PHASE_2_TABLES
+    assert tables(con) >= PHASE_1_TABLES | PHASE_2_TABLES | PHASE_3_TABLES
     assert not tables(con) & DROPPED_TABLES
     version = con.execute("select max(version) from schema_version").fetchone()
     assert version is not None
@@ -82,4 +83,6 @@ def test_migration_4_drops_tables_from_a_version_3_db(tmp_path: Path) -> None:
     con = connect(db_path)
     assert not tables(con) & DROPPED_TABLES
     assert tables(con) >= PHASE_1_TABLES | PHASE_2_TABLES
-    assert con.execute("select max(version) from schema_version").fetchone() == (4,)
+    assert con.execute("select max(version) from schema_version").fetchone() == (
+        len(MIGRATIONS),
+    )

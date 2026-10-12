@@ -3,6 +3,7 @@ from datetime import date
 import duckdb
 import pandas as pd
 
+from avaris.features.decision_time import DECISION_LEAD, REPORT_WINDOW
 from avaris.ingest.teams import Venues
 from avaris.seasons import is_finished, season_start_year
 
@@ -118,14 +119,14 @@ MAX_UNMATCHED_PLAYER_RATE = 0.05
 INJURY_SQL = """
 with g as (
     select game_id, season, tip_off_utc from games
-    where season_type = 'regular' and season >= ? and tip_off_utc is not null
+    where season_type = 'regular' and season >= $first and tip_off_utc is not null
 ),
 covered as (
-    -- A report fetched within 12 h before the cutoff; a game can be absent from it when
-    -- neither team lists a player. The previous evening's report does not count
+    -- A report fetched within the decision window (decision_time.py); a game can be absent
+    -- from it when neither team lists a player
     select distinct g.game_id from g join injury_report_files f
-        on f.status = 'ok' and f.report_ts between g.tip_off_utc - interval 12 hour
-            and g.tip_off_utc - interval 60 minute
+        on f.status = 'ok' and f.report_ts between g.tip_off_utc - $lead - $window
+            and g.tip_off_utc - $lead
 ),
 entries as (
     select g.season,
@@ -144,7 +145,8 @@ group by g.season order by g.season
 def injury_report(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     # Per season from 2021-22: regular-season games with an injury report fetched between
     # tip-off - 12 h and tip-off - 60 min, and report rows without a player ID
-    report = con.execute(INJURY_SQL, [FIRST_INJURY_SEASON]).df()
+    params = {"first": FIRST_INJURY_SEASON, "lead": DECISION_LEAD, "window": REPORT_WINDOW}
+    report = con.execute(INJURY_SQL, params).df()
     count_cols = report.columns.drop("season")
     report[count_cols] = report[count_cols].fillna(0).astype(int)
     return report
