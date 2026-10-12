@@ -1,0 +1,13 @@
+# Avaris configuration. Secrets (Odds API key) live in .env.local, never here.
+
+[paths]
+data_dir = "data"
+db_path = "data/avaris.duckdb"
+cache_dir = "data/cache"
+
+[stats]
+first_season = "2012-13"
+min_interval_s = 1.0   # throttle: about 1 request/sec to stats.nba.com
+timeout_s = 60.0
+max_attempts = 4
+refetch_days = 7       # in-progress season: refetch this many days of game logs per run
