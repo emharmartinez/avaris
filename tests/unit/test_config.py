@@ -43,3 +43,20 @@ def test_injury_defaults(tmp_path: Path) -> None:
     s = load_settings(tmp_path / "missing.toml")
     assert s.injuries.first_season == "2021-22"
     assert s.injuries.step_back_hours == 4.0
+
+
+def test_model_settings_defaults_and_overrides(tmp_path: Path) -> None:
+    s = load_settings(tmp_path / "missing.toml")
+    assert s.models.home_win.rung == "elo"
+    assert s.models.promote_tolerance == 0.02
+    assert s.models.models_dir == Path("artifacts/models")
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        '[models]\nseed = 3\n[models.margin]\nrung = "lgbm"\n'
+        "[models.margin.lgbm]\nnum_leaves = 8\nlearning_rate = 0.05\n"
+    )
+    s = load_settings(cfg)
+    assert s.models.seed == 3
+    assert s.models.target("margin").rung == "lgbm"
+    assert s.models.target("margin").params() == {"num_leaves": 8, "learning_rate": 0.05}
+    assert s.models.target("total").params() == {}
