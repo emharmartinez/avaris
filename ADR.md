@@ -2,6 +2,27 @@
 
 One entry per binding decision. Newest first. Status is `accepted`, `superseded` or `proposed`.
 
+## ADR-013: Odds stored per game and snapshot in decimal; the API key never leaves the request
+
+- **Date:** 2026-10-12 · **Status:** accepted
+- **Decision:** request `oddsFormat=decimal`. `odds_snapshots` holds every pregame outcome of the day's matched games per fetched snapshot, keyed by game, snapshot time, book, market and side, with `kind` = close (actual snapshot in [tip − 45, tip)), else decision, else open, else other. Events match games by both teams (either way round) and `commence_time` within 2 hours; moneyline and spread sides follow the stored game's home team. The key is passed only as the `apiKey` query parameter: cache paths are built from request fields, the ledger drops it, errors are scrubbed and raised `from None`, and httpx request logging is silenced.
+- **Why:** de-vig works on decimal prices; neutral-site events can list the other team as home; the key must not leak into files or logs.
+- **Consequences:** the American price for display is converted in the betting layer. Test fixtures are hand-built in the documented shape until the first paid run records real responses.
+
+## ADR-012: Injury PDFs are fetched by Avaris and parsed with `nba-injury-report`
+
+- **Date:** 2026-10-12 · **Status:** accepted
+- **Decision:** fetch `ak-static.cms.nba.com/referee/injury/` PDFs with a cached httpx client and parse them with `nba_injury_report.report._process_pdf` (pinned `==0.1.0`). `report_ts` comes from the PDF header. Per game day, fetch the report each game's `decision_ts` resolves to plus the 1:30 pm ET report, stepping back a slot when one is missing (403). Players match by normalized name: team-season, first initial + last name, season, then any season.
+- **Why:** the package's own fetcher only knows the hourly URL format (`_05PM`, the 5:30 pm report). From 2025-12-22 reports are every 15 minutes as `_05_30PM`. Fetching every report would be about 20k requests.
+- **Consequences:** a parser change upstream needs a version bump and the fixture tests. Players with no stats rows at all keep a null `player_id`.
+
+## ADR-011: Snapshot slots are tip-time bands, shared by the backfill and live
+
+- **Date:** 2026-10-12 · **Status:** accepted
+- **Decision:** `ingest/odds_slots.py` plans each game day as 1 opening snapshot (09:00 ET), 1 decision snapshot per tip-time band (matinee before 17:00 ET, early before 21:30, late) at the band's earliest `decision_ts`, and closing snapshots placed 2 min before a tip and covering tips within 35 min (45 min less the 10-minute historical snapshot gap). The backfill covers every game; live caps closing slots at `live_max_close_slots`.
+- **Why:** a snapshot after a game's `decision_ts` would leak; fixed clock slots miss matinee games entirely. The backfill must make the same decisions as live.
+- **Consequences:** matinee days cost one extra decision snapshot. A typical day is 1 open + 2 decision + 3-4 close snapshots, about 30-36k credits per season as planned.
+
 ## ADR-010: Neutral site = schedule flag or a venue that is not the home team's arena
 
 - **Date:** 2026-10-12 · **Status:** accepted

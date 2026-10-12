@@ -18,7 +18,7 @@ The goal is to make money against the market. Betting lines are very efficient, 
 | Python env | Python 3.12 + **uv**; ruff, pyright, pytest |
 | Stats data | **stats.nba.com via a thin httpx client** (ADR-009; replaces `nba_api`): `leaguegamelog` per season and season type covers every team-game and player-game line; `commonteamroster` for rosters; `scheduleleaguev2` per season supplies tip-off time, `season_type`, venue and today's slate |
 | Odds data | **The Odds API** (httpx + tenacity): h2h/spreads/totals; historical from Jun 2020 (10-minute snapshots), 5-minute snapshots from Sep 2022. Events carry `commence_time` (UTC), used as the tip-off fallback for 2020-21+ |
-| Injuries | Official NBA pregame injury reports via `nba-injury-report` (2021-22+; AGPL, fine for personal use). **Verify in Phase 2** that the package exists and 2021-22 PDFs are still served before building on it |
+| Injuries | Official NBA pregame injury report PDFs (2021-22+), fetched by Avaris and parsed with `nba-injury-report` (AGPL, fine for personal use; ADR-012). Verified in Phase 2: hourly reports until 2025-12-21, every 15 minutes from 2025-12-22 |
 | Storage | **DuckDB** file + raw JSON/Parquet response cache; pandas |
 | Models | scikit-learn (Elo/logistic/ridge baselines, isotonic calibration, time-series CV), **LightGBM**, Optuna, scipy |
 | Artifacts | joblib + JSON metadata (features, train window, metrics) |
@@ -148,7 +148,7 @@ DuckDB tables: `games` (incl. `tip_off_utc`, `game_date_et`, `season_type`, `neu
 - **Smoke tests first:** fetch one 2021-22 injury report PDF and confirm `nba-injury-report` parses it; confirm the Odds API plan tiers and pricing. If either fails, stop and revisit the stack before building.
 - Odds API client with `CreditGuard`, ledger, cache and `--estimate`. Odds events are matched to `games` by team IDs plus `commence_time` within 2 hours of `tip_off_utc`; preseason events are dropped.
 - Map Odds API team names to NBA IDs.
-- Snapshot selection for the backfill: per game, 1 opening, 1 at `decision_ts`, 1 closing (last snapshot within 45 min before tip-off). Slots are shared across games on the same day (the same 2 decision + 3 closing slots as live, plus 1 opening), so the per-day cost stays at about 6–7 snapshots.
+- Snapshot selection for the backfill: per game, 1 opening, 1 at or before `decision_ts`, 1 closing (last snapshot within 45 min before tip-off). Slots are shared across games on the same day by the same planner live uses (ADR-011): 1 opening, 1 decision slot per tip-time band (matinee, early, late), and closing slots covering every tip, so the per-day cost stays at about 6–7 snapshots.
 - De-vig functions (multiplicative, Shin) and the per-book fair probability at a line.
 - Injury report ingest, mapped to player IDs, with `report_ts` so `decision_ts` can pick the right report.
 - The user buys the plan and runs a 1-week test (`! uv run avaris odds backfill --from … --to … --confirm`). The ledger must reconcile with the headers before the user runs the full backfill.

@@ -66,6 +66,7 @@ All gates must be green at the end of every phase.
 
 - The sandbox blocks reading `.env.local` (Odds API key). Odds API commands and paid backfills are **user-run**: suggest `! uv run avaris odds ... --confirm`.
 - stats.nba.com works from the sandbox with `allowed_domains: ["stats.nba.com"]`; it hangs unless the full browser header set in `ingest/stats_client.py` is sent. Keep it throttled to about 1 request/sec. If it gets blocked, stats ingest becomes user-run.
+- The NBA injury report CDN works from the sandbox with `allowed_domains: ["ak-static.cms.nba.com"]`, so `avaris ingest injuries` can run there. `avaris odds backfill` without `--confirm` only estimates: it is offline and needs no key.
 - uv cannot write `~/.cache/uv` in the sandbox: prefix uv commands with `UV_CACHE_DIR=$TMPDIR/uv-cache`.
 - Installing Playwright's Chromium deps may need sudo: `! npx playwright install --with-deps chromium`.
 
