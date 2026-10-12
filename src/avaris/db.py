@@ -125,6 +125,37 @@ MIGRATIONS: list[str] = [
         primary key (report_ts, game_date_et, team_id, player_name)
     );
     """,
+    # Report files that fail to parse are kept as 'error'; postponed games are not unmatched
+    """
+    create table injury_report_files_v3 (
+        slot_ts timestamp primary key,
+        report_ts timestamp,
+        url varchar not null,
+        status varchar not null check (status in ('ok', 'missing', 'error')),
+        n_entries integer,
+        fetched_at timestamp not null,
+        message varchar
+    );
+    insert into injury_report_files_v3
+        select slot_ts, report_ts, url, status, n_entries, fetched_at, null
+        from injury_report_files;
+    drop table injury_report_files;
+    alter table injury_report_files_v3 rename to injury_report_files;
+    create table odds_events_v3 (
+        event_id varchar primary key,
+        game_id varchar,
+        home_team varchar not null,
+        away_team varchar not null,
+        home_team_id integer,
+        away_team_id integer,
+        commence_time_utc timestamp not null,
+        match_status varchar not null check (match_status in
+            ('matched', 'unknown_team', 'no_game', 'preseason', 'postponed'))
+    );
+    insert into odds_events_v3 select * from odds_events;
+    drop table odds_events;
+    alter table odds_events_v3 rename to odds_events;
+    """,
 ]
 
 

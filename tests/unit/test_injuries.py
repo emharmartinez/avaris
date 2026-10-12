@@ -183,3 +183,28 @@ def test_resolve_entries_falls_back_to_other_seasons(tmp_path: Path) -> None:
         datetime(2022, 1, 15, 22, 30),
     )
     assert out.iloc[0]["player_id"] == 1629045
+
+
+def test_resolve_entries_handles_an_empty_report(tmp_path: Path) -> None:
+    con = _db(tmp_path)
+    empty = pd.DataFrame(columns=["game_date_et", "matchup", "team_name", "player_name",
+                                  "status", "reason"])
+    out = resolve_entries(con, empty, datetime(2022, 1, 15, 22, 30))
+    assert out.empty
+    assert {"game_id", "team_id", "player_id", "report_ts"} <= set(out.columns)
+
+
+def test_exact_season_name_beats_a_teammate_with_the_same_initial(tmp_path: Path) -> None:
+    con = _db(tmp_path)
+    # Kevin Birch (new signing) is in the season data for another team only; Khem Birch is
+    # on Toronto. "Birch, Kevin" must not become Khem
+    upsert(con, "rosters", pd.DataFrame([{
+        "season": "2021-22", "team_id": 1610612749, "player_id": 999, "player_name": "Kevin Birch",
+        "position": None, "how_acquired": None,
+    }]))
+    out = resolve_entries(
+        con,
+        _entries(("TOR@MIL", "Toronto Raptors", "Birch, Kevin", "out")),
+        datetime(2022, 1, 15, 22, 30),
+    )
+    assert out.iloc[0]["player_id"] == 999

@@ -106,3 +106,16 @@ def test_reconcile_run_matches_ledger_to_usage_headers(con: duckdb.DuckDBPyConne
 def test_reconcile_run_exposes_a_gap(con: duckdb.DuckDBPyConnection) -> None:
     _ledger(con, [("prime", 0, 100, "ok"), ("open", 30, 140, "ok")])
     assert reconcile_run(con, "r1") == (30, 40)
+
+
+def test_odds_report_on_an_empty_db(con: duckdb.DuckDBPyConnection) -> None:
+    assert odds_report(con).empty
+
+
+def test_postponed_events_are_not_unmatched(con: duckdb.DuckDBPyConnection) -> None:
+    upsert(con, "odds_events", pd.DataFrame([{
+        "event_id": "e", "game_id": None, "home_team": "x", "away_team": "y",
+        "home_team_id": None, "away_team_id": None,
+        "commence_time_utc": datetime(2022, 1, 16, 0, 0), "match_status": "postponed",
+    }]))
+    assert odds_report(con).empty

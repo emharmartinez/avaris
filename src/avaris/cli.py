@@ -17,7 +17,12 @@ from avaris.ingest.odds_api import (
     OddsApiError,
     load_api_key,
 )
-from avaris.ingest.odds_backfill import estimate_plan, plan_backfill, run_backfill
+from avaris.ingest.odds_backfill import (
+    days_without_injury_reports,
+    estimate_plan,
+    plan_backfill,
+    run_backfill,
+)
 from avaris.ingest.odds_status import check_odds, odds_report, reconcile_run, usage_report
 from avaris.ingest.runner import ingest_stats
 from avaris.ingest.stats_client import RawCache, StatsClient, Throttle
@@ -140,7 +145,7 @@ def ingest_injuries_command(
             client,
             seasons,
             now_utc=datetime.now(UTC).replace(tzinfo=None),
-            max_step_back=cfg.max_step_back,
+            step_back_hours=cfg.step_back_hours,
             progress=typer.echo,
         )
     finally:
@@ -195,6 +200,9 @@ def odds_backfill_command(
     ] = None,
     usd_per_credit: Annotated[float | None, typer.Option(help="Plan price per credit.")] = None,
     max_usd: Annotated[float | None, typer.Option(help="Monthly USD cap.")] = None,
+    allow_missing_injuries: Annotated[
+        bool, typer.Option(help="Spend credits on days with no injury report ingested.")
+    ] = False,
 ) -> None:
     # Historical open, decision and closing snapshots per regular-season game day
     settings: Settings = ctx.obj
@@ -211,7 +219,14 @@ def odds_backfill_command(
             "usd_per_credit": usd_per_credit, "max_monthly_usd": max_usd,
         }.items() if v is not None
     })
-    con = connect(settings.paths.db_path) if spend else _open_read_only(settings)
+    if spend:
+        try:
+            con = connect(settings.paths.db_path)
+        except duckdb.IOException as exc:
+            typer.echo(f"Database is locked by another process: {exc}")
+            raise typer.Exit(1) from None
+    else:
+        con = _open_read_only(settings)
     run_id = f"{datetime.now(UTC):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:6]}"
     guard = CreditGuard(con, limits, run_id=run_id)
     client = OddsApiClient(
@@ -222,6 +237,15 @@ def odds_backfill_command(
     try:
         plan = plan_backfill(con, start, end, cfg)
         _show(estimate_plan(plan, client))
+        no_reports = days_without_injury_reports(plan, settings.injuries.first_season)
+        if no_reports:
+            typer.echo(
+                f"{len(no_reports)} game days have no injury report (first {no_reports[0]}): "
+                "their decision snapshots fall back to tip-off - 60. Run "
+                "`avaris ingest injuries` first, or pass --allow-missing-injuries"
+            )
+            if spend and not allow_missing_injuries:
+                raise typer.Exit(1)
         if not spend:
             typer.echo(f"Estimate only ({start} to {end}): pass --confirm to spend credits")
             return

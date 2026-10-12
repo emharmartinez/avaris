@@ -1,3 +1,4 @@
+import re
 from collections.abc import Iterator
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -74,7 +75,7 @@ def test_estimate_spends_zero_credits_and_needs_no_key(
         code, out = invoke(config, "backfill", "--from", DAY, "--to", DAY, *extra)
         assert code == 0, out
         assert "2021-22" in out
-        assert "90" in out  # open, decision and close snapshots x 30 credits
+        assert re.search(r"\b90\b", out)  # open, decision and close snapshots x 30 credits
         assert "--confirm" in out
     assert odds_api.calls.call_count == 0
     con = connect(tmp_path / "avaris.duckdb", read_only=True)
@@ -96,7 +97,7 @@ def test_confirmed_backfill_reconciles_then_status_and_usage(
     monkeypatch.setenv("ODDS_API_KEY", "test-key-xyz")
     code, out = invoke(
         config, "backfill", "--from", DAY, "--to", DAY, "--confirm",
-        "--max-credits", "1000", "--monthly-budget", "100000",
+        "--max-credits", "1000", "--monthly-budget", "100000", "--allow-missing-injuries",
     )
     assert code == 0, out
     assert "test-key-xyz" not in out
@@ -104,9 +105,22 @@ def test_confirmed_backfill_reconciles_then_status_and_usage(
 
     code, out = invoke(config, "usage")
     assert code == 0, out
-    assert "90" in out
+    assert re.search(r"\b90\b", out)
 
     # One of two events has an unknown team, so the < 1% unmatched check fails
     code, out = invoke(config, "status", "--check")
     assert code == 1
     assert "unmatched" in out
+
+
+@pytest.mark.e2e
+def test_confirm_refuses_days_without_injury_reports(
+    config: Path, tmp_path: Path, odds_api: respx.MockRouter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 2021-22 has injury reports, so a day without one means `ingest injuries` has not run
+    monkeypatch.setenv("ODDS_API_KEY", "k")
+    code, out = invoke(config, "backfill", "--from", DAY, "--to", DAY, "--confirm",
+                       "--max-credits", "1000", "--monthly-budget", "100000")
+    assert code == 1
+    assert "avaris ingest injuries" in out
+    assert odds_api.calls.call_count == 0

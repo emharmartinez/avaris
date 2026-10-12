@@ -128,8 +128,9 @@ def _initial_key(normalized: str) -> str:
 
 
 class PlayerIndex:
-    # Player IDs by normalized name: team-season first, then the season, then any season
-    # (long-term injured players can miss a whole season's rosters and logs)
+    # Player IDs by normalized name: exact in the team-season, exact in the season, first
+    # initial + last name in the team-season, then exact in any season (long-term injured
+    # players can miss a whole season's rosters and logs)
     def __init__(self, players: pd.DataFrame) -> None:
         self._team: dict[tuple[str, int, str], set[int]] = {}
         self._initial: dict[tuple[str, int, str], set[int]] = {}
@@ -161,8 +162,8 @@ class PlayerIndex:
             return None
         for ids in (
             self._team.get((season, team_id, norm)),
-            self._initial.get((season, team_id, _initial_key(norm))),
             self._season.get((season, norm)),
+            self._initial.get((season, team_id, _initial_key(norm))),
             self._any.get(norm),
         ):
             if ids and len(ids) == 1:
@@ -201,7 +202,8 @@ def resolve_entries(
             "team_id": team_id,
             "player_id": players.find(season, team_id, str(e["player_name"])),
         })
-    out = pd.DataFrame(rows).drop(columns="team_name")
+    columns = [*ENTRY_COLUMNS, "report_ts", "game_id", "team_id", "player_id"]
+    out = pd.DataFrame(rows, columns=columns).drop(columns="team_name")
     out["player_id"] = out["player_id"].astype("Int64")
     return out
 
@@ -276,6 +278,7 @@ class InjuryIngestSummary:
     missing: int = 0
     entries: int = 0
     unmatched_players: int = 0
+    errors: int = 0
 
 
 def ingest_injuries(
@@ -283,11 +286,12 @@ def ingest_injuries(
     client: InjuryClient,
     seasons: list[str],
     now_utc: datetime,
-    max_step_back: int,
+    step_back_hours: float,
     progress: Progress = lambda _msg: None,
 ) -> InjuryIngestSummary:
     # For each game day, fetch the report every game's decision_ts resolves to (stepping
-    # back a slot at a time when a report is missing) plus the early-afternoon report
+    # back a slot at a time, up to step_back_hours, when a report is missing or unreadable)
+    # plus the early-afternoon report
     summary = InjuryIngestSummary()
     days = con.execute(
         """
@@ -303,7 +307,7 @@ def ingest_injuries(
     for i, (season, day, tips) in enumerate(days):
         for target in target_slots(tips, day):
             slot = target
-            for _ in range(max_step_back + 1):
+            while target - slot <= timedelta(hours=step_back_hours):
                 slot_utc = to_utc(slot)
                 if slot_utc > now_utc:
                     break
@@ -349,11 +353,16 @@ def _ingest_slot(
         return "missing"
     try:
         report = parse_report(pdf)
-    except ValueError:
-        # Drop the cached file so the next run refetches it
+        entries = resolve_entries(con, report.entries, report.report_ts, players)
+    except ValueError as exc:
+        # Kept as an error so reruns skip it; the cached file is dropped so a deliberate
+        # refetch (delete the row) gets a fresh copy
         client.forget(filename)
-        raise
-    entries = resolve_entries(con, report.entries, report.report_ts, players)
+        summary.errors += 1
+        upsert(con, "injury_report_files", pd.DataFrame([
+            {**file_row, "status": "error", "message": str(exc)[:500]}
+        ]))
+        return "error"
     con.begin()
     try:
         upsert(con, "injury_reports", entries)

@@ -309,3 +309,30 @@ def test_undecodable_body_is_an_odds_api_error(
     client.prime()
     with pytest.raises(OddsApiError, match="not JSON"):
         client.historical_odds(SNAPSHOT, "open", *WINDOW)
+
+
+def test_server_error_is_retried_and_each_attempt_is_logged(
+    con: duckdb.DuckDBPyConnection, tmp_path: Path, api: respx.MockRouter
+) -> None:
+    api.get("/v4/historical/sports/basketball_nba/odds").mock(side_effect=[
+        httpx.Response(503, text="busy", headers={**USAGE, "x-requests-last": "0"}),
+        httpx.Response(200, json=historical([event(["h2h", "spreads", "totals"])]),
+                       headers={**USAGE, "x-requests-last": "30"}),
+    ])
+    client = make_client(con, tmp_path)
+    client.prime()
+    client.historical_odds(SNAPSHOT, "open", *WINDOW)
+    assert [r[-1] for r in ledger(con)] == ["ok", "error", "ok"]
+
+
+def test_live_odds_costs_markets_times_regions(
+    con: duckdb.DuckDBPyConnection, tmp_path: Path, api: respx.MockRouter
+) -> None:
+    route = api.get("/v4/sports/basketball_nba/odds").mock(return_value=httpx.Response(
+        200, json=[event(["h2h"])], headers={**USAGE, "x-requests-last": "3"}
+    ))
+    client = make_client(con, tmp_path)
+    client.prime()
+    assert client.live_odds("decision")[0]["id"] == "ev1"
+    assert route.calls.last.request.url.params["markets"] == "h2h,spreads,totals"
+    assert ledger(con)[-1] == ("/v4/sports/basketball_nba/odds", "decision", 3, 3, "ok")

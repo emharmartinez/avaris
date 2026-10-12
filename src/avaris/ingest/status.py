@@ -121,8 +121,10 @@ with g as (
     where season_type = 'regular' and season >= ? and tip_off_utc is not null
 ),
 covered as (
+    -- A report from the previous evening (placeholder rows) does not count
     select distinct i.game_id from injury_reports i join g using (game_id)
-    where i.report_ts <= g.tip_off_utc - interval 60 minute
+    where i.report_ts between g.tip_off_utc - interval 12 hour
+        and g.tip_off_utc - interval 60 minute
 ),
 entries as (
     select g.season,
@@ -139,8 +141,8 @@ group by g.season order by g.season
 
 
 def injury_report(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
-    # Per season from 2021-22: regular-season games listed in an injury report at or
-    # before tip-off - 60 min, and report rows without a player ID
+    # Per season from 2021-22: regular-season games listed in an injury report between
+    # tip-off - 12 h and tip-off - 60 min, and report rows without a player ID
     report = con.execute(INJURY_SQL, [FIRST_INJURY_SEASON]).df()
     count_cols = report.columns.drop("season")
     report[count_cols] = report[count_cols].fillna(0).astype(int)

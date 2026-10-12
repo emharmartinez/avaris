@@ -12,11 +12,13 @@ from avaris.features.decision_time import decision_ts
 from avaris.ingest.odds_api import CreditRefused, OddsApiClient
 from avaris.ingest.odds_slots import Slot, SlotGame, plan_day
 from avaris.ingest.teams import team_ids_by_name
-from avaris.seasons import ET
+from avaris.seasons import ET, season_start_year
 
 Progress = Callable[[str], None]
 # When one snapshot serves several roles, the guard sees the most important one
 PURPOSE_PRIORITY = ("decision", "close", "open")
+POSTPONED_WITHIN = timedelta(days=60)
+KIND_RANK = {"other": 0, "open": 1, "decision": 2, "close": 3}
 EVENT_COLUMNS = ["event_id", "home_team", "away_team", "commence_time_utc"]
 ODDS_EVENT_COLUMNS = [*EVENT_COLUMNS, "home_team_id", "away_team_id", "game_id", "match_status"]
 OUTCOME_COLUMNS = ["event_id", "book", "book_last_update", "market", "name", "line", "price"]
@@ -90,7 +92,7 @@ def match_events(
                 [teams, commence - window, commence + window, commence],
             ).fetchone()
             if row is None:
-                match["match_status"] = "no_game"
+                match["match_status"] = _unmatched_status(con, teams, commence)
             elif row[1] == "preseason":
                 match["match_status"] = "preseason"
             else:
@@ -98,6 +100,22 @@ def match_events(
                          "game_home_team_id": row[2], "game_away_team_id": row[3]}
         matches.append(match)
     return pd.concat([out, pd.DataFrame(matches, index=out.index)], axis=1)
+
+
+def _unmatched_status(
+    con: duckdb.DuckDBPyConnection, teams: list[int], commence: datetime
+) -> str:
+    # The same pairing played within POSTPONED_WITHIN of the listed time: the event was
+    # listed at the original time of a postponed game
+    row = con.execute(
+        """
+        select count(*) from games
+        where list_sort([home_team_id, away_team_id]) = list_sort(?::integer[])
+            and season_type <> 'preseason' and tip_off_utc between ? and ?
+        """,
+        [teams, commence - POSTPONED_WITHIN, commence + POSTPONED_WITHIN],
+    ).fetchone()
+    return "postponed" if row and row[0] else "no_game"
 
 
 def snapshot_rows(
@@ -143,11 +161,17 @@ def snapshot_rows(
 
 
 def assign_kinds(
-    roles: list[Slot], snapshot_ts: datetime, tips: dict[str, datetime], close_window_min: int
+    roles: list[Slot],
+    snapshot_ts: datetime,
+    tips: dict[str, datetime],
+    close_window_min: int,
+    decisions: dict[str, datetime] | None = None,
 ) -> dict[str, str]:
-    # Kind per game for one snapshot: close beats decision beats open, and a closing line
-    # needs the actual snapshot within close_window_min before tip-off
+    # Kind per game for one snapshot: close beats decision beats open. A closing line needs
+    # the actual snapshot within close_window_min before tip-off; an open or decision
+    # snapshot is never after the game's decision_ts (guards the API's at-or-before contract)
     window = timedelta(minutes=close_window_min)
+    decisions = decisions or {}
     kinds = dict.fromkeys(tips, "other")
     for kind in ("open", "decision", "close"):
         for role in roles:
@@ -156,8 +180,27 @@ def assign_kinds(
             for gid in role.game_ids:
                 if kind == "close" and not tips[gid] - window <= snapshot_ts < tips[gid]:
                     continue
+                if kind != "close" and gid in decisions and snapshot_ts > decisions[gid]:
+                    continue
                 kinds[gid] = kind
     return kinds
+
+
+def keep_stronger_kinds(con: duckdb.DuckDBPyConnection, rows: pd.DataFrame) -> pd.DataFrame:
+    # Two planned calls can resolve to the same actual snapshot; the second only knows its
+    # own roles, so a stored stronger kind for (game, snapshot) must not be downgraded
+    if rows.empty:
+        return rows
+    stored = dict(con.execute(
+        "select game_id, kind from odds_snapshots where snapshot_ts = ? group by all",
+        [rows["snapshot_ts"].iloc[0]],
+    ).fetchall())
+    out = rows.copy()
+    out["kind"] = [
+        max(kind, stored.get(gid, "other"), key=KIND_RANK.__getitem__)
+        for gid, kind in zip(out["game_id"], out["kind"], strict=True)
+    ]
+    return out
 
 
 @dataclass(frozen=True)
@@ -167,6 +210,8 @@ class PlannedCall:
     ts: datetime  # naive UTC requested snapshot time
     roles: tuple[Slot, ...]
     tips: dict[str, datetime]  # every regular-season game that day
+    decisions: dict[str, datetime]  # decision_ts per game
+    has_reports: bool = True  # injury reports existed when the day was planned
 
     @property
     def purpose(self) -> str:
@@ -207,10 +252,20 @@ def plan_backfill(
         slot_games = [SlotGame(g, tip, decision_ts(tip, day_reports)) for g, tip in day_games]
         slots = plan_day(day, slot_games, cfg)
         tips = dict(day_games)
+        decisions = {g.game_id: g.decision_ts for g in slot_games}
         for ts in sorted({s.ts for s in slots}):
             roles = tuple(s for s in slots if s.ts == ts)
-            plan.append(PlannedCall(season, day, ts, roles, tips))
+            plan.append(PlannedCall(season, day, ts, roles, tips, decisions, bool(day_reports)))
     return plan
+
+
+def days_without_injury_reports(plan: list[PlannedCall], first_season: str) -> list[date]:
+    # Game days from the injury-report era planned with no report: decision_ts would fall
+    # back to tip - 60, so `avaris ingest injuries` must run before the odds backfill
+    return sorted({
+        c.day for c in plan
+        if season_start_year(c.season) >= season_start_year(first_season) and not c.has_reports
+    })
 
 
 def estimate_plan(plan: list[PlannedCall], client: OddsApiClient) -> pd.DataFrame:
@@ -258,8 +313,8 @@ def run_backfill(
         parsed = parse_historical(payload)
         matched = match_events(con, parsed.events, cfg.match_window_min)
         kinds = assign_kinds(list(call.roles), parsed.snapshot_ts, call.tips,
-                             cfg.close_window_min)
-        rows = snapshot_rows(parsed, matched, kinds)
+                             cfg.close_window_min, call.decisions)
+        rows = keep_stronger_kinds(con, snapshot_rows(parsed, matched, kinds))
         con.begin()
         try:
             upsert(con, "odds_events", matched[ODDS_EVENT_COLUMNS])

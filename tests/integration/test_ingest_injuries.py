@@ -53,7 +53,7 @@ def test_ingest_fetches_decision_report_and_steps_back_past_missing(
     con: duckdb.DuckDBPyConnection, tmp_path: Path, injury_api: respx.MockRouter
 ) -> None:
     client = InjuryClient(tmp_path / "cache", Throttle(0.0), retry_wait_s=0.0)
-    summary = ingest_injuries(con, client, ["2021-22"], now_utc=NOW, max_step_back=2)
+    summary = ingest_injuries(con, client, ["2021-22"], now_utc=NOW, step_back_hours=2)
 
     assert summary.reports == 1
     files = dict(con.execute("select slot_ts, status from injury_report_files").fetchall())
@@ -73,7 +73,7 @@ def test_ingest_fetches_decision_report_and_steps_back_past_missing(
 
     # A rerun fetches nothing: reports are cached and misses are remembered
     requests = client.requests_made
-    again = ingest_injuries(con, client, ["2021-22"], now_utc=NOW, max_step_back=2)
+    again = ingest_injuries(con, client, ["2021-22"], now_utc=NOW, step_back_hours=2)
     assert again.reports == 0
     assert client.requests_made == requests
 
@@ -84,7 +84,7 @@ def test_recent_missing_slot_is_retried_later(
     client = InjuryClient(tmp_path / "cache", Throttle(0.0), retry_wait_s=0.0)
     # 2 hours after the 1:30 pm slot: its miss is not remembered yet
     ingest_injuries(con, client, ["2021-22"], now_utc=datetime(2022, 1, 15, 20, 30),
-                    max_step_back=0)
+                    step_back_hours=0)
     files = con.execute("select count(*) from injury_report_files").fetchone()
     assert files == (0,)
 
@@ -93,7 +93,7 @@ def test_injury_report_counts_games_covered_by_decision_time(
     con: duckdb.DuckDBPyConnection, tmp_path: Path, injury_api: respx.MockRouter
 ) -> None:
     client = InjuryClient(tmp_path / "cache", Throttle(0.0), retry_wait_s=0.0)
-    ingest_injuries(con, client, ["2021-22"], now_utc=NOW, max_step_back=0)
+    ingest_injuries(con, client, ["2021-22"], now_utc=NOW, step_back_hours=0)
     row = records_by(injury_report(con), "season")["2021-22"]
     assert row["regular_games"] == 1
     assert row["with_decision_report"] == 1
@@ -112,14 +112,40 @@ def test_non_pdf_response_is_never_cached(tmp_path: Path) -> None:
     assert not list((tmp_path / "cache").rglob("*.pdf"))
 
 
-def test_unparseable_cached_report_is_dropped(
-    con: duckdb.DuckDBPyConnection, tmp_path: Path
+def test_unparseable_report_is_recorded_as_error_and_the_ingest_goes_on(
+    con: duckdb.DuckDBPyConnection, tmp_path: Path, injury_api: respx.MockRouter
 ) -> None:
     cache = tmp_path / "cache" / "final" / "injuries"
     cache.mkdir(parents=True)
     bad = cache / "Injury-Report_2022-01-15_05PM.pdf"
     bad.write_bytes(b"%PDF-1.4 truncated")
     client = InjuryClient(tmp_path / "cache", Throttle(0.0))
-    with pytest.raises(ValueError):
-        ingest_injuries(con, client, ["2021-22"], now_utc=NOW, max_step_back=0)
-    assert not bad.exists()  # the next run refetches it
+    summary = ingest_injuries(con, client, ["2021-22"], now_utc=NOW, step_back_hours=1)
+    assert summary.errors == 1
+    row = con.execute(
+        "select status, message from injury_report_files where slot_ts = '2022-01-15 22:30:00'"
+    ).fetchone()
+    assert row is not None and row[0] == "error" and "header" in str(row[1])
+    # The step-back went on to the 4:30 pm slot, and the bad file is gone from the cache
+    slots = {r[0] for r in con.execute("select slot_ts from injury_report_files").fetchall()}
+    assert datetime(2022, 1, 15, 21, 30) in slots
+    assert not bad.exists()
+
+
+def test_quarter_hour_reports_step_back_by_time_not_slot_count(
+    tmp_path: Path, injury_api: respx.MockRouter
+) -> None:
+    con = connect(tmp_path / "q.duckdb")
+    # PHX@PHI 7:30 pm ET: cutoff 6:30 pm; the only report served is 5:30 pm, 4 slots back
+    upsert(con, "games", pd.DataFrame([{
+        "game_id": "0022500600", "season": "2025-26", "season_type": "regular",
+        "game_date_et": date(2026, 1, 20), "tip_off_utc": datetime(2026, 1, 21, 0, 30),
+        "home_team_id": 1610612755, "away_team_id": 1610612756, "status": "final",
+        "neutral_site": False,
+    }]))
+    client = InjuryClient(tmp_path / "cache", Throttle(0.0), retry_wait_s=0.0)
+    summary = ingest_injuries(con, client, ["2025-26"], now_utc=datetime(2026, 1, 25),
+                              step_back_hours=1)
+    assert summary.reports == 1
+    ok = con.execute("select slot_ts from injury_report_files where status = 'ok'").fetchall()
+    assert ok == [(datetime(2026, 1, 20, 22, 30),)]

@@ -37,4 +37,4 @@ headroom = { open = 30, close = 15, decision = 0 }   # refusal order: open, clos
 [injuries]
 first_season = "2021-22"
 min_interval_s = 0.5
-max_step_back = 4
+step_back_hours = 4.0     # try earlier report slots this far back when one is missing

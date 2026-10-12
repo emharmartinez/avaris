@@ -23,7 +23,7 @@ select g.season,
     count(*) filter (where k.has_decision) as with_decision,
     count(*) filter (where k.has_close) as with_close
 from games g left join kinds k using (game_id)
-where g.season_type = 'regular' and g.season >= ?
+where g.season_type = 'regular' and g.tip_off_utc is not null and g.season >= ?
 group by g.season
 """
 
@@ -32,9 +32,10 @@ def odds_report(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     # Per season: regular-season games with an open, decision and close snapshot, and
     # Odds API events that matched no game (preseason events are expected and skipped)
     games = con.execute(GAMES_SQL, [FIRST_ODDS_SEASON]).df()
+    # Preseason and postponed-game listings are expected and not counted as unmatched
     events = con.execute(
         "select commence_time_utc, match_status from odds_events "
-        "where match_status <> 'preseason'"
+        "where match_status not in ('preseason', 'postponed')"
     ).df()
     events["season"] = [
         season_for_date(ts.tz_localize("UTC").tz_convert("America/New_York").date())
@@ -44,6 +45,8 @@ def odds_report(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         events=("match_status", "size"),
         unmatched_events=("match_status", lambda s: int((s != "matched").sum())),
     ).reset_index()
+    if games.empty and by_season.empty:
+        return pd.DataFrame()
     report = games.merge(by_season, on="season", how="outer").sort_values("season")
     count_cols = report.columns.drop("season")
     report[count_cols] = report[count_cols].fillna(0).astype(int)

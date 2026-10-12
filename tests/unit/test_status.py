@@ -1,8 +1,16 @@
-from datetime import date
+from datetime import date, datetime
+from pathlib import Path
 
 import pandas as pd
 
-from avaris.ingest.status import check_injuries, check_report, expected_regular_games
+from avaris.db import connect, upsert
+from avaris.ingest.status import (
+    check_injuries,
+    check_report,
+    expected_regular_games,
+    injury_report,
+)
+from tests.conftest import records_by
 
 TODAY = date(2026, 10, 12)
 
@@ -95,3 +103,18 @@ def test_injury_unmatched_player_rate_over_five_percent_fails() -> None:
 
 def test_no_injury_reports_fails() -> None:
     assert check_injuries(pd.DataFrame(), today=TODAY) == ["no injury reports ingested"]
+
+
+def test_previous_evening_placeholder_does_not_cover_a_game(tmp_path: Path) -> None:
+    con = connect(tmp_path / "a.duckdb")
+    upsert(con, "games", pd.DataFrame([{
+        "game_id": "g", "season": "2021-22", "season_type": "regular",
+        "game_date_et": date(2022, 1, 16), "tip_off_utc": datetime(2022, 1, 16, 18, 0),
+        "home_team_id": 1, "away_team_id": 2, "status": "final", "neutral_site": False,
+    }]))
+    upsert(con, "injury_reports", pd.DataFrame([{
+        "report_ts": datetime(2022, 1, 15, 22, 30), "game_date_et": date(2022, 1, 16),
+        "matchup": "A@B", "game_id": "g", "team_id": 1, "player_name": "", "player_id": None,
+        "status": "not_submitted", "reason": "NOT YET SUBMITTED",
+    }]))
+    assert records_by(injury_report(con), "season")["2021-22"]["with_decision_report"] == 0

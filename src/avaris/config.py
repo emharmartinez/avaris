@@ -55,7 +55,7 @@ class InjurySettings(BaseModel):
     min_interval_s: float = 0.5
     timeout_s: float = 30.0
     max_attempts: int = 3
-    max_step_back: int = 4  # earlier report slots tried when the target report is missing
+    step_back_hours: float = 4.0  # how far back earlier slots are tried for a missing report
 
 
 class Settings(BaseSettings):
