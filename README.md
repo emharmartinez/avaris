@@ -36,6 +36,21 @@ uv run avaris ingest status --check            # includes injury report coverage
 - Fetches the official NBA injury report PDFs each game's `decision_ts` resolves to (the latest report at or before tip-off - 60 min), plus the 1:30 pm ET report, at about 2 requests/sec. A missing report steps back one slot at a time.
 - PDFs are cached in `data/cache/final/injuries/`; old missing slots are remembered in `injury_report_files`.
 
+## Features and models
+
+```
+uv run avaris features build                   # rebuild features and team_ratings
+uv run avaris tune                             # Optuna on 2015-16 to 2019-20 (resumable)
+uv run avaris backtest --refit weekly          # walk-forward rung comparison
+uv run avaris train --through 2026-10-20       # refit kept rungs, register artifacts
+uv run avaris train --promote RUN_ID           # manual promote (after a rung or param change)
+```
+
+- Features are computed as of each game's `decision_ts` by one chronological event loop (ADR-015): Elo, exponentially weighted ORtg, DRtg, pace and net rating, rest, back-to-backs, travel and time-zone shift, altitude, home court and availability (strength lost, from who played or from the injury report).
+- Model ladder per target: Elo (league-average total for `total`), logistic/ridge, LightGBM. The kept rung and frozen hyperparameters live in `config.toml` under `[models.*]`.
+- Win probabilities are calibrated with isotonic regression; margin and total use N(μ, σ) with σ fitted per `season_type` bucket from out-of-fold residuals.
+- Artifacts go to `artifacts/models/<target>/<run_id>/` (`model.joblib`, `meta.json`); `artifacts/models/registry.json` points to production. Reports and Optuna's SQLite store are in `artifacts/`.
+
 ## Data
 
 DuckDB at `data/avaris.duckdb` (gitignored):
@@ -48,6 +63,8 @@ DuckDB at `data/avaris.duckdb` (gitignored):
 | `rosters` | Season rosters per team |
 | `injury_reports` | Injury report rows with `report_ts` (UTC), game, team, player ID (null if unmatched), status |
 | `injury_report_files` | Report slots fetched (`ok`) or known missing |
+| `features` | One row per game as of `decision_ts`, with `feature_hash` (rebuilt by `avaris features build`) |
+| `team_ratings` | Elo, ORtg, DRtg, net rating, pace and games played per team as of each game |
 
 Reference data in `src/avaris/data/`: `teams.csv`, `arenas.csv` (home arenas with coordinates, time zone, altitude) and `neutral_venues.csv` (bubble, international and Cup venues).
 

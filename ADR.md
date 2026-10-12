@@ -2,6 +2,27 @@
 
 One entry per binding decision. Newest first. Status is `accepted`, `superseded` or `proposed`.
 
+## ADR-016: Kept rung and calibration per target chosen on the tuning window
+
+- **Date:** 2026-10-12 · **Status:** accepted
+- **Decision:** each target's rung and, for `home_win`, its calibration (`isotonic` or `none`) are chosen by the weekly walk-forward on 2015-16 to 2019-20 (regular-season log loss or MAE) and frozen in `config.toml` with the Optuna hyperparameters. Isotonic calibration is off for `home_win`.
+- **Why:** isotonic regression fitted on 3 seasons of out-of-fold predictions raised walk-forward log loss by 0.003 (logistic) to 0.008 (LightGBM); logistic regression is already well calibrated. The plan said isotonic for every classifier; this keeps it as an option instead.
+- **Consequences:** rung comparisons for `home_win` are raw against raw Elo. Phase 4 still checks calibration with reliability diagrams and ECE; isotonic can be turned back on per target.
+
+## ADR-015: Point-in-time features from one event loop; availability in two modes
+
+- **Date:** 2026-10-12 · **Status:** accepted
+- **Decision:**
+  - A game's result counts as known at tip-off + 3 h. `features/build.py` runs one chronological loop: result events update Elo, team form, league averages, schedule history and player rates; decision events (`decision_ts`) snapshot them. Results at the same instant apply first. The same loop fills `team_ratings`.
+  - `decision_ts` uses only reports in `[tip - 12 h, tip - 60 min]` (`REPORT_WINDOW`, shared with the injury check). Reports also list later days, so entries are matched by game date.
+  - Preseason games get decision events only: they never feed Elo, form, availability or rest and travel history, and are predicted at full strength (availability missing).
+  - Availability is stored twice: `lost_actual_*` (set players who did not play, post-hoc by design) and `lost_report_*` (players listed Out or Doubtful count 1, Questionable 0.5, on the decision report's entries for the game's own date; 0 when there is no report). The model sees neutral `home_lost`/`away_lost`, filled by an availability mode: `actual` for training and walk-forward, `report` for live and the Phase 4 re-run.
+  - A team's player set is the players whose latest appearance this season was for it, minus 10+ straight misses, plus every player listed for the team on the decision report (rated at last season's rate if he has not played this season). Availability is missing before a team's first game of the season. Rosters are not used: finished-season rosters are end-of-season snapshots.
+  - Travel and time-zone shift are 0 after a gap of more than 7 days (bubble, openers); unknown venues give null. `home_court` is 0 at neutral sites; 2020-21 gets a `no_fans` flag and half the Elo home advantage. Elo skips the Cup final.
+  - Feature hash = `FEATURE_VERSION` + model feature list; artifacts with another hash are refused.
+- **Why:** one loop makes as-of semantics hold by construction and keeps features, ratings and availability consistent; the leakage test checks it at timestamp granularity.
+- **Consequences:** changing feature semantics requires bumping `FEATURE_VERSION`, retuning and a manual promote. From 2021-22 listed long-term absentees stay in the set, so `lost_*` runs higher than in earlier seasons (Phase 4 measures it).
+
 ## ADR-014: Avaris is an analytics model; The Odds API is dropped
 
 - **Date:** 2026-10-12 · **Status:** accepted

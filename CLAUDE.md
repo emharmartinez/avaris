@@ -17,7 +17,7 @@ uv run pyright
 uv run pytest                                  # all tests
 uv run pytest tests/unit/test_devig.py::test_x # single test
 uv run pytest -m e2e                           # pipeline E2E only
-uv run avaris ...                              # Typer CLI (ingest, train, daily, score, serve)
+uv run avaris ...                              # Typer CLI (ingest, features, tune, backtest, train; later daily, score, serve)
 ```
 
 **Web** (from `web/`; always pass `--cache "$TMPDIR/npm-cache"` to npm because of the sandbox)

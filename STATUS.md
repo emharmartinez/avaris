@@ -1,10 +1,29 @@
 # Status
 
-- **Phase:** Phase 2 done (injuries + odds removal), PR #5 on branch `phase-2-odds-injuries`. Phase 1 merged (PR #2)
+- **Phase:** Phase 3 done (features + models) on branch `phase-3-features-models`, not pushed. Phase 2 merged (PR #5), Phase 1 merged (PR #2)
 - **Pivot (2026-10-12):** Avaris is now an analytics model, not a betting model; The Odds API is dropped (ADR-014)
-- **Plan:** `docs/plans/avaris-nba-analytics-model-build-plan.md`. Its five decisions are approved, decision 4 revised: preseason games are predicted and scored too
-- **Next:** merge PR #5, then Phase 3 (features + models)
+- **Plan:** `docs/plans/avaris-nba-analytics-model-build-plan.md`; Phase 3 detail in `docs/plans/phase-3-features-models.md`
+- **Next:** push and open the Phase 3 PR, then Phase 4 (evaluation 2020-21 to 2024-25, injury-report re-run, holdout, final refit through 2025-26)
 - **Important!** The 2026-27 season starts in late October 2026. Live predictions need Phases 1-5 done, including the final refit through 2025-26.
+
+## Phase 3 results (2026-10-12)
+
+- **Features (ADR-015):** one event loop builds all features as of `decision_ts` for 20,499 games (40,998 `team_ratings` rows) in about 20 s. Leakage (incl. the 3 h result boundary), trade, neutral-site, preseason and per-date report tests pass
+- **Tuning:** Optuna, 60 trials per target and rung, walk-forward 2015-16 to 2019-20 with one refit per season; params frozen in `config.toml` (feature version 2)
+- **Weekly walk-forward, 2015-16 to 2019-20, regular season (5,979 games):** report in `docs/reports/phase-3-walkforward-2015-16-to-2019-20.md`
+
+| Target | Elo | Kept rung | Kept |
+|---|---|---|---|
+| `home_win` log loss | 0.6167 | linear, no isotonic (ADR-016) | 0.6099 |
+| `margin` MAE | 9.92 | LightGBM | 9.76 |
+| `total` MAE (Elo rung = league average) | 15.79 | linear | 14.59 |
+
+- **80% interval coverage (regular season):** margin 0.80, total 0.81
+- **Where the model does not beat Elo:** postseason `home_win` log loss (0.6233 vs 0.6196, 413 games)
+- **Isotonic calibration hurt** `home_win` log loss by 0.003-0.008, so it is off (ADR-016)
+- **Smoke:** `avaris train --through 2020-10-12` on the real DB trains and registers all three targets in about 30 s
+- **Gates:** ruff clean, pyright 0 errors, pytest all passed (e2e included)
+- **Follow-ups:** #6 (verify artifact hash before loading), #7 (availability era shift from 2021-22 reports)
 
 ## Phase 2 results (2026-10-12)
 

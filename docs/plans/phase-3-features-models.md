@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-12 ·
 - **Task:** point-in-time features, `team_ratings`, the model ladder with tuning, `avaris train` and the registry
-- **Status:** Ready for implementation
+- **Status:** Done (2026-10-12)
 - **Complexity**: `XL`
 - **Estimate Points**: `13`
 
@@ -44,14 +44,14 @@
 | Preseason | no result events at all; schedule history (rest, travel) skips preseason too | preseason test: deleting preseason games changes no other game |
 | Availability modes | `features` stores `lost_actual_*` (who played in the game) and `lost_report_*` (decision report); the model sees neutral `lost_home`/`lost_away`, filled by an `availability_mode` | one feature hash for training (actual) and live (report) |
 | What is post-hoc in `lost_actual` | only who played (`minutes > 0`); rates and expected minutes are as of `decision_ts` | the leakage test keeps the target game's own `player_games` rows and then checks every column |
-| Team player set | players whose latest appearance this season was for the team, minus 10+ straight misses unless on the decision report | point-in-time; no end-of-season roster leakage |
-| Report-listed players not in the set | added with this season's rate, else last season's | covers stars hurt since preseason |
+| Team player set | players whose latest appearance this season was for the team, minus 10+ straight misses, plus players listed on the decision report for the game's date; availability missing before a team's first game | point-in-time; no end-of-season roster leakage |
+| Report-listed players not in the set | added to the set (full strength and both lost columns) with this season's rate, else last season's | covers stars hurt since preseason |
 | Travel | 0 km and 0 tz shift after a gap of more than 7 days; unknown venue gives null | bubble and season openers have no travel fatigue |
 | Home court | `home_court` 1 or 0 (neutral), plus a `no_fans` flag for 2020-21; Elo home advantage scaled by a config factor in 2020-21 | the models learn the no-fans effect; no hand-set guess in features |
 | Elo | K 20, home advantage 100, MOV multiplier, 0.75 carryover to 1505 applied at a team's first event of a new season (a preseason decision included); updates on regular, play-in and playoffs, not preseason or the Cup final; not tuned | standard baseline; plan says Elo skips the Cup final |
 | Cup final | feeds team form and availability; σ bucket regular | it is a real game but outside the standings |
 | Elo rung for `total` | as-of EW league average total | Elo has no total |
-| Calibration and σ in walk-forward | refit once per test season from season-wise forward-chained OOF (last 3 seasons); the base model refits weekly | keeps weekly walk-forward cheap |
+| Calibration and σ in walk-forward | refit once per test season from season-wise forward-chained OOF (last 3 seasons); the base model refits weekly. Isotonic is a per-target option, off for `home_win` (ADR-016) | keeps weekly walk-forward cheap; isotonic hurt log loss |
 | Optuna trials | raw (uncalibrated) metric on regular-season rows, one refit per season, SQLite storage | plan compute budget; headline metric is regular season |
 | Rung selection | regular-season log loss and MAE, weekly refits | headline metric |
 | Decision window constant | `REPORT_WINDOW = 12 h` lives in `decision_time.py`; `status.py` imports it | one rule, one definition |
