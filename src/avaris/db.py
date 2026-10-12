@@ -202,6 +202,15 @@ MIGRATIONS: list[str] = [
         primary key (team_id, game_id)
     );
     """,
+    # Phase 4: season-to-date ratings, inputs of the naive net-rating baseline
+    """
+    alter table features add column home_ortg_std double;
+    alter table features add column away_ortg_std double;
+    alter table features add column home_drtg_std double;
+    alter table features add column away_drtg_std double;
+    alter table features add column home_pace_std double;
+    alter table features add column away_pace_std double;
+    """,
 ]
 
 

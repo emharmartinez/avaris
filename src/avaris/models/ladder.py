@@ -8,6 +8,8 @@ from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from avaris.models.baselines import BASELINES, NaiveHome, NaiveNet
+
 Target = Literal["home_win", "margin", "total"]
 Rung = Literal["elo", "linear", "lgbm"]
 TARGETS: tuple[Target, ...] = ("home_win", "margin", "total")
@@ -67,6 +69,10 @@ def _lgbm(target: str, params: dict[str, Any], seed: int) -> Any:
     return lgb.LGBMRegressor(**kwargs)
 
 
+def is_baseline(rung: str) -> bool:
+    return rung in BASELINES
+
+
 def make_rung(target: str, rung: str, params: dict[str, Any], seed: int) -> Model:
     if rung == "elo":
         return EloRung(target)
@@ -74,4 +80,8 @@ def make_rung(target: str, rung: str, params: dict[str, Any], seed: int) -> Mode
         return SklearnRung(target, _linear(target, params, seed))
     if rung == "lgbm":
         return SklearnRung(target, _lgbm(target, params, seed))
+    if rung == "naive_home":
+        return NaiveHome()
+    if rung == "naive_net":
+        return NaiveNet(target)
     raise ValueError(f"unknown rung {rung}")

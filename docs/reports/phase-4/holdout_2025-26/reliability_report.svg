@@ -1,0 +1,65 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='440' height='380' viewBox='0 0 440 380' role='img' aria-label='Reliability, home_win, regular (report)'>
+<title>Reliability, home_win, regular (report)</title>
+<rect width='440' height='380' fill='#fcfcfb'/>
+<text x='56' y='22' font-family='system-ui, sans-serif' font-size='14' font-weight='600' fill='#0b0b0b'>Reliability, home_win, regular (report)</text>
+<line x1='56' x2='420' y1='332.0' y2='332.0' stroke='#e4e3df' stroke-width='1'/>
+<text x='48' y='336.0' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>0.0</text>
+<line x1='56' x2='420' y1='278.4' y2='278.4' stroke='#e4e3df' stroke-width='1'/>
+<text x='48' y='282.4' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>0.2</text>
+<line x1='56' x2='420' y1='224.8' y2='224.8' stroke='#e4e3df' stroke-width='1'/>
+<text x='48' y='228.8' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>0.4</text>
+<line x1='56' x2='420' y1='171.2' y2='171.2' stroke='#e4e3df' stroke-width='1'/>
+<text x='48' y='175.2' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>0.6</text>
+<line x1='56' x2='420' y1='117.6' y2='117.6' stroke='#e4e3df' stroke-width='1'/>
+<text x='48' y='121.6' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>0.8</text>
+<line x1='56' x2='420' y1='64.0' y2='64.0' stroke='#e4e3df' stroke-width='1'/>
+<text x='48' y='68.0' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>1.0</text>
+<text x='56.0' y='350' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>0.0</text>
+<text x='128.8' y='350' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>0.2</text>
+<text x='201.6' y='350' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>0.4</text>
+<text x='274.4' y='350' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>0.6</text>
+<text x='347.2' y='350' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>0.8</text>
+<text x='420.0' y='350' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>1.0</text>
+<text x='238.0' y='370' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>Predicted home win probability</text>
+<text x='14' y='198.0' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle' transform='rotate(-90 14 198.0)'>Observed home win rate</text>
+<line x1='56' y1='332' x2='420' y2='64' stroke='#9a9993' stroke-width='1.5' stroke-dasharray='4 4'/>
+<polyline points='86.7,332.0 112.8,311.0 146.8,260.4 184.0,246.6 220.2,209.5 256.9,188.0 293.7,154.2 328.9,130.3 362.8,101.7 391.9,76.2' fill='none' stroke='#2a78d6' stroke-width='2' stroke-linejoin='round'/>
+<circle cx='86.7' cy='332.0' r='4' fill='#2a78d6' stroke='#fcfcfb' stroke-width='2'><title>model: predicted 0.084, observed 0.000, 8 games</title></circle>
+<circle cx='112.8' cy='311.0' r='4' fill='#2a78d6' stroke='#fcfcfb' stroke-width='2'><title>model: predicted 0.156, observed 0.078, 51 games</title></circle>
+<circle cx='146.8' cy='260.4' r='4' fill='#2a78d6' stroke='#fcfcfb' stroke-width='2'><title>model: predicted 0.250, observed 0.267, 101 games</title></circle>
+<circle cx='184.0' cy='246.6' r='4' fill='#2a78d6' stroke='#fcfcfb' stroke-width='2'><title>model: predicted 0.352, observed 0.319, 138 games</title></circle>
+<circle cx='220.2' cy='209.5' r='4' fill='#2a78d6' stroke='#fcfcfb' stroke-width='2'><title>model: predicted 0.451, observed 0.457, 175 games</title></circle>
+<circle cx='256.9' cy='188.0' r='4' fill='#2a78d6' stroke='#fcfcfb' stroke-width='2'><title>model: predicted 0.552, observed 0.537, 201 games</title></circle>
+<circle cx='293.7' cy='154.2' r='4' fill='#2a78d6' stroke='#fcfcfb' stroke-width='2'><title>model: predicted 0.653, observed 0.663, 205 games</title></circle>
+<circle cx='328.9' cy='130.3' r='4' fill='#2a78d6' stroke='#fcfcfb' stroke-width='2'><title>model: predicted 0.750, observed 0.753, 194 games</title></circle>
+<circle cx='362.8' cy='101.7' r='4' fill='#2a78d6' stroke='#fcfcfb' stroke-width='2'><title>model: predicted 0.843, observed 0.859, 135 games</title></circle>
+<circle cx='391.9' cy='76.2' r='4' fill='#2a78d6' stroke='#fcfcfb' stroke-width='2'><title>model: predicted 0.923, observed 0.955, 22 games</title></circle>
+<polyline points='91.3,332.0 116.4,332.0 149.2,282.9 184.9,239.1 220.4,237.7 257.4,204.7 294.1,167.9 329.9,151.4 365.5,118.4 392.6,98.6' fill='none' stroke='#eb6834' stroke-width='2' stroke-linejoin='round'/>
+<circle cx='91.3' cy='332.0' r='4' fill='#eb6834' stroke='#fcfcfb' stroke-width='2'><title>elo: predicted 0.097, observed 0.000, 1 games</title></circle>
+<circle cx='116.4' cy='332.0' r='4' fill='#eb6834' stroke='#fcfcfb' stroke-width='2'><title>elo: predicted 0.166, observed 0.000, 21 games</title></circle>
+<circle cx='149.2' cy='282.9' r='4' fill='#eb6834' stroke='#fcfcfb' stroke-width='2'><title>elo: predicted 0.256, observed 0.183, 71 games</title></circle>
+<circle cx='184.9' cy='239.1' r='4' fill='#eb6834' stroke='#fcfcfb' stroke-width='2'><title>elo: predicted 0.354, observed 0.347, 101 games</title></circle>
+<circle cx='220.4' cy='237.7' r='4' fill='#eb6834' stroke='#fcfcfb' stroke-width='2'><title>elo: predicted 0.452, observed 0.352, 162 games</title></circle>
+<circle cx='257.4' cy='204.7' r='4' fill='#eb6834' stroke='#fcfcfb' stroke-width='2'><title>elo: predicted 0.553, observed 0.475, 179 games</title></circle>
+<circle cx='294.1' cy='167.9' r='4' fill='#eb6834' stroke='#fcfcfb' stroke-width='2'><title>elo: predicted 0.654, observed 0.612, 209 games</title></circle>
+<circle cx='329.9' cy='151.4' r='4' fill='#eb6834' stroke='#fcfcfb' stroke-width='2'><title>elo: predicted 0.752, observed 0.674, 227 games</title></circle>
+<circle cx='365.5' cy='118.4' r='4' fill='#eb6834' stroke='#fcfcfb' stroke-width='2'><title>elo: predicted 0.850, observed 0.797, 197 games</title></circle>
+<circle cx='392.6' cy='98.6' r='4' fill='#eb6834' stroke='#fcfcfb' stroke-width='2'><title>elo: predicted 0.925, observed 0.871, 62 games</title></circle>
+<polyline points='79.3,332.0 117.5,217.1 148.6,283.6 185.2,254.5 219.6,234.5 256.3,177.2 291.8,163.5 327.9,123.3 362.3,105.6 390.8,108.7' fill='none' stroke='#1baf7a' stroke-width='2' stroke-linejoin='round'/>
+<circle cx='79.3' cy='332.0' r='4' fill='#1baf7a' stroke='#fcfcfb' stroke-width='2'><title>naive_net: predicted 0.064, observed 0.000, 2 games</title></circle>
+<circle cx='117.5' cy='217.1' r='4' fill='#1baf7a' stroke='#fcfcfb' stroke-width='2'><title>naive_net: predicted 0.169, observed 0.429, 21 games</title></circle>
+<circle cx='148.6' cy='283.6' r='4' fill='#1baf7a' stroke='#fcfcfb' stroke-width='2'><title>naive_net: predicted 0.254, observed 0.181, 83 games</title></circle>
+<circle cx='185.2' cy='254.5' r='4' fill='#1baf7a' stroke='#fcfcfb' stroke-width='2'><title>naive_net: predicted 0.355, observed 0.289, 128 games</title></circle>
+<circle cx='219.6' cy='234.5' r='4' fill='#1baf7a' stroke='#fcfcfb' stroke-width='2'><title>naive_net: predicted 0.450, observed 0.364, 187 games</title></circle>
+<circle cx='256.3' cy='177.2' r='4' fill='#1baf7a' stroke='#fcfcfb' stroke-width='2'><title>naive_net: predicted 0.550, observed 0.578, 251 games</title></circle>
+<circle cx='291.8' cy='163.5' r='4' fill='#1baf7a' stroke='#fcfcfb' stroke-width='2'><title>naive_net: predicted 0.648, observed 0.629, 229 games</title></circle>
+<circle cx='327.9' cy='123.3' r='4' fill='#1baf7a' stroke='#fcfcfb' stroke-width='2'><title>naive_net: predicted 0.747, observed 0.779, 208 games</title></circle>
+<circle cx='362.3' cy='105.6' r='4' fill='#1baf7a' stroke='#fcfcfb' stroke-width='2'><title>naive_net: predicted 0.841, observed 0.845, 103 games</title></circle>
+<circle cx='390.8' cy='108.7' r='4' fill='#1baf7a' stroke='#fcfcfb' stroke-width='2'><title>naive_net: predicted 0.920, observed 0.833, 18 games</title></circle>
+<rect x='56' y='36' width='10' height='10' rx='2' fill='#2a78d6'/>
+<text x='70' y='45' font-family='system-ui, sans-serif' font-size='12' fill='#0b0b0b'>model</text>
+<rect x='115' y='36' width='10' height='10' rx='2' fill='#eb6834'/>
+<text x='129' y='45' font-family='system-ui, sans-serif' font-size='12' fill='#0b0b0b'>elo</text>
+<rect x='160' y='36' width='10' height='10' rx='2' fill='#1baf7a'/>
+<text x='174' y='45' font-family='system-ui, sans-serif' font-size='12' fill='#0b0b0b'>naive_net</text>
+</svg>

@@ -204,7 +204,8 @@ class _Loop:
         league_rtg, league_pace = self.league_rtg.value, self.league_pace.value
         for side, team in (("home", home), ("away", away)):
             form = self.forms[team].snapshot(season, league_rtg, league_pace)
-            for key in ("ortg", "drtg", "net", "pace", "net_l10"):
+            for key in ("ortg", "drtg", "net", "pace", "net_l10", "ortg_std", "drtg_std",
+                        "pace_std"):
                 row[f"{side}_{key}"] = _nan(form[key])
             row[f"{side}_gp"] = int(form["gp"] or 0)
             sched = self.schedule.snapshot(team, tip, game["game_date_et"], venue)

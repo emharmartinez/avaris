@@ -86,3 +86,24 @@ def test_migration_4_drops_tables_from_a_version_3_db(tmp_path: Path) -> None:
     assert con.execute("select max(version) from schema_version").fetchone() == (
         len(MIGRATIONS),
     )
+
+
+def test_migration_6_adds_season_to_date_columns_to_a_populated_version_5_db(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "a.duckdb"
+    con = duckdb.connect(str(db_path))
+    con.execute("create table schema_version (version integer primary key)")
+    for version, ddl in enumerate(MIGRATIONS[:5], start=1):
+        con.execute(ddl)
+        con.execute("insert into schema_version values (?)", [version])
+    con.execute(
+        "insert into features (game_id, decision_ts, feature_hash, season, season_type, "
+        "game_date_et, home_team_id, away_team_id, home_court, no_fans, is_preseason, "
+        "is_postseason) values ('g', now(), 'h', '2024-25', 'regular', '2024-11-01', 1, 2, "
+        "1, 0, 0, 0)"
+    )
+    con.close()
+    con = connect(db_path)
+    row = con.execute("select game_id, home_ortg_std, away_pace_std from features").fetchone()
+    assert row == ("g", None, None)

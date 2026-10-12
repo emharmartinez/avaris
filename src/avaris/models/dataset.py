@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 
 from avaris.features.build import AvailabilityMode, model_frame
+from avaris.models.baselines import baseline_frame
+from avaris.models.ladder import is_baseline
 
 TARGET_COLUMNS = ("home_win", "margin", "total")
 
@@ -20,8 +22,14 @@ def with_targets(features: pd.DataFrame, con: duckdb.DuckDBPyConnection) -> pd.D
     return data.drop(columns=["home_pts", "away_pts"])
 
 
+def inputs(rows: pd.DataFrame, rung: str, availability: AvailabilityMode) -> pd.DataFrame:
+    # Naive baselines read season-to-date ratings; every rung of the ladder reads the model
+    # features
+    return baseline_frame(rows) if is_baseline(rung) else model_frame(rows, availability)
+
+
 def xy(
-    data: pd.DataFrame, target: str, availability: AvailabilityMode = "actual"
+    data: pd.DataFrame, target: str, rung: str, availability: AvailabilityMode = "actual"
 ) -> tuple[pd.DataFrame, np.ndarray]:
     rows = data[data[target].notna()]
-    return model_frame(rows, availability), rows[target].to_numpy(dtype=float)
+    return inputs(rows, rung, availability), rows[target].to_numpy(dtype=float)

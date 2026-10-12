@@ -8,8 +8,10 @@ import pandas as pd
 import pytest
 
 from avaris.features.build import (
+    MODEL_FEATURES,
     FeatureSet,
     build_features,
+    feature_hash,
     model_frame,
     write_features,
 )
@@ -277,3 +279,15 @@ def test_result_counts_from_tip_off_plus_3_hours(
     con.close()
     without = row(build(synthetic_db), target)["league_total"]
     assert (with_result != without) == included
+
+
+def test_season_to_date_ratings_are_stored_but_not_model_features(built: FeatureSet) -> None:
+    # Naive-baseline inputs: adding them must not change the frozen models' features
+    std = [f"{side}_{k}_std" for side in ("home", "away") for k in ("ortg", "drtg", "pace")]
+    assert set(std) <= set(built.features.columns)
+    assert not set(std) & set(MODEL_FEATURES)
+    assert feature_hash() == "7723ef74696d81d3"  # feature version 2, the tuned models
+    opener = built.features[(built.features["season_type"] == "regular")].iloc[0]
+    assert math.isnan(opener["home_ortg_std"])
+    later = built.features[built.features["home_gp"] >= 3].iloc[0]
+    assert later["home_ortg_std"] > 0

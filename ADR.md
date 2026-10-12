@@ -2,6 +2,18 @@
 
 One entry per binding decision. Newest first. Status is `accepted`, `superseded` or `proposed`.
 
+## ADR-017: Evaluation against Elo and two naive baselines with paired bootstrap CIs; holdout scored once by the CLI
+
+- **Date:** 2026-10-12 · **Status:** accepted
+- **Decision:**
+  - `avaris evaluate` runs the weekly walk-forward of each target's kept rung, the Elo rung, `naive_home` (mean of the target over the last 1,230 training games) and `naive_net` (one-feature logistic or least-squares fit on the season-to-date net rating difference; `total` on the season-to-date expected total). Season-to-date ratings are stored in `features` (migration 6) but are not model features, so the feature hash is unchanged.
+  - Every metric gets a 95% percentile bootstrap CI over games (1,000 replicates). One draw of game indices per replicate is shared by all models, so the difference to Elo is a paired CI. "Does not beat Elo" means worse, or better with a paired CI that includes 0.
+  - `--availability report` uses the decision-report availability for the test block only; training, OOF calibration and σ stay on who actually played, as in production.
+  - Drivers are contributions on the link scale (log-odds for `home_win`): LightGBM `pred_contrib`, `coef × scaled value` for linear rungs with missing-value indicators folded into their feature. Every evaluation prediction checks `base + contributions = raw model output`.
+  - The holdout is scored only by `avaris evaluate --holdout`: both availability modes, a finished season, and a marker in `docs/reports/holdout_used.json` (tracked in git) written before scoring. `backtest`, `tune` and plain `evaluate` refuse any window reaching the holdout season.
+- **Why:** the plan's bar is Elo plus two naive baselines with confidence intervals; a paired CI makes "beats Elo" a statement rather than an impression. A guard in code keeps ADR-002's "used once" from depending on discipline.
+- **Consequences:** ECE's bootstrap interval is biased upward and can sit above the point estimate. `naive_home`'s near-zero ECE is the trivial calibration of a constant predictor. Deleting the marker and the holdout report reopens the holdout; don't.
+
 ## ADR-016: Kept rung and calibration per target chosen on the tuning window
 
 - **Date:** 2026-10-12 · **Status:** accepted
@@ -21,7 +33,8 @@ One entry per binding decision. Newest first. Status is `accepted`, `superseded`
   - Travel and time-zone shift are 0 after a gap of more than 7 days (bubble, openers); unknown venues give null. `home_court` is 0 at neutral sites; 2020-21 gets a `no_fans` flag and half the Elo home advantage. Elo skips the Cup final.
   - Feature hash = `FEATURE_VERSION` + model feature list; artifacts with another hash are refused.
 - **Why:** one loop makes as-of semantics hold by construction and keeps features, ratings and availability consistent; the leakage test checks it at timestamp granularity.
-- **Consequences:** changing feature semantics requires bumping `FEATURE_VERSION`, retuning and a manual promote. From 2021-22 listed long-term absentees stay in the set, so `lost_*` runs higher than in earlier seasons (Phase 4 measures it).
+- **Consequences:** changing feature semantics requires bumping `FEATURE_VERSION`, retuning and a manual promote. From 2021-22 listed long-term absentees stay in the set, so `lost_*` runs higher than in earlier seasons.
+- **Era shift, measured in Phase 4 (issue #7):** mean `lost_actual` per regular-season team-game is 11-18 for 2012-13 to 2019-20, 22 in 2020-21 and 31-36 from 2021-22 (`full_strength` rises from 84-102 to 120-125). `lost_report` captures 82-85% of `lost_actual`. The availability rule is not changed: picking a rule from 2021-25 results would tune on scored seasons, and any change needs a feature version bump and a retune. Reopen only with a rule chosen without the scored seasons.
 
 ## ADR-014: Avaris is an analytics model; The Odds API is dropped
 

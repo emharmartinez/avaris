@@ -62,7 +62,7 @@ def test_each_block_trains_only_on_earlier_games(
 
 
 @pytest.mark.parametrize("target", TARGETS)
-@pytest.mark.parametrize("rung", ["elo", "linear", "lgbm"])
+@pytest.mark.parametrize("rung", ["elo", "linear", "lgbm", "naive_home", "naive_net"])
 def test_calibrated_walk_forward_outputs(data: pd.DataFrame, target: str, rung: str) -> None:
     params = LGBM if rung == "lgbm" else {}
     preds = walk_forward(data, target, rung, params, 7, ["2021-22"], "weekly", oof_seasons=1)
@@ -124,3 +124,66 @@ def test_calibration_fits_only_on_seasons_before_the_test_season(
 def test_calibration_needs_two_labelled_seasons(data: pd.DataFrame) -> None:
     with pytest.raises(ValueError, match="at least 2 labelled seasons"):
         walk_forward(data, "margin", "elo", {}, 7, ["2020-21"], "season")
+
+
+def test_report_availability_applies_to_the_test_block_only(
+    data: pd.DataFrame, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fitted: list[pd.DataFrame] = []
+    predicted: list[pd.DataFrame] = []
+
+    class Recording:
+        def fit(self, x: pd.DataFrame, y: np.ndarray) -> Self:
+            fitted.append(x)
+            return self
+
+        def predict(self, x: pd.DataFrame) -> np.ndarray:
+            predicted.append(x)
+            return np.full(len(x), 0.0)
+
+    def fake_make_rung(*_args: Any) -> Recording:
+        return Recording()
+
+    monkeypatch.setattr(walkforward, "make_rung", fake_make_rung)
+    walk_forward(data, "margin", "linear", {}, 7, ["2021-22"], "season", calibrated=False,
+                 availability="report")
+    rows = data
+    test_x, train_x = predicted[0], fitted[0]
+    np.testing.assert_allclose(test_x["home_lost"], rows.loc[test_x.index, "home_lost_report"])
+    np.testing.assert_allclose(
+        train_x["home_lost"], rows.loc[train_x.index, "home_lost_actual"], equal_nan=True
+    )
+    assert not np.allclose(
+        rows.loc[test_x.index, "home_lost_report"], rows.loc[test_x.index, "home_lost_actual"],
+        equal_nan=True,
+    )
+
+
+def test_baselines_read_season_to_date_inputs(data: pd.DataFrame) -> None:
+    preds = walk_forward(data, "margin", "naive_net", {}, 7, ["2021-22"], "season",
+                         calibrated=False)
+    home = walk_forward(data, "margin", "naive_home", {}, 7, ["2021-22"], "season",
+                        calibrated=False)
+    assert preds["pred"].nunique() > 1
+    assert home["pred"].nunique() == 1
+
+
+@pytest.mark.parametrize("target", TARGETS)
+def test_walk_forward_drivers_sum_to_the_raw_output(data: pd.DataFrame, target: str) -> None:
+    from avaris.analytics.drivers import FAMILY_FEATURES
+
+    preds = walk_forward(data, target, "lgbm", LGBM, 7, ["2021-22"], "weekly", oof_seasons=1,
+                         isotonic=False, drivers=True)
+    families = [f"drv_{f}" for f in FAMILY_FEATURES]
+    assert set(families) <= set(preds.columns)
+    gap = preds["base"] + preds[families].sum(axis=1) - preds["raw"]
+    assert gap.abs().max() < 1e-6
+    without = walk_forward(data, target, "lgbm", LGBM, 7, ["2021-22"], "weekly", oof_seasons=1,
+                           isotonic=False)
+    assert "base" not in without.columns
+    np.testing.assert_allclose(preds["pred"], without["pred"])
+    # raw is the model's own prediction on the link scale, not the drivers' sum
+    from scipy.special import logit
+
+    expected = logit(preds["pred"]) if target == "home_win" else preds["pred"]
+    np.testing.assert_allclose(preds["raw"], expected, rtol=1e-6, atol=1e-6)

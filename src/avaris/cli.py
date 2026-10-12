@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Annotated
@@ -7,7 +8,7 @@ import duckdb
 import pandas as pd
 import typer
 
-from avaris.config import DEFAULT_CONFIG_PATH, Settings, load_settings
+from avaris.config import DEFAULT_CONFIG_PATH, ModelsSettings, Settings, load_settings
 from avaris.db import connect
 from avaris.features.build import build_features, feature_hash, write_features
 from avaris.ingest.injuries import InjuryClient, ingest_injuries
@@ -17,7 +18,13 @@ from avaris.ingest.status import check_injuries, check_report, injury_report, se
 from avaris.models.dataset import with_targets
 from avaris.models.ladder import TARGETS
 from avaris.models.registry import Registry
-from avaris.seasons import season_for_date, season_range, today_et
+from avaris.seasons import (
+    season_for_date,
+    season_label,
+    season_range,
+    season_start_year,
+    today_et,
+)
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -30,6 +37,8 @@ features_app = typer.Typer(no_args_is_help=True, help="Point-in-time features.")
 app.add_typer(db_app, name="db")
 app.add_typer(ingest_app, name="ingest")
 app.add_typer(features_app, name="features")
+
+SEASON_RE = re.compile(r"\d{4}-\d{2}")
 
 
 def _open_read_only(settings: Settings) -> duckdb.DuckDBPyConnection:
@@ -193,6 +202,23 @@ TargetOption = Annotated[
 ]
 
 
+def _scored_seasons(cfg: ModelsSettings, first: str, last: str) -> list[str]:
+    # A walk-forward window: valid labels, never reaching the holdout (ADR-002)
+    for label in (first, last):
+        if not SEASON_RE.fullmatch(label) or season_label(season_start_year(label)) != label:
+            typer.echo(f"invalid season label {label!r}: use the form 2024-25")
+            raise typer.Exit(1)
+    seasons = season_range(first, last)
+    if not seasons:
+        typer.echo(f"empty season window {first} to {last}")
+        raise typer.Exit(1)
+    if seasons[-1] >= cfg.holdout_season:
+        typer.echo(f"{cfg.holdout_season} is the holdout: score it once with "
+                   "`avaris evaluate --holdout`")
+        raise typer.Exit(1)
+    return seasons
+
+
 @features_app.command("build")
 def features_build(ctx: typer.Context) -> None:
     # Rebuild the features and team_ratings tables from the stored data
@@ -222,7 +248,7 @@ def tune_command(
     cfg = settings.models
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     data = _training_data(settings)
-    seasons = season_range(cfg.tune_first_season, cfg.tune_last_season)
+    seasons = _scored_seasons(cfg, cfg.tune_first_season, cfg.tune_last_season)
     out_path = cfg.reports_dir / "tuning.json"
     results = json.loads(out_path.read_text()) if out_path.exists() else {}
     for t in _targets(target):
@@ -256,9 +282,11 @@ def backtest_command(
     if refit not in ("season", "weekly"):
         raise typer.BadParameter("refit must be season or weekly")
     first, last = from_season or cfg.tune_first_season, to_season or cfg.tune_last_season
+    seasons = _scored_seasons(cfg, first, last)
     data = _training_data(settings)
+    data = data[data["season"] <= seasons[-1]]
     table, preds = compare_rungs(
-        data, cfg, season_range(first, last), refit, _targets(target),  # type: ignore[arg-type]
+        data, cfg, seasons, refit, _targets(target),  # type: ignore[arg-type]
         progress=typer.echo,
     )
     kept = kept_rungs(table)
@@ -270,6 +298,99 @@ def backtest_command(
     _show(table[table["scope"] == "regular"].drop(columns=["scope"]).round(4))
     typer.echo(f"Kept rungs: {json.dumps(kept)}")
     typer.echo(f"Wrote {cfg.reports_dir / name}.md")
+
+
+def _holdout_seasons(
+    cfg: ModelsSettings, data: pd.DataFrame, modes: list[str], from_season: str | None,
+    to_season: str | None,
+) -> list[str]:
+    # The holdout is scored once, whole, in both availability modes (ADR-002)
+    season = cfg.holdout_season
+    if from_season or to_season:
+        typer.echo("--holdout scores the configured holdout season; drop --from and --to")
+        raise typer.Exit(1)
+    if sorted(modes) != ["actual", "report"]:
+        typer.echo("the holdout is scored once, in both availability modes: drop --availability")
+        raise typer.Exit(1)
+    out = cfg.reports_dir / f"holdout_{season}"
+    if cfg.holdout_marker.exists() or out.exists():
+        typer.echo(f"The {season} holdout has already been scored ({cfg.holdout_marker}, "
+                   f"{out}); it is used once (ADR-002)")
+        raise typer.Exit(1)
+    rows = data[(data["season"] == season) & (data["season_type"] != "preseason")]
+    open_games = int(rows["margin"].isna().sum())
+    if rows.empty or open_games:
+        typer.echo(f"{season}: {open_games} of {len(rows)} games are not final; ingest the "
+                   "finished season before scoring the holdout")
+        raise typer.Exit(1)
+    counts = rows["season_type"].value_counts().to_dict()
+    typer.echo(f"Scoring the {season} holdout once: {counts}")
+    return [season]
+
+
+def _write_marker(path: Path, season: str, modes: list[str], out: Path, status: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({
+        "season": season, "availability": modes, "status": status,
+        "at": datetime.now(UTC).isoformat(), "report": str(out),
+    }, indent=2) + "\n")
+
+
+@app.command("evaluate")
+def evaluate_command(
+    ctx: typer.Context,
+    from_season: Annotated[str | None, typer.Option("--from", help="First test season.")] = None,
+    to_season: Annotated[str | None, typer.Option("--to", help="Last test season.")] = None,
+    availability: Annotated[
+        list[str] | None, typer.Option(help="actual or report (repeatable; default actual).")
+    ] = None,
+    holdout: Annotated[
+        bool, typer.Option("--holdout", help="Score the holdout season (once only).")
+    ] = False,
+    n_boot: Annotated[int, typer.Option(help="Bootstrap replicates.")] = 1000,
+) -> None:
+    # Weekly walk-forward of the kept rungs against Elo and the naive baselines, with
+    # bootstrap CIs, calibration, drivers and charts
+    from avaris.backtest.evaluate import evaluate, render_report
+
+    settings: Settings = ctx.obj
+    cfg = settings.models
+    modes = availability or (["actual", "report"] if holdout else ["actual"])
+    if set(modes) - {"actual", "report"}:
+        raise typer.BadParameter("availability must be actual or report")
+    data = _training_data(settings)
+    marker = cfg.holdout_marker
+    if holdout:
+        seasons = _holdout_seasons(cfg, data, modes, from_season, to_season)
+        name = f"holdout_{cfg.holdout_season}"
+    else:
+        seasons = _scored_seasons(cfg, from_season or cfg.eval_first_season,
+                                  to_season or cfg.eval_last_season)
+        name = f"evaluation_{seasons[0]}_{seasons[-1]}"
+    if "report" in modes and seasons[0] < settings.injuries.first_season:
+        first_reports = settings.injuries.first_season
+        typer.echo(f"report availability: injury reports start in {first_reports}; "
+                   f"pass --from {first_reports}")
+        raise typer.Exit(1)
+    out = cfg.reports_dir / name
+    if holdout:
+        # Recorded before scoring: a crash after this point still counts as a use
+        _write_marker(marker, cfg.holdout_season, modes, out, "started")
+    data = data[data["season"] <= seasons[-1]]
+    runs = {
+        m: evaluate(data, cfg, seasons, m, progress=typer.echo)  # type: ignore[arg-type]
+        for m in modes
+    }
+    title = f"Evaluation {seasons[0]} to {seasons[-1]}" + (" (holdout)" if holdout else "")
+    report, charts = render_report(runs, title, data, n_boot=n_boot, seed=cfg.seed)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "report.md").write_text(report + "\n")
+    for chart, svg in charts.items():
+        (out / chart).write_text(svg + "\n")
+    pd.concat(runs.values()).to_csv(out / "predictions.csv.gz", index=False)
+    if holdout:
+        _write_marker(marker, cfg.holdout_season, modes, out, "scored")
+    typer.echo(f"Wrote {out / 'report.md'}")
 
 
 @app.command("train")

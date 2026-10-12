@@ -99,6 +99,18 @@ def test_team_form_new_season_regresses_toward_league_and_resets_counts() -> Non
     assert nxt["net_l10"] is None
 
 
+def test_team_form_season_to_date_ratings_are_plain_means_reset_each_season() -> None:
+    form = TeamForm()
+    form.add("2019-20", ortg=110, drtg=100, pace=98)
+    form.add("2019-20", ortg=120, drtg=104, pace=102)
+    now = form.snapshot("2019-20", league_rtg=110, league_pace=100)
+    assert (now["ortg_std"], now["drtg_std"], now["pace_std"]) == (115, 102, 100)
+    nxt = form.snapshot("2020-21", league_rtg=110, league_pace=100)
+    assert (nxt["ortg_std"], nxt["drtg_std"], nxt["pace_std"]) == (None, None, None)
+    form.add("2020-21", ortg=100, drtg=110, pace=90)
+    assert form.snapshot("2020-21", 110, 100)["ortg_std"] == 100
+
+
 # Schedule
 
 

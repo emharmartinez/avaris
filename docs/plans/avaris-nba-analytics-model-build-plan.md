@@ -154,7 +154,7 @@ DuckDB tables: `games` (incl. `tip_off_utc`, `game_date_et`, `season_type`, `neu
   - `grep -ri "odds\|devig\|CreditGuard" src tests` finds only migrations 2, 3 and 4 in `db.py` and the migration 4 test in `test_db.py`, and the real DB has no odds tables after migration 4.
   - The gates pass.
 
-### Phase 3 — Features + models (done, branch `phase-3-features-models`; see `docs/plans/phase-3-features-models.md`)
+### Phase 3 — Features + models (done, PR #8; see `docs/plans/phase-3-features-models.md`)
 - `decision_ts` resolution per game, and all feature families as of `decision_ts`, including neutral-site handling and the availability rules for trades and roster moves.
 - `team_ratings` table, filled from the same as-of feature code.
 - Model ladder, LightGBM + Optuna (one refit per season during trials, SQLite storage), calibration, σ fitting.
@@ -169,7 +169,7 @@ DuckDB tables: `games` (incl. `tip_off_utc`, `game_date_et`, `season_type`, `neu
   - Walk-forward results on 2015-16 to 2019-20 show LightGBM (or the rung that's kept) beating Elo on log loss and MAE.
   - Registry tests pass: promotion, candidate hold, manual `--promote` and feature-hash refusal.
 
-### Phase 4 — Evaluation + analytics
+### Phase 4 — Evaluation + analytics (done, branch `phase-4-evaluation-analytics`; see `docs/plans/phase-4-evaluation-analytics.md` and `docs/reports/phase-4-evaluation.md`)
 - Walk-forward evaluation for 2020-21 to 2024-25 with weekly refits and the frozen hyperparameters: all metrics above, against Elo and the naive baselines, with preseason, play-in and playoffs reported separately from the regular season.
 - Re-run on 2021-22+ using the `decision_ts` injury report instead of actual availability, to measure the cost of late scratches. This re-run is the number that matters for live use.
 - Drivers (`analytics/drivers.py`) and injury impact (`analytics/injury_impact.py`) per prediction, checked on the evaluation run: for each game, contributions plus the base value sum to the model output.

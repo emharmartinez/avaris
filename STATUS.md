@@ -1,10 +1,27 @@
 # Status
 
-- **Phase:** Phase 3 done (features + models) on branch `phase-3-features-models`, not pushed. Phase 2 merged (PR #5), Phase 1 merged (PR #2)
+- **Phase:** Phase 4 done (evaluation + analytics) on branch `phase-4-evaluation-analytics`, not pushed. Phase 3 merged (PR #8), Phase 2 merged (PR #5), Phase 1 merged (PR #2)
 - **Pivot (2026-10-12):** Avaris is now an analytics model, not a betting model; The Odds API is dropped (ADR-014)
-- **Plan:** `docs/plans/avaris-nba-analytics-model-build-plan.md`; Phase 3 detail in `docs/plans/phase-3-features-models.md`
-- **Next:** push and open the Phase 3 PR, then Phase 4 (evaluation 2020-21 to 2024-25, injury-report re-run, holdout, final refit through 2025-26)
+- **Plan:** `docs/plans/avaris-nba-analytics-model-build-plan.md`; phase detail in `docs/plans/phase-3-features-models.md` and `docs/plans/phase-4-evaluation-analytics.md`
+- **Next:** push and open the Phase 4 PR, then Phase 5 (daily pipeline + API)
 - **Important!** The 2026-27 season starts in late October 2026. Live predictions need Phases 1-5 done, including the final refit through 2025-26.
+
+## Phase 4 results (2026-10-12)
+
+- **Report:** `docs/reports/phase-4-evaluation.md` (full reports in `docs/reports/phase-4/`)
+- **Regular season, model vs Elo:** better on log loss, Brier, MAE and RMSE for every target, CI excluding 0, in 2020-25 (actual), 2021-25 (injury report) and the 2025-26 holdout (both modes)
+
+| Run | `home_win` log loss (Elo) | `margin` MAE (Elo) | `total` MAE (Elo) |
+|---|---|---|---|
+| 2020-25, actual | 0.6164 (0.6389) | 10.67 (10.99) | 14.63 (15.70) |
+| 2021-25, report | 0.6131 (0.6375) | 10.79 (10.94) | 14.60 (15.71) |
+| 2025-26 holdout, report | 0.5820 (0.6083) | 11.08 (11.51) | 15.02 (15.96) |
+
+- **Where the model does not beat Elo:** postseason `margin` with the injury report (2021-25 MAE +0.54, CI excludes 0); holdout postseason `home_win` accuracy (0.60 vs 0.68); postseason `home_win` log loss is better but not significantly; play-in and preseason mixed
+- **Cost of late scratches (report vs actual):** none on win probability; `margin` MAE +0.10 to +0.16 regular season, about +1 postseason
+- **Era shift (#7):** `lost_actual` 11-18 per team-game through 2019-20, 31-36 from 2021-22; the report captures 82-85%; rule unchanged (ADR-015)
+- **Production model:** run `20261012T224157Z-b5c3`, trained through 2026-06-13, promoted for all targets
+- **Holdout:** scored once (`docs/reports/holdout_used.json`)
 
 ## Phase 3 results (2026-10-12)
 
