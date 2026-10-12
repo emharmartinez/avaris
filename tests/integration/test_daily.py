@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from avaris.config import ModelsSettings, Settings, TargetModelSettings
+from avaris.config import Settings
 from avaris.db import connect, upsert
 from avaris.features.build import build_features, feature_hash
 from avaris.models.dataset import with_targets
@@ -18,22 +18,12 @@ from avaris.models.registry import Registry
 from avaris.pipeline.daily import DailySummary, is_stale, prediction_status, run_daily
 from avaris.pipeline.score import score_predictions
 from avaris.pipeline.train import train
+from tests.fixtures.live import D1, D2, models_settings, train_before_d1
 from tests.fixtures.synthetic import ATL, BOS, INJURED_STAR
 
-D1, D2 = date(2021, 11, 26), date(2021, 11, 27)  # the two unplayed rounds of 2021-22
 TIP_D1 = datetime(2021, 11, 27, 0, 0)  # naive UTC, 7 pm ET
 NOON_D1 = datetime(2021, 11, 26, 17, 0)  # noon ET
 AFTER_CUTOFF_D1 = datetime(2021, 11, 26, 23, 30)  # tip - 30 min
-LGBM = {"n_estimators": 20, "num_leaves": 4, "min_child_samples": 5}
-
-
-def models_settings(artifacts: Path) -> ModelsSettings:
-    lgbm = TargetModelSettings(rung="lgbm", lgbm=LGBM)
-    return ModelsSettings(
-        artifacts_dir=artifacts, oof_seasons=1, promote_tolerance=10.0,
-        home_win=TargetModelSettings(rung="linear", calibration="none"), margin=lgbm,
-        total=TargetModelSettings(rung="linear"),
-    )
 
 
 @pytest.fixture(scope="module")
@@ -44,11 +34,7 @@ def trained(
     root = tmp_path_factory.mktemp("daily")
     db = root / "league.duckdb"
     shutil.copy(synthetic_db_template, db)
-    con = duckdb.connect(str(db), read_only=True)
-    data = with_targets(build_features(con).features, con)
-    con.close()
-    train(data, models_settings(root / "artifacts"), through=D1, run_id="r1",
-          now=datetime(2021, 11, 26))
+    train_before_d1(db, root / "artifacts")
     return db, root / "artifacts"
 
 

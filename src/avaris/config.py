@@ -76,6 +76,12 @@ class ModelsSettings(BaseModel):
         return {"home_win": self.home_win, "margin": self.margin, "total": self.total}[name]
 
 
+class ServerSettings(BaseModel):
+    host: str = "127.0.0.1"  # local-only
+    port: int = 8000
+    daily_on_startup: bool = True
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AVARIS_", env_nested_delimiter="__")
 
@@ -83,6 +89,7 @@ class Settings(BaseSettings):
     stats: StatsSettings = StatsSettings()
     injuries: InjurySettings = InjurySettings()
     models: ModelsSettings = ModelsSettings()
+    server: ServerSettings = ServerSettings()
 
     @classmethod
     def settings_customise_sources(
