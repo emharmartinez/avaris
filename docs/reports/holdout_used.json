@@ -1,0 +1,10 @@
+{
+  "season": "2025-26",
+  "availability": [
+    "actual",
+    "report"
+  ],
+  "status": "scored",
+  "at": "2026-10-12T22:41:17.143526+00:00",
+  "report": "artifacts/reports/holdout_2025-26"
+}
