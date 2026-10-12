@@ -1,9 +1,21 @@
 # Status
 
-- **Phase:** Phase 2 in progress (odds + injuries), on branch `phase-2-odds-injuries`. Phase 1 merged (PR #2)
+- **Phase:** Phase 2 code done (odds + injuries), on branch `phase-2-odds-injuries`. Waiting on the user's paid odds backfill to close it. Phase 1 merged (PR #2)
 - **Plan:** `docs/plans/avaris-nba-betting-model-build-plan.md`
-- **Next:** build the Odds API client, `CreditGuard`, de-vig and injury ingest
+- **Next:** user buys the Odds API plan and runs the 1-week test, then the full backfill (see below); then Phase 3
 - **Important!** The 2026-27 season starts in late October 2026. Live picks need Phases 1-5 done, including the final refit through 2025-26.
+
+## Phase 2 results (2026-10-12)
+
+- **Injury reports: done-when passes.** `avaris ingest injuries` fetched 4,680 reports for 2021-22 to 2025-26 (7 slots missing on the CDN). `avaris ingest status --check`: every regular-season game has a report between tip-off - 12 h and tip-off - 60; unmatched player rows 0.01-0.8% per season (players with no stats rows in any season)
+- **Odds: code done, data user-blocked.** Guard, ledger, client, slot planner, backfill, `usage` and `status --check` are tested on hand-built responses (issue #3 swaps in recorded ones)
+- **Backfill estimate** (`avaris odds backfill --estimate`, offline): 185,190 credits for 2020-21 to 2025-26 (27.5k-32.3k per season, about 6.4 snapshots per game day). The 1-week test (2022-01-10 to 2022-01-16) is 1,290 credits
+- **User steps, in order:**
+  1. Buy the 5M plan ($119) and put `ODDS_API_KEY=...` in `.env.local`
+  2. `uv run avaris odds backfill --from 2022-01-10 --to 2022-01-16 --confirm --max-credits 1500 --monthly-budget 250000 --usd-per-credit 0.0000238 --max-usd 119` and check it prints `Ledger reconciled`
+  3. `uv run avaris odds backfill --confirm --max-credits 200000 --monthly-budget 250000 --usd-per-credit 0.0000238 --max-usd 119`
+  4. `uv run avaris odds status --check`, then downgrade the plan to free
+- **Data quirks found:** a wrapped injury reason ("(Nasal Fracture, Face Mask)") parses as a player row (merged back); games can be absent from a report when neither team lists a player
 
 ## Phase 2 smoke tests (2026-10-12)
 

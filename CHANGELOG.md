@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **Phase 2, odds + injuries**
+  - Schema: `api_usage` ledger, `odds_events`, `odds_snapshots`, `injury_report_files`, `injury_reports`
+  - `avaris ingest injuries`: official NBA injury report PDFs at each game's decision slot (hourly and 15-minute URL formats), `report_ts` from the PDF header, players matched to IDs; coverage check in `avaris ingest status`
+  - `decision_ts` resolution (`features/decision_time.py`): latest report at or before tip-off - 60, else tip-off - 60
+  - `CreditGuard`: per-run cap, monthly budget with per-purpose headroom (open, then close, then decision refused first), USD cap, reserve; every call and refusal in the ledger; `x-requests-last` reconciled against the estimate
+  - Odds API client: cached historical snapshots, decimal odds, key kept out of caches, ledger, errors and logs
+  - Shared snapshot slot planner (ADR-011) and `avaris odds backfill` (offline estimate by default; `--confirm` with explicit caps), `avaris odds usage`, `avaris odds status --check`
+  - Multiplicative and Shin de-vig, per-book fair probability at that book's line (`betting/devig.py`)
 - **Phase 1, foundation + stats data**
   - uv project (Python 3.12) with ruff, pyright, pytest (`e2e` marker), `config.toml` with env overrides
   - DuckDB schema with versioned migrations: `games`, `team_games`, `player_games`, `rosters`
