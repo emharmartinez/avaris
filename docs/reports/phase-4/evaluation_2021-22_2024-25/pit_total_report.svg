@@ -1,0 +1,28 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='440' height='380' viewBox='0 0 440 380' role='img' aria-label='PIT, total, regular (report)'>
+<title>PIT, total, regular (report)</title>
+<rect width='440' height='380' fill='#fcfcfb'/>
+<text x='56' y='22' font-family='system-ui, sans-serif' font-size='14' font-weight='600' fill='#0b0b0b'>PIT, total, regular (report)</text>
+<line x1='56' x2='420' y1='332.0' y2='332.0' stroke='#e4e3df' stroke-width='1'/>
+<text x='48' y='336.0' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>0</text>
+<line x1='56' x2='420' y1='239.2' y2='239.2' stroke='#e4e3df' stroke-width='1'/>
+<text x='48' y='243.2' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>200</text>
+<line x1='56' x2='420' y1='146.4' y2='146.4' stroke='#e4e3df' stroke-width='1'/>
+<text x='48' y='150.4' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>400</text>
+<text x='56.0' y='350' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>0.0</text>
+<text x='238.0' y='350' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>0.5</text>
+<text x='420.0' y='350' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>1.0</text>
+<text x='238.0' y='370' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>PIT value</text>
+<text x='14' y='198.0' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle' transform='rotate(-90 14 198.0)'>Games</text>
+<path d='M57.0,332 V123.5 Q57.0,119.5 61.0,119.5 H87.4 Q91.4,119.5 91.4,123.5 V332 Z' fill='#2a78d6'><title>PIT 0.0-0.1: 458 games</title></path>
+<path d='M93.4,332 V98.4 Q93.4,94.4 97.4,94.4 H123.8 Q127.8,94.4 127.8,98.4 V332 Z' fill='#2a78d6'><title>PIT 0.1-0.2: 512 games</title></path>
+<path d='M129.8,332 V118.4 Q129.8,114.4 133.8,114.4 H160.2 Q164.2,114.4 164.2,118.4 V332 Z' fill='#2a78d6'><title>PIT 0.2-0.3: 469 games</title></path>
+<path d='M166.2,332 V104.9 Q166.2,100.9 170.2,100.9 H196.6 Q200.6,100.9 200.6,104.9 V332 Z' fill='#2a78d6'><title>PIT 0.3-0.4: 498 games</title></path>
+<path d='M202.6,332 V97.0 Q202.6,93.0 206.6,93.0 H233.0 Q237.0,93.0 237.0,97.0 V332 Z' fill='#2a78d6'><title>PIT 0.4-0.5: 515 games</title></path>
+<path d='M239.0,332 V94.2 Q239.0,90.2 243.0,90.2 H269.4 Q273.4,90.2 273.4,94.2 V332 Z' fill='#2a78d6'><title>PIT 0.5-0.6: 521 games</title></path>
+<path d='M275.4,332 V92.4 Q275.4,88.4 279.4,88.4 H305.8 Q309.8,88.4 309.8,92.4 V332 Z' fill='#2a78d6'><title>PIT 0.6-0.7: 525 games</title></path>
+<path d='M311.8,332 V114.6 Q311.8,110.6 315.8,110.6 H342.2 Q346.2,110.6 346.2,114.6 V332 Z' fill='#2a78d6'><title>PIT 0.7-0.8: 477 games</title></path>
+<path d='M348.2,332 V119.7 Q348.2,115.7 352.2,115.7 H378.6 Q382.6,115.7 382.6,119.7 V332 Z' fill='#2a78d6'><title>PIT 0.8-0.9: 466 games</title></path>
+<path d='M384.6,332 V113.7 Q384.6,109.7 388.6,109.7 H415.0 Q419.0,109.7 419.0,113.7 V332 Z' fill='#2a78d6'><title>PIT 0.9-1.0: 479 games</title></path>
+<line x1='56' x2='420' y1='103.7' y2='103.7' stroke='#9a9993' stroke-width='1.5' stroke-dasharray='4 4'/>
+<text x='420' y='97.7' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>uniform</text>
+</svg>
