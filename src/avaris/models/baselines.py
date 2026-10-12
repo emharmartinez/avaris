@@ -46,11 +46,14 @@ class NaiveNet:
         self.column = BASELINE_INPUT[target]
         self.classifier = target == "home_win"
         self.model: Any = LogisticRegression() if self.classifier else LinearRegression()
+        self.fill = 0.0
 
     def _x(self, x: pd.DataFrame) -> pd.DataFrame:
-        return x[[self.column]].fillna(x[self.column].median())
+        # Only the first games of 2012-13 lack a league total; filled with the training median
+        return x[[self.column]].fillna(self.fill)
 
     def fit(self, x: pd.DataFrame, y: np.ndarray) -> Self:
+        self.fill = float(x[self.column].median())
         self.model.fit(self._x(x), y)
         return self
 

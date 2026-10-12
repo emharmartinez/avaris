@@ -60,3 +60,12 @@ def test_make_rung_builds_every_baseline() -> None:
     assert BASELINES == ("naive_home", "naive_net")
     for name in BASELINES:
         assert hasattr(make_rung("margin", name, {}, 7), "predict")
+
+
+def test_naive_net_fills_missing_inputs_with_the_training_median() -> None:
+    from avaris.models.baselines import NaiveNet
+
+    x = pd.DataFrame({"net_std_diff": [1.0, 2.0, 3.0, np.nan], "exp_total_std": 220.0})
+    model = NaiveNet("margin").fit(x, np.array([1.0, 2.0, 3.0, 2.0]))
+    test = pd.DataFrame({"net_std_diff": [np.nan, 100.0], "exp_total_std": 220.0})
+    assert model.predict(test)[0] == pytest.approx(2.0)
