@@ -20,8 +20,7 @@ MIGRATIONS: list[str] = [
         status varchar not null check (status in ('scheduled', 'in_progress', 'final')),
         venue varchar,
         venue_city varchar,
-        neutral_site boolean not null,
-        updated_at timestamp not null default current_timestamp
+        neutral_site boolean not null
     );
     create table team_games (
         game_id varchar not null,
@@ -89,7 +88,8 @@ def connect(path: Path, read_only: bool = False) -> duckdb.DuckDBPyConnection:
 
 
 def upsert(con: duckdb.DuckDBPyConnection, table: str, df: pd.DataFrame) -> int:
-    # Insert or replace by the table's primary key; columns are matched by name
+    # Insert or replace by the table's primary key; columns are matched by name and
+    # columns missing from df keep their stored values
     if df.empty:
         return 0
     cols = ", ".join(df.columns)

@@ -10,6 +10,7 @@ from avaris.db import connect, upsert
 from avaris.ingest.nba_stats import parse_team_log
 from avaris.ingest.runner import ingest_stats, insert_missing_games, log_date_from
 from avaris.ingest.stats_client import RawCache, StatsClient, Throttle
+from avaris.ingest.status import season_report
 from tests.conftest import load_stats_fixture
 
 TODAY = date(2026, 10, 12)
@@ -36,18 +37,15 @@ def test_ingest_fills_all_phase_1_tables(
 ) -> None:
     ingest_stats(con, make_client(tmp_path), SEASONS, today=TODAY, refetch_days=7)
 
-    assert count(con, "select count(*) from games") == 13
+    assert count(con, "select count(*) from games") == 15
     assert count(con, "select count(*) from games where season_type = 'preseason'") == 2
-    assert count(con, "select count(*) from team_games") == 20
+    assert count(con, "select count(*) from team_games") == 24
     assert count(con, "select count(*) from team_games where season_type = 'cup_final'") == 2
     # 3 players per team-game, plus 3 extra on the Cup knockout game whose IST fixture
     # was trimmed to different players than its Regular Season one
-    assert count(con, "select count(*) from player_games") == 63
-    assert count(
-        con, "select count(*) from (select game_id, player_id from player_games group by all)"
-    ) == 63
-    # Only 2025-26 has a recorded roster (4 players), served for all 30 teams
-    assert count(con, "select count(*) from rosters") == 30 * 4
+    assert count(con, "select count(*) from player_games") == 75
+    # The recorded 4-player roster is served for every season and team
+    assert count(con, "select count(*) from rosters") == 3 * 30 * 4
     assert count(con, "select count(*) from games where neutral_site and season = '2019-20'") == 4
 
 
@@ -87,3 +85,84 @@ def test_games_missing_from_schedule_are_added_from_logs(con: duckdb.DuckDBPyCon
         "from games where game_id = '0021900573'"
     ).fetchone()
     assert row == (1610612756, 1610612753, 98, 94, None, "final", "regular")
+
+
+def test_in_progress_season_logs_use_the_refetch_window(
+    con: duckdb.DuckDBPyConnection, tmp_path: Path, stats_api: respx.MockRouter
+) -> None:
+    # Treat 2025-26 as in progress: the second run must ask for logs since latest - 7 days
+    today = date(2026, 3, 1)
+    ingest_stats(con, make_client(tmp_path), ["2025-26"], today=today, refetch_days=7)
+    first_run_calls = len(stats_api.calls)
+    ingest_stats(con, make_client(tmp_path), ["2025-26"], today=today, refetch_days=7)
+
+    latest = con.execute(
+        "select max(game_date_et) from team_games where season = '2025-26'"
+    ).fetchone()
+    assert latest is not None
+    expected = (latest[0] - pd.Timedelta(days=7)).strftime("%m/%d/%Y")
+    second_run = list(stats_api.calls)[first_run_calls:]
+    log_calls = [c for c in second_run if c.request.url.path.endswith("/leaguegamelog")]
+    assert len(log_calls) == 8
+    assert {c.request.url.params["DateFrom"] for c in log_calls} == {expected}
+
+
+def test_season_report_on_fixture_db(
+    con: duckdb.DuckDBPyConnection, tmp_path: Path, stats_api: respx.MockRouter
+) -> None:
+    ingest_stats(con, make_client(tmp_path), SEASONS, today=TODAY, refetch_days=7)
+    report = season_report(con).set_index("season")
+
+    bubble = report.loc["2019-20"].to_dict()
+    assert bubble["regular"] == 4
+    assert bubble["playoffs"] == 1
+    assert bubble["play_in"] == 1
+    assert bubble["neutral"] == 4
+    assert bubble["bubble_neutral"] == 3
+    assert bubble["bubble_not_neutral"] == 0
+    assert bubble["unknown_venues"] == 0
+    assert bubble["missing_tip_off"] == 0
+    assert bubble["finals_missing_team_logs"] == 0
+    assert bubble["team_games"] == 12
+
+    recent = report.loc["2025-26"].to_dict()
+    assert recent["preseason"] == 1
+    assert recent["regular"] == 3
+    assert recent["playoffs"] == 1
+    assert recent["play_in"] == 1
+    assert recent["cup_final"] == 1
+    assert recent["neutral"] == 1  # Abu Dhabi preseason is excluded; Las Vegas Cup final counts
+    assert recent["finals_missing_team_logs"] == 0
+    assert recent["roster_teams"] == 30
+
+
+def test_report_flags_final_games_without_logs(
+    con: duckdb.DuckDBPyConnection, tmp_path: Path, stats_api: respx.MockRouter
+) -> None:
+    ingest_stats(con, make_client(tmp_path), ["2019-20"], today=TODAY, refetch_days=7)
+    con.execute("delete from team_games where game_id = '0021900573' and not is_home")
+    report = season_report(con).set_index("season")
+    assert report.loc["2019-20"].to_dict()["finals_missing_team_logs"] == 1
+
+
+def test_season_logs_are_written_atomically(
+    con: duckdb.DuckDBPyConnection,
+    tmp_path: Path,
+    stats_api: respx.MockRouter,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A crash between the team and player upserts must not leave team rows behind,
+    # or the next run's refetch window would skip the missing player rows for good
+    import avaris.ingest.runner as runner
+
+    real_upsert = runner.upsert
+
+    def failing_upsert(c: duckdb.DuckDBPyConnection, table: str, df: pd.DataFrame) -> int:
+        if table == "player_games":
+            raise RuntimeError("crash")
+        return real_upsert(c, table, df)
+
+    monkeypatch.setattr(runner, "upsert", failing_upsert)
+    with pytest.raises(RuntimeError):
+        ingest_stats(con, make_client(tmp_path), ["2019-20"], today=TODAY, refetch_days=7)
+    assert count(con, "select count(*) from team_games") == 0

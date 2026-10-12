@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Annotated
 
+import duckdb
 import pandas as pd
 import typer
 
@@ -81,7 +82,15 @@ def ingest_status_command(
 ) -> None:
     # Per-season row counts and data-quality checks
     settings: Settings = ctx.obj
-    con = connect(settings.paths.db_path, read_only=True)
+    if not settings.paths.db_path.exists():
+        typer.echo(f"No database at {settings.paths.db_path}; run `avaris ingest stats` first")
+        raise typer.Exit(1)
+    try:
+        con = connect(settings.paths.db_path, read_only=True)
+    except duckdb.IOException as exc:
+        # DuckDB allows one writer; a running ingest or server holds the file
+        typer.echo(f"Database is locked by another process: {exc}")
+        raise typer.Exit(1) from exc
     try:
         report = season_report(con)
     finally:

@@ -4,7 +4,7 @@ from typing import Any
 import pandas as pd
 
 from avaris.ingest.teams import Venues
-from avaris.seasons import season_type_from_game_id
+from avaris.seasons import et_date, season_type_from_game_id
 
 GAME_COLUMNS = [
     "game_id", "season", "season_type", "game_date_et", "tip_off_utc", "home_team_id",
@@ -36,12 +36,16 @@ def parse_schedule(payload: dict[str, Any], season: str, venues: Venues) -> pd.D
                 continue
             status = STATUS_BY_CODE.get(game["gameStatus"], "scheduled")
             venue = (game.get("arenaName") or "").strip()
+            tip_off = _tip_off_utc(game)
             rows.append({
                 "game_id": game["gameId"],
                 "season": season,
                 "season_type": season_type,
-                "game_date_et": date.fromisoformat(game["gameDateEst"][:10]),
-                "tip_off_utc": _tip_off_utc(game),
+                # ET date of tip-off; the listed ET date when the time is not set
+                "game_date_et": (
+                    et_date(tip_off) if tip_off else date.fromisoformat(game["gameDateEst"][:10])
+                ),
+                "tip_off_utc": tip_off,
                 "home_team_id": int(home["teamId"]),
                 "away_team_id": int(away["teamId"]),
                 "home_pts": _score(home, status),

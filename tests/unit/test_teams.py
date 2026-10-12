@@ -63,3 +63,9 @@ def test_lookup_finds_home_and_neutral_venues() -> None:
     assert neutral is not None
     assert neutral.kind == "bubble"
     assert venues.lookup("Rupp Arena", SAS) is None
+
+
+def test_blank_venue_is_not_neutral_unless_flagged() -> None:
+    venues = Venues.load()
+    assert not venues.is_neutral("", LAL, flagged=False)
+    assert venues.is_neutral("", LAL, flagged=True)

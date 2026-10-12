@@ -60,3 +60,7 @@ def test_missing_logs_rosters_and_unknown_venues_fail() -> None:
     assert check(report_row(finals_missing_team_logs=1))
     assert check(report_row(roster_teams=29))
     assert check(report_row(unknown_venues=1))
+
+
+def test_empty_report_fails() -> None:
+    assert check_report(pd.DataFrame(), today=TODAY)

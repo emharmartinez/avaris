@@ -81,6 +81,8 @@ def season_report(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
 
 def check_report(report: pd.DataFrame, today: date) -> list[str]:
     # Phase 1 done-when checks; returns one message per failure
+    if report.empty:
+        return ["no games ingested"]
     failures: list[str] = []
     for row in report.to_dict("records"):
         season = str(row["season"])

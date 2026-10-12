@@ -36,7 +36,7 @@ def test_ingest_stats_then_status(
     seasons = con.execute("select distinct season from games order by 1").fetchall()
     assert seasons == [("2025-26",), ("2026-27",)]
     team_games = con.execute("select count(*) from team_games").fetchone()
-    assert team_games == (8,)
+    assert team_games == (12,)
     con.close()
 
     status = runner.invoke(app, ["--config", str(config), "ingest", "status"])

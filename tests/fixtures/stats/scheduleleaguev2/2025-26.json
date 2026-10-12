@@ -297,6 +297,122 @@
       }
      }
     ]
+   },
+   {
+    "gameDate": "04/14/2026 00:00:00",
+    "games": [
+     {
+      "gameId": "0052500111",
+      "gameCode": "20260414/MIACHA",
+      "gameStatus": 3,
+      "gameStatusText": "Final/OT",
+      "gameSequence": 1,
+      "gameDateEst": "2026-04-14T00:00:00Z",
+      "gameTimeEst": "1900-01-01T19:30:00Z",
+      "gameDateTimeEst": "2026-04-14T19:30:00Z",
+      "gameDateUTC": "2026-04-14T04:00:00Z",
+      "gameTimeUTC": "1900-01-01T23:30:00Z",
+      "gameDateTimeUTC": "2026-04-14T23:30:00Z",
+      "awayTeamTime": "2026-04-14T19:30:00Z",
+      "homeTeamTime": "2026-04-14T19:30:00Z",
+      "day": "Tue",
+      "monthNum": 4,
+      "weekNumber": 26,
+      "weekName": "Week 26",
+      "ifNecessary": "false",
+      "seriesGameNumber": "",
+      "gameLabel": "SoFi Play-In Tournament",
+      "gameSubLabel": "East",
+      "seriesText": "MIA eliminated",
+      "arenaName": "Spectrum Center",
+      "arenaState": "NC",
+      "arenaCity": "Charlotte",
+      "postponedStatus": "N",
+      "branchLink": "",
+      "gameSubtype": "",
+      "isNeutral": false,
+      "homeTeam": {
+       "teamId": 1610612766,
+       "teamName": "Hornets",
+       "teamCity": "Charlotte",
+       "teamTricode": "CHA",
+       "teamSlug": "hornets",
+       "wins": 1,
+       "losses": 0,
+       "score": 127,
+       "seed": 9
+      },
+      "awayTeam": {
+       "teamId": 1610612748,
+       "teamName": "Heat",
+       "teamCity": "Miami",
+       "teamTricode": "MIA",
+       "teamSlug": "heat",
+       "wins": 0,
+       "losses": 1,
+       "score": 126,
+       "seed": 10
+      }
+     }
+    ]
+   },
+   {
+    "gameDate": "04/18/2026 00:00:00",
+    "games": [
+     {
+      "gameId": "0042500121",
+      "gameCode": "20260418/ATLNYK",
+      "gameStatus": 3,
+      "gameStatusText": "Final",
+      "gameSequence": 3,
+      "gameDateEst": "2026-04-18T00:00:00Z",
+      "gameTimeEst": "1900-01-01T18:00:00Z",
+      "gameDateTimeEst": "2026-04-18T18:00:00Z",
+      "gameDateUTC": "2026-04-18T04:00:00Z",
+      "gameTimeUTC": "1900-01-01T22:00:00Z",
+      "gameDateTimeUTC": "2026-04-18T22:00:00Z",
+      "awayTeamTime": "2026-04-18T18:00:00Z",
+      "homeTeamTime": "2026-04-18T18:00:00Z",
+      "day": "Sat",
+      "monthNum": 4,
+      "weekNumber": 26,
+      "weekName": "Week 26",
+      "ifNecessary": "false",
+      "seriesGameNumber": "Game 1",
+      "gameLabel": "East First Round",
+      "gameSubLabel": "Game 1",
+      "seriesText": "NYK leads 1-0",
+      "arenaName": "Madison Square Garden",
+      "arenaState": "NY",
+      "arenaCity": "New York",
+      "postponedStatus": "N",
+      "branchLink": "",
+      "gameSubtype": "",
+      "isNeutral": false,
+      "homeTeam": {
+       "teamId": 1610612752,
+       "teamName": "Knicks",
+       "teamCity": "New York",
+       "teamTricode": "NYK",
+       "teamSlug": "knicks",
+       "wins": 1,
+       "losses": 0,
+       "score": 113,
+       "seed": 3
+      },
+      "awayTeam": {
+       "teamId": 1610612737,
+       "teamName": "Hawks",
+       "teamCity": "Atlanta",
+       "teamTricode": "ATL",
+       "teamSlug": "hawks",
+       "wins": 0,
+       "losses": 1,
+       "score": 102,
+       "seed": 6
+      }
+     }
+    ]
    }
   ]
  }

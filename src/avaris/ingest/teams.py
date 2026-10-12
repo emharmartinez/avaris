@@ -60,8 +60,9 @@ class Venues:
 
     def is_neutral(self, venue: str, home_team_id: int, flagged: bool) -> bool:
         # isNeutral is only set from 2024-25, so a game away from the home team's
-        # arenas (bubble, international, Cup in Las Vegas) is neutral too
-        return flagged or (venue, home_team_id) not in self._home
+        # arenas (bubble, international, Cup in Las Vegas) is neutral too. A blank
+        # venue is unknown, not neutral (ingest status reports it)
+        return flagged or (bool(venue) and (venue, home_team_id) not in self._home)
 
     def lookup(self, venue: str, home_team_id: int) -> Venue | None:
         return self._home.get((venue, home_team_id)) or self._neutral.get(venue)

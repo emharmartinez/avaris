@@ -107,8 +107,16 @@ def ingest_stats(
         final = is_finished(season, today)
         games = _ingest_schedule(con, client, season, final, venues)
         date_from = log_date_from(con, season, final, refetch_days)
-        team_rows, player_rows = _ingest_logs(con, client, season, final, date_from)
-        insert_missing_games(con, season)
+        # Team and player rows commit together: the refetch window is read from
+        # team_games, so team rows alone would hide missing player rows for good
+        con.begin()
+        try:
+            team_rows, player_rows = _ingest_logs(con, client, season, final, date_from)
+            insert_missing_games(con, season)
+            con.commit()
+        except BaseException:
+            con.rollback()
+            raise
         roster_rows = _ingest_rosters(con, client, season, final) if rosters else 0
         progress(
             f"{season}: {games} games, {team_rows} team-games, {player_rows} player-games, "

@@ -41,12 +41,12 @@ def _fixture_response(request: httpx.Request) -> httpx.Response:
         season_type = params["SeasonType"].replace(" ", "-")
         name = f"{season}_{season_type}_{params['PlayerOrTeam']}"
     else:
-        name = season
+        name = "2025-26"  # one recorded roster stands in for every season and team
     path = STATS_FIXTURES / endpoint / f"{name}.json"
     if path.exists():
         payload = json.loads(path.read_text())
         if endpoint == ROSTER:
-            # One recorded roster stands in for every team, re-keyed to the requested team
+            # Re-key the recorded roster to the requested team
             team_id = int(params["TeamID"])
             result = payload["resultSets"][0]
             col = result["headers"].index("TeamID")

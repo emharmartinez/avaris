@@ -36,6 +36,18 @@ Params = Mapping[str, str]
 Payload = dict[str, Any]
 
 
+class EmptyResponseError(Exception):
+    # A 200 with no rows for a finished season: treated as a glitch, never cached as final
+    pass
+
+
+def has_rows(payload: Payload) -> bool:
+    if "leagueSchedule" in payload:
+        return bool(payload["leagueSchedule"].get("gameDates"))
+    result_sets = payload.get("resultSets") or []
+    return bool(result_sets) and bool(result_sets[0].get("rowSet"))
+
+
 class Throttle:
     def __init__(
         self,
@@ -84,6 +96,8 @@ class RawCache:
 
 
 def _is_retryable(exc: BaseException) -> bool:
+    if isinstance(exc, EmptyResponseError):
+        return True
     if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code == 429 or exc.response.status_code >= 500
     return isinstance(exc, httpx.TransportError)
@@ -109,14 +123,15 @@ class StatsClient:
         self._http.close()
 
     def get_json(self, endpoint: str, params: Params, final: bool) -> Payload:
-        # final=True: cached forever once fetched; final=False: always refetched
+        # final=True: cached forever once fetched, so it must have rows;
+        # final=False: always refetched, and may be empty (season not started)
         if final and (cached := self.cache.get(endpoint, params)) is not None:
             return cached
-        payload = self._fetch(endpoint, params)
+        payload = self._fetch(endpoint, params, require_rows=final)
         self.cache.put(endpoint, params, payload, final=final)
         return payload
 
-    def _fetch(self, endpoint: str, params: Params) -> Payload:
+    def _fetch(self, endpoint: str, params: Params, require_rows: bool) -> Payload:
         retrying = Retrying(
             stop=stop_after_attempt(self.max_attempts),
             wait=wait_exponential(multiplier=self.retry_wait_s, max=60),
@@ -129,5 +144,8 @@ class StatsClient:
                 self.requests_made += 1
                 response = self._http.get(f"/{endpoint}", params=dict(params))
                 response.raise_for_status()
-                return response.json()
+                payload = response.json()
+                if require_rows and not has_rows(payload):
+                    raise EmptyResponseError(f"{endpoint} {dict(params)} returned no rows")
+                return payload
         raise AssertionError("unreachable")

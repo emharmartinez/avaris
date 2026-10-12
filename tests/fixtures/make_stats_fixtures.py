@@ -26,6 +26,8 @@ GAMES: dict[str, set[str]] = {
         "0022500798",  # Spurs home game in Austin (not neutral)
         "0022501201",  # Cup knockout (regular season, also in IST log)
         "0062500001",  # Cup final, Las Vegas
+        "0042500121",  # playoffs
+        "0052500111",  # play-in
     },
     "2026-27": {
         "0012600009",  # finished preseason game
