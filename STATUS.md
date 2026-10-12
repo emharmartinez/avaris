@@ -1,9 +1,9 @@
 # Status
 
-- **Phase:** Phase 3 done (features + models) on branch `phase-3-features-models`, not pushed. Phase 2 merged (PR #5), Phase 1 merged (PR #2)
+- **Phase:** Phase 4 in progress (evaluation + analytics) on branch `phase-4-evaluation-analytics`. Phase 3 merged (PR #8), Phase 2 merged (PR #5), Phase 1 merged (PR #2)
 - **Pivot (2026-10-12):** Avaris is now an analytics model, not a betting model; The Odds API is dropped (ADR-014)
-- **Plan:** `docs/plans/avaris-nba-analytics-model-build-plan.md`; Phase 3 detail in `docs/plans/phase-3-features-models.md`
-- **Next:** push and open the Phase 3 PR, then Phase 4 (evaluation 2020-21 to 2024-25, injury-report re-run, holdout, final refit through 2025-26)
+- **Plan:** `docs/plans/avaris-nba-analytics-model-build-plan.md`; phase detail in `docs/plans/phase-3-features-models.md` and `docs/plans/phase-4-evaluation-analytics.md`
+- **Next:** finish Phase 4 (evaluation 2020-21 to 2024-25, injury-report re-run, drivers, injury impact, holdout, final refit through 2025-26)
 - **Important!** The 2026-27 season starts in late October 2026. Live predictions need Phases 1-5 done, including the final refit through 2025-26.
 
 ## Phase 3 results (2026-10-12)
