@@ -5,9 +5,9 @@ import numpy as np
 import pandas as pd
 
 from avaris.backtest.metrics import primary_metric, score
-from avaris.features.build import AvailabilityMode, model_frame
+from avaris.features.build import AvailabilityMode
 from avaris.models.calibration import IsotonicCalibrator
-from avaris.models.dataset import xy
+from avaris.models.dataset import inputs, xy
 from avaris.models.distributions import fit_sigma, sigma_for
 from avaris.models.ladder import Model, make_rung
 
@@ -33,7 +33,7 @@ class GamePredictor:
         self, features: pd.DataFrame, availability: AvailabilityMode = "actual"
     ) -> pd.DataFrame:
         # home_win: p_home_win; margin and total: mu and sigma
-        raw = self.model.predict(model_frame(features, availability))
+        raw = self.model.predict(inputs(features, self.rung, availability))
         return finish(self.target, raw, features["season_type"], self.calibration)
 
 
@@ -61,9 +61,9 @@ def oof_predictions(
         )
     frames = []
     for season in seasons[1:][-oof_seasons:]:
-        x_train, y_train = xy(data[data["season"] < season], target)
+        x_train, y_train = xy(data[data["season"] < season], target, rung)
         test = data[(data["season"] == season) & data[target].notna()]
-        x_test, y_test = xy(test, target)
+        x_test, y_test = xy(test, target, rung)
         raw = make_rung(target, rung, params, seed).fit(x_train, y_train).predict(x_test)
         frames.append(pd.DataFrame({
             "season_type": test["season_type"].to_numpy(), "y": y_test, "raw": raw,
@@ -89,7 +89,7 @@ def fit_predictor(
     # Calibration and sigma from out-of-fold predictions, then a refit on every row
     oof = oof_predictions(data, target, rung, params, seed, oof_seasons)
     cal = calibrate(target, rung, oof, isotonic)
-    x, y = xy(data, target)
+    x, y = xy(data, target, rung)
     model = make_rung(target, rung, params, seed).fit(x, y)
     return GamePredictor(target, rung, params, model, cal)
 

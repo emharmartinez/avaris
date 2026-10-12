@@ -3,6 +3,7 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 
+from avaris.features.build import AvailabilityMode
 from avaris.models.dataset import xy
 from avaris.models.ladder import make_rung
 from avaris.models.predictor import Calibration, calibrate, finish, oof_predictions
@@ -30,9 +31,11 @@ def walk_forward(
     calibrated: bool = True,
     oof_seasons: int = 3,
     isotonic: bool = True,
+    availability: AvailabilityMode = "actual",
 ) -> pd.DataFrame:
     # Train on every game before the block, predict the block. Calibration and sigma are
-    # refitted once per test season from out-of-fold predictions on earlier seasons
+    # refitted once per test season from out-of-fold predictions on earlier seasons.
+    # `availability` applies to the test block only: training always sees who played
     rows = []
     for season in test_seasons:
         test = data[(data["season"] == season) & data[target].notna()]
@@ -45,8 +48,8 @@ def walk_forward(
             cal = calibrate(target, rung, oof, isotonic)
         for block in _blocks(test, refit):
             start = block["game_date_et"].min()
-            x_train, y_train = xy(data[data["game_date_et"] < start], target)
-            x_test, y_test = xy(block, target)
+            x_train, y_train = xy(data[data["game_date_et"] < start], target, rung)
+            x_test, y_test = xy(block, target, rung, availability)
             raw = make_rung(target, rung, params, seed).fit(x_train, y_train).predict(x_test)
             out = finish(target, raw, block["season_type"], cal)
             rows.append(pd.DataFrame({
