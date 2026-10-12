@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-12 ·
 - **Task:** scored walk-forward 2020-21 to 2024-25 vs Elo and two naive baselines, injury-report re-run, drivers and injury impact, report with charts, holdout run, first production model
-- **Status:** In progress
+- **Status:** Done (2026-10-12)
 - **Complexity**: `L`
 - **Estimate Points**: `8`
 
@@ -116,17 +116,17 @@
 
 ## 8. Acceptance Criteria
 
-- [ ] Every metric with bootstrap CIs against Elo and both naive baselines, calibration and interval coverage, for actual, report and holdout runs
-- [ ] The report states plainly where the model does not beat Elo
-- [ ] Drivers sum to the model output on every evaluation prediction
-- [ ] A production artifact trained through 2025-26 is in the registry
+- [x] Every metric with bootstrap CIs against Elo and both naive baselines, calibration and interval coverage, for actual, report and holdout runs
+- [x] The report states plainly where the model does not beat Elo
+- [x] Drivers sum to the model output on every evaluation prediction
+- [x] A production artifact trained through 2025-26 is in the registry
 
 ---
 
 ## 9. Definition of Done
 
-- [ ] Gates green: ruff, pyright, pytest (e2e included)
-- [ ] Docs updated; `git status` clean
+- [x] Gates green: ruff, pyright, pytest (e2e included)
+- [x] Docs updated; `git status` clean
 
 ## 10. Risks and Open Questions
 

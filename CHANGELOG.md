@@ -6,6 +6,12 @@
 - **Phase 2, odds removal (ADR-014):** The Odds API client, `CreditGuard`, snapshot slot planner, odds backfill, `avaris odds` CLI group, odds and guard settings, and de-vig (`betting/`). Migration 4 drops `odds_events`, `odds_snapshots` and `api_usage`
 
 ### Added
+- **Phase 4, evaluation + analytics**
+  - `avaris evaluate [--from] [--to] [--availability actual|report] [--holdout]`: weekly walk-forward of the kept rungs against Elo, `naive_home` and `naive_net`, with paired bootstrap CIs, ECE, reliability diagrams, PIT histograms (SVG), metrics per season and scope, and drivers per family (ADR-017)
+  - Holdout guard: `evaluate --holdout` scores a finished holdout season once in both availability modes and records `docs/reports/holdout_used.json`; `backtest`, `tune` and `evaluate` refuse windows reaching it
+  - `analytics/drivers.py` (LightGBM `pred_contrib`, coefficient x scaled value, Elo) and `analytics/injury_impact.py` (strength lost and the players behind it)
+  - Migration 6: season-to-date ORtg, DRtg and pace in `features` (naive-baseline inputs, not model features)
+  - Reports in `docs/reports/phase-4-evaluation.md` and `docs/reports/phase-4/`; first production model trained through 2025-26
 - **Phase 3, features + models**
   - Migration 5: `features` (game + `decision_ts`, with `feature_hash`) and `team_ratings`
   - Per-game `decision_ts` resolution with a `[tip - 12 h, tip - 60 min]` report window, shared with the injury check

@@ -46,9 +46,20 @@ uv run avaris train --through 2026-10-20       # refit kept rungs, register arti
 uv run avaris train --promote RUN_ID           # manual promote (after a rung or param change)
 ```
 
+## Evaluation
+
+```
+uv run avaris evaluate                                             # 2020-21 to 2024-25, actual availability
+uv run avaris evaluate --from 2021-22 --availability report        # decision injury report at test time
+```
+
+- Weekly walk-forward of the kept rungs against Elo and two naive baselines (home rate, season-to-date net rating), with 95% bootstrap CIs, paired differences to Elo, reliability diagrams, ECE, PIT histograms, interval coverage and per-family drivers (ADR-017).
+- **Important!** The 2025-26 holdout was scored once (`docs/reports/holdout_used.json`); `evaluate`, `backtest` and `tune` refuse any window that reaches it.
+- Results: `docs/reports/phase-4-evaluation.md`.
+
 - Features are computed as of each game's `decision_ts` by one chronological event loop (ADR-015): Elo, exponentially weighted ORtg, DRtg, pace and net rating, rest, back-to-backs, travel and time-zone shift, altitude, home court and availability (strength lost, from who played or from the injury report).
 - Model ladder per target: Elo (league-average total for `total`), logistic/ridge, LightGBM. The kept rung and frozen hyperparameters live in `config.toml` under `[models.*]`.
-- Win probabilities are calibrated with isotonic regression; margin and total use N(μ, σ) with σ fitted per `season_type` bucket from out-of-fold residuals.
+- Win probabilities use the model's own probabilities (isotonic calibration is a per-target option, off for `home_win`, ADR-016); margin and total use N(μ, σ) with σ fitted per `season_type` bucket from out-of-fold residuals.
 - Artifacts go to `artifacts/models/<target>/<run_id>/` (`model.joblib`, `meta.json`); `artifacts/models/registry.json` points to production. Reports and Optuna's SQLite store are in `artifacts/`.
 
 ## Data
