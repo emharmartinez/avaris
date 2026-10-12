@@ -133,6 +133,8 @@ def _failed_rules(
         reasons.append(f"rung {meta['rung']} != production {prod['rung']}; promote manually")
     if meta["params"] != prod["params"]:
         reasons.append("params differ from production; promote manually")
+    if meta.get("calibration") != prod.get("calibration"):
+        reasons.append("calibration differs from production; promote manually")
     return reasons
 
 

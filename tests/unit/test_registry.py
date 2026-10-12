@@ -204,3 +204,9 @@ def test_non_finite_oof_metric_is_held(reg: Registry) -> None:
     decision = reg.register("home_win", "r2", HASH, TOL)
     assert not decision.promoted
     assert any("unusable" in r for r in decision.reasons)
+
+
+def test_calibration_change_is_held(reg: Registry) -> None:
+    decision = held(reg, "r2", n_rows=120, calibration="none")
+    assert len(decision.reasons) == 1
+    assert "calibration" in decision.reasons[0]
