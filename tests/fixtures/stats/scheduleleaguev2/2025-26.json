@@ -1,0 +1,303 @@
+{
+ "meta": {
+  "version": 1,
+  "request": "http://nba.cloud/league/00/2025-26/scheduleleaguev2?Format=json",
+  "time": "2026-08-04T09:24:35.2435Z"
+ },
+ "leagueSchedule": {
+  "seasonYear": "2025-26",
+  "leagueId": "00",
+  "gameDates": [
+   {
+    "gameDate": "10/02/2025 00:00:00",
+    "games": [
+     {
+      "gameId": "0012500008",
+      "gameCode": "20251002/PHINYK",
+      "gameStatus": 3,
+      "gameStatusText": "Final",
+      "gameSequence": 1,
+      "gameDateEst": "2025-10-02T00:00:00Z",
+      "gameTimeEst": "1900-01-01T12:00:00Z",
+      "gameDateTimeEst": "2025-10-02T12:00:00Z",
+      "gameDateUTC": "2025-10-02T04:00:00Z",
+      "gameTimeUTC": "1900-01-01T16:00:00Z",
+      "gameDateTimeUTC": "2025-10-02T16:00:00Z",
+      "awayTeamTime": "2025-10-02T12:00:00Z",
+      "homeTeamTime": "2025-10-02T12:00:00Z",
+      "day": "Thu",
+      "monthNum": 10,
+      "weekNumber": 0,
+      "weekName": "",
+      "ifNecessary": "false",
+      "seriesGameNumber": "",
+      "gameLabel": "Preseason",
+      "gameSubLabel": "NBA Abu Dhabi Game",
+      "seriesText": "Neutral Site",
+      "arenaName": "Etihad Arena",
+      "arenaState": "",
+      "arenaCity": "Abu Dhabi",
+      "postponedStatus": "N",
+      "branchLink": "",
+      "gameSubtype": "Global Games",
+      "isNeutral": true,
+      "homeTeam": {
+       "teamId": 1610612752,
+       "teamName": "Knicks",
+       "teamCity": "New York",
+       "teamTricode": "NYK",
+       "teamSlug": "knicks",
+       "wins": 1,
+       "losses": 0,
+       "score": 99,
+       "seed": 0
+      },
+      "awayTeam": {
+       "teamId": 1610612755,
+       "teamName": "76ers",
+       "teamCity": "Philadelphia",
+       "teamTricode": "PHI",
+       "teamSlug": "sixers",
+       "wins": 0,
+       "losses": 1,
+       "score": 84,
+       "seed": 0
+      }
+     }
+    ]
+   },
+   {
+    "gameDate": "10/21/2025 00:00:00",
+    "games": [
+     {
+      "gameId": "0022500001",
+      "gameCode": "20251021/HOUOKC",
+      "gameStatus": 3,
+      "gameStatusText": "Final/OT2",
+      "gameSequence": 1,
+      "gameDateEst": "2025-10-21T00:00:00Z",
+      "gameTimeEst": "1900-01-01T19:30:00Z",
+      "gameDateTimeEst": "2025-10-21T19:30:00Z",
+      "gameDateUTC": "2025-10-21T04:00:00Z",
+      "gameTimeUTC": "1900-01-01T23:30:00Z",
+      "gameDateTimeUTC": "2025-10-21T23:30:00Z",
+      "awayTeamTime": "2025-10-21T18:30:00Z",
+      "homeTeamTime": "2025-10-21T18:30:00Z",
+      "day": "Tue",
+      "monthNum": 10,
+      "weekNumber": 1,
+      "weekName": "Week 1",
+      "ifNecessary": "false",
+      "seriesGameNumber": "",
+      "gameLabel": "",
+      "gameSubLabel": "",
+      "seriesText": "",
+      "arenaName": "Paycom Center",
+      "arenaState": "OK",
+      "arenaCity": "Oklahoma City",
+      "postponedStatus": "N",
+      "branchLink": "",
+      "gameSubtype": "",
+      "isNeutral": false,
+      "homeTeam": {
+       "teamId": 1610612760,
+       "teamName": "Thunder",
+       "teamCity": "Oklahoma City",
+       "teamTricode": "OKC",
+       "teamSlug": "thunder",
+       "wins": 1,
+       "losses": 0,
+       "score": 125,
+       "seed": 0
+      },
+      "awayTeam": {
+       "teamId": 1610612745,
+       "teamName": "Rockets",
+       "teamCity": "Houston",
+       "teamTricode": "HOU",
+       "teamSlug": "rockets",
+       "wins": 0,
+       "losses": 1,
+       "score": 124,
+       "seed": 0
+      }
+     }
+    ]
+   },
+   {
+    "gameDate": "12/09/2025 00:00:00",
+    "games": [
+     {
+      "gameId": "0022501201",
+      "gameCode": "20251209/MIAORL",
+      "gameStatus": 3,
+      "gameStatusText": "Final",
+      "gameSequence": 1,
+      "gameDateEst": "2025-12-09T00:00:00Z",
+      "gameTimeEst": "1900-01-01T18:00:00Z",
+      "gameDateTimeEst": "2025-12-09T18:00:00Z",
+      "gameDateUTC": "2025-12-09T05:00:00Z",
+      "gameTimeUTC": "1900-01-01T23:00:00Z",
+      "gameDateTimeUTC": "2025-12-09T23:00:00Z",
+      "awayTeamTime": "2025-12-09T18:00:00Z",
+      "homeTeamTime": "2025-12-09T18:00:00Z",
+      "day": "Tue",
+      "monthNum": 12,
+      "weekNumber": 8,
+      "weekName": "Week 8",
+      "ifNecessary": "false",
+      "seriesGameNumber": "",
+      "gameLabel": "Emirates NBA Cup",
+      "gameSubLabel": "East Quarterfinal",
+      "seriesText": "",
+      "arenaName": "Kia Center",
+      "arenaState": "FL",
+      "arenaCity": "Orlando",
+      "postponedStatus": "N",
+      "branchLink": "",
+      "gameSubtype": "in-season-knockout",
+      "isNeutral": false,
+      "homeTeam": {
+       "teamId": 1610612753,
+       "teamName": "Magic",
+       "teamCity": "Orlando",
+       "teamTricode": "ORL",
+       "teamSlug": "magic",
+       "wins": 15,
+       "losses": 10,
+       "score": 117,
+       "seed": 1
+      },
+      "awayTeam": {
+       "teamId": 1610612748,
+       "teamName": "Heat",
+       "teamCity": "Miami",
+       "teamTricode": "MIA",
+       "teamSlug": "heat",
+       "wins": 14,
+       "losses": 11,
+       "score": 108,
+       "seed": 4
+      }
+     }
+    ]
+   },
+   {
+    "gameDate": "12/16/2025 00:00:00",
+    "games": [
+     {
+      "gameId": "0062500001",
+      "gameCode": "20251216/SASNYK",
+      "gameStatus": 3,
+      "gameStatusText": "Final",
+      "gameSequence": 1,
+      "gameDateEst": "2025-12-16T00:00:00Z",
+      "gameTimeEst": "1900-01-01T20:30:00Z",
+      "gameDateTimeEst": "2025-12-16T20:30:00Z",
+      "gameDateUTC": "2025-12-16T05:00:00Z",
+      "gameTimeUTC": "1900-01-01T01:30:00Z",
+      "gameDateTimeUTC": "2025-12-17T01:30:00Z",
+      "awayTeamTime": "2025-12-16T19:30:00Z",
+      "homeTeamTime": "2025-12-16T20:30:00Z",
+      "day": "Tue",
+      "monthNum": 12,
+      "weekNumber": 9,
+      "weekName": "Week 9",
+      "ifNecessary": "false",
+      "seriesGameNumber": "",
+      "gameLabel": "Emirates NBA Cup",
+      "gameSubLabel": "Championship",
+      "seriesText": "Neutral Site",
+      "arenaName": "T-Mobile Arena",
+      "arenaState": "NV",
+      "arenaCity": "Las Vegas",
+      "postponedStatus": "N",
+      "branchLink": "",
+      "gameSubtype": "in-season-knockout",
+      "isNeutral": true,
+      "homeTeam": {
+       "teamId": 1610612752,
+       "teamName": "Knicks",
+       "teamCity": "New York",
+       "teamTricode": "NYK",
+       "teamSlug": "knicks",
+       "wins": 1,
+       "losses": 0,
+       "score": 124,
+       "seed": 3
+      },
+      "awayTeam": {
+       "teamId": 1610612759,
+       "teamName": "Spurs",
+       "teamCity": "San Antonio",
+       "teamTricode": "SAS",
+       "teamSlug": "spurs",
+       "wins": 0,
+       "losses": 1,
+       "score": 113,
+       "seed": 3
+      }
+     }
+    ]
+   },
+   {
+    "gameDate": "02/19/2026 00:00:00",
+    "games": [
+     {
+      "gameId": "0022500798",
+      "gameCode": "20260219/PHXSAS",
+      "gameStatus": 3,
+      "gameStatusText": "Final",
+      "gameSequence": 7,
+      "gameDateEst": "2026-02-19T00:00:00Z",
+      "gameTimeEst": "1900-01-01T20:30:00Z",
+      "gameDateTimeEst": "2026-02-19T20:30:00Z",
+      "gameDateUTC": "2026-02-19T05:00:00Z",
+      "gameTimeUTC": "1900-01-01T01:30:00Z",
+      "gameDateTimeUTC": "2026-02-20T01:30:00Z",
+      "awayTeamTime": "2026-02-19T18:30:00Z",
+      "homeTeamTime": "2026-02-19T19:30:00Z",
+      "day": "Thu",
+      "monthNum": 2,
+      "weekNumber": 18,
+      "weekName": "Week 18",
+      "ifNecessary": "false",
+      "seriesGameNumber": "",
+      "gameLabel": "",
+      "gameSubLabel": "",
+      "seriesText": "",
+      "arenaName": "Moody Center",
+      "arenaState": "TX",
+      "arenaCity": "Austin",
+      "postponedStatus": "N",
+      "branchLink": "",
+      "gameSubtype": "",
+      "isNeutral": false,
+      "homeTeam": {
+       "teamId": 1610612759,
+       "teamName": "Spurs",
+       "teamCity": "San Antonio",
+       "teamTricode": "SAS",
+       "teamSlug": "spurs",
+       "wins": 39,
+       "losses": 16,
+       "score": 121,
+       "seed": 0
+      },
+      "awayTeam": {
+       "teamId": 1610612756,
+       "teamName": "Suns",
+       "teamCity": "Phoenix",
+       "teamTricode": "PHX",
+       "teamSlug": "suns",
+       "wins": 32,
+       "losses": 24,
+       "score": 94,
+       "seed": 0
+      }
+     }
+    ]
+   }
+  ]
+ }
+}

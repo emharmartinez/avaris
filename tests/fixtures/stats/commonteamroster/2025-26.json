@@ -1,0 +1,105 @@
+{
+ "resource": "commonteamroster",
+ "parameters": {
+  "TeamID": 1610612759,
+  "LeagueID": "00",
+  "Season": "2025-26"
+ },
+ "resultSets": [
+  {
+   "name": "CommonTeamRoster",
+   "headers": [
+    "TeamID",
+    "SEASON",
+    "LeagueID",
+    "PLAYER",
+    "NICKNAME",
+    "PLAYER_SLUG",
+    "NUM",
+    "POSITION",
+    "HEIGHT",
+    "WEIGHT",
+    "BIRTH_DATE",
+    "AGE",
+    "EXP",
+    "SCHOOL",
+    "PLAYER_ID",
+    "HOW_ACQUIRED"
+   ],
+   "rowSet": [
+    [
+     1610612759,
+     "2025",
+     "00",
+     "Jordan McLaughlin",
+     "Jordan",
+     "jordan-mclaughlin",
+     "0",
+     "G",
+     "5-11",
+     "185",
+     "APR 09, 1996",
+     30.0,
+     "6",
+     "Southern California",
+     1629162,
+     "Traded from SAC on 02/03/25"
+    ],
+    [
+     1610612759,
+     "2025",
+     "00",
+     "Victor Wembanyama",
+     "Victor",
+     "victor-wembanyama",
+     "1",
+     "F-C",
+     "7-4",
+     "235",
+     "JAN 04, 2004",
+     22.0,
+     "2",
+     "Metropolitans 92",
+     1641705,
+     "#1 Pick in 2023 Draft"
+    ],
+    [
+     1610612759,
+     "2025",
+     "00",
+     "Dylan Harper",
+     "Dylan",
+     "dylan-harper",
+     "2",
+     "G",
+     "6-5",
+     "215",
+     "MAR 02, 2006",
+     20.0,
+     "R",
+     "Rutgers",
+     1642844,
+     "#2 Pick in 2025 Draft"
+    ],
+    [
+     1610612759,
+     "2025",
+     "00",
+     "Keldon Johnson",
+     "Keldon",
+     "keldon-johnson",
+     "3",
+     "F-G",
+     "6-6",
+     "220",
+     "OCT 11, 1999",
+     26.0,
+     "6",
+     "Kentucky",
+     1629640,
+     "#29 Pick in 2019 Draft"
+    ]
+   ]
+  }
+ ]
+}
