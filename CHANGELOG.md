@@ -10,6 +10,7 @@
   - APScheduler inside `avaris serve` for morning, decision and closing snapshots; free-tier budget math and guard defaults
   - Jobs table, job lock and status endpoint; `refetch_days` for in-progress season stats
   - Optuna trials with one refit per season; Phase 2 smoke tests for injury PDFs and Odds API pricing; 4-week paper-trading gate
+  - Recommended odds per pick (`rec_book`, `rec_price`, `rec_line`, `min_price`, `fair_price`) in the picks table, API, Today page and Bet Log pre-fill
 - **CLAUDE.md:** `decision_ts`, regular-season-only, per-book spread/total and live closing-line rules
 - **Plan:** added production training to `docs/plans/plan-for-this-first-snug-fox.md`
   - `avaris train --through DATE`, artifact `meta.json`, and `registry.json` with promotion rules and a feature-hash check

@@ -62,6 +62,11 @@ The goal is to make money against the market. Betting lines are very efficient, 
   - Spread sign convention: `spread` is the home line (negative when home is favored). Home covers when `margin + spread > 0`. Totals: over when `points > total`.
   - **Moneyline:** de-vig each book with multiplicative and Shin methods; consensus = median fair probability across books; track the best available price.
   - **Spread and total are per book, never a cross-book median.** Books post different lines (-3.5 vs -4), so each book's de-vigged price is a fair probability *at that book's line*. For each book: `market_p` = de-vigged price at line L, `model_p` = P(cover at L) from the margin or total distribution, blend at L, edge at L. The bet goes to the book with the largest edge. The "consensus" for reporting is the median *line* plus the median fair probability at that line, when at least 3 books post it.
+  - **Recommended odds:** every pick carries the price to take and the worst price still worth taking.
+    - `rec_book` and `rec_price`: the book and American price with the largest edge at `decision_ts` (for spreads and totals, together with `rec_line`).
+    - `min_price`: the break-even American price at which edge drops to the threshold, `min_price = odds(p_blend − threshold)`. If the user's book is worse than `min_price`, the pick is a pass.
+    - `fair_price`: the no-vig price implied by `p_blend`, for reference.
+    - Shown in the Today page and the picks API; the Bet Log pre-fills `rec_price` and warns when the entered price is below `min_price`.
   - Bet when edge ≥ a threshold, sized at flat stake or ¼ Kelly with a per-bet cap. **Same-game correlation:** at most one bet per game per side direction (ML and spread on the same team are correlated), and a per-game stake cap.
   - **Closing-line benchmark:** the consensus close from the `us` region. Pinnacle (`eu` region) is the sharper benchmark but doubles credits; optional via config, off by default.
 - **Walk-forward evaluation:** train on seasons before S, test on S, retraining weekly inside the season. Models train from 2012-13; betting simulation runs 2020-21+. **2025-26 is a holdout, used once.**
@@ -95,7 +100,7 @@ The goal is to make money against the market. Betting lines are very efficient, 
 ## Testing approach
 - **TDD by default:** write a failing test first, make it pass, then refactor. This applies to all deterministic code:
   - `CreditGuard`, ledger, cache, de-vig, edge, staking, Elo, features, availability rules, distributions, API routes.
-  - `decision_ts` resolution, ET game-date mapping, `season_type` and neutral-site tagging, preseason filter, per-book spread/total edge, same-game correlation cap.
+  - `decision_ts` resolution, ET game-date mapping, `season_type` and neutral-site tagging, preseason filter, per-book spread/total edge, same-game correlation cap, recommended odds (`rec_price`, `min_price`, `fair_price`, American/decimal conversion round-trip).
   - Training plumbing: `--through` cutoff, registry promotion and refusal rules, feature-hash check, retrain staleness trigger, walk-forward `w`/threshold fitting.
   - Scheduler and jobs: slot merging, guard refusal → CLV unavailable, job lock (`409`), job status, missed-run reporting (APScheduler run with a fake clock via `time-machine`).
   - Web: data hooks, formatters, and components with logic (Vitest + React Testing Library).
@@ -108,7 +113,7 @@ The goal is to make money against the market. Betting lines are very efficient, 
 - **No live network in tests.** Use recorded stats, odds and injury responses from the cache, plus a small fixture DuckDB built by `tests/fixtures/`.
 - **E2E tests:**
   1. **Pipeline E2E** (pytest, `@pytest.mark.e2e`): fixture responses → `avaris train` → `avaris daily` → `avaris settle`. Asserts on picks, bets, CLV, P&L and `api_usage` rows.
-  2. **UI E2E** (Playwright, `web/e2e/`): starts `avaris serve` on the fixture DB, then checks that every page renders real data, Bet Log can add and settle a bet, Usage shows spend vs. cap, and the manifest and service worker load.
+  2. **UI E2E** (Playwright, `web/e2e/`): starts `avaris serve` on the fixture DB, then checks that every page renders real data, Today shows recommended odds per pick, Bet Log can add and settle a bet (pre-filled from a pick, with the below-minimum-price warning), Usage shows spend vs. cap, and the manifest and service worker load.
 
 ## Layout (`/home/emhar/avaris`)
 ```
@@ -125,7 +130,7 @@ web/         Next.js PWA (app/: today, performance, backtests, injuries, usage, 
 data/ (gitignored)   artifacts/ (models, reports)
 tests/       unit/ integration/ e2e/ fixtures/
 ```
-DuckDB tables: `games` (incl. `tip_off_utc`, `game_date_et`, `season_type`, `neutral_site`, `venue`), `team_games`, `player_games`, `rosters`, `injury_reports` (incl. `report_ts`), `odds_snapshots` (game, book, market, side, line, price, snapshot_ts, kind open/decision/close/live), `features` (keyed by game + `decision_ts`), `predictions`, `picks` (incl. `decision_ts`, `status` provisional/final), `bets`, `api_usage`, `jobs`.
+DuckDB tables: `games` (incl. `tip_off_utc`, `game_date_et`, `season_type`, `neutral_site`, `venue`), `team_games`, `player_games`, `rosters`, `injury_reports` (incl. `report_ts`), `odds_snapshots` (game, book, market, side, line, price, snapshot_ts, kind open/decision/close/live), `features` (keyed by game + `decision_ts`), `predictions`, `picks` (incl. `decision_ts`, `status` provisional/final, `rec_book`, `rec_price`, `rec_line`, `min_price`, `fair_price`), `bets`, `api_usage`, `jobs`.
 
 ## Phases (each sized for one session)
 
@@ -168,7 +173,7 @@ DuckDB tables: `games` (incl. `tip_off_utc`, `game_date_et`, `season_type`, `neu
   - Registry tests pass: promotion, candidate hold, manual `--promote` and feature-hash refusal.
 
 ### Phase 4 — Betting layer + backtest
-- Moneyline consensus de-vig; per-book spread and total edge at each book's line; per-target model/market blend; edge thresholds; flat and ¼-Kelly staking with the same-game correlation cap.
+- Moneyline consensus de-vig; per-book spread and total edge at each book's line; per-target model/market blend; edge thresholds; recommended odds (`rec_book`, `rec_price`, `rec_line`, `min_price`, `fair_price`); flat and ¼-Kelly staking with the same-game correlation cap.
 - Walk-forward betting simulation for 2020-21 to 2024-25 (regular season only), picks at the `decision_ts` snapshot and CLV against the close, with `w` and thresholds fitted walk-forward (2020-21 as the warm-up season).
 - Re-run on 2021-22+ using the `decision_ts` injury report instead of actual availability, to measure the cost of late scratches. This re-run is the number that matters for live use.
 - Markdown + chart report; then run once on the 2025-26 holdout.
@@ -183,7 +188,7 @@ DuckDB tables: `games` (incl. `tip_off_utc`, `game_date_et`, `season_type`, `neu
 - `avaris settle`: results → CLV against the close (or "unavailable" if the guard refused the snapshot) → P&L.
 - Scheduler inside `avaris serve` (APScheduler) running the three passes and closing slots; missed-run tracking.
 - FastAPI read endpoints for picks, games, performance, backtests, injuries, usage and the job schedule; `POST` for the manual bet log and job triggers (`daily`, `settle`, `train`) with `job_id`, status endpoint and the single-job lock. The single-writer connection model described above.
-- **Done when:** API tests pass (FastAPI TestClient), the pipeline E2E test passes (morning → decision → close → settle on fixtures with a frozen clock), and on a game day `avaris daily` then `GET /api/picks/today` returns that day's games with model probability, market probability, edge, stake and `status`.
+- **Done when:** API tests pass (FastAPI TestClient), the pipeline E2E test passes (morning → decision → close → settle on fixtures with a frozen clock), and on a game day `avaris daily` then `GET /api/picks/today` returns that day's games with model probability, market probability, edge, stake, `status` and recommended odds (`rec_book`, `rec_price`, `rec_line`, `min_price`, `fair_price`).
 
 ### Phase 6 — Desktop PWA
 - Next.js App Router + TS + Tailwind v4, `output: 'export'` so it builds to static files in `web/out` (no Node server at runtime).
@@ -192,7 +197,7 @@ DuckDB tables: `games` (incl. `tip_off_utc`, `game_date_et`, `season_type`, `neu
 - shadcn/ui (`npx shadcn init`): Card, Table, Badge, Tabs, Dialog, Form, Sidebar, Chart.
 - PWA: `app/manifest.ts`, icons, and a service worker caching the app shell.
 - Pages:
-  - **Today:** picks per game for ML, spread and total; model vs. market, edge, stake, injuries, provisional vs. final badge, time to `decision_ts`.
+  - **Today:** picks per game for ML, spread and total; model vs. market, edge, stake, injuries, provisional vs. final badge, time to `decision_ts`. **Recommended Odds** column: book, line and price to take, with the minimum acceptable price and fair price underneath; a "Bet this" button opens the Bet Log dialog pre-filled.
   - **Performance:** ROI, CLV, calibration; paper-trading vs. real bets split.
   - **Backtests.**
   - **Injuries.**
