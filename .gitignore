@@ -15,7 +15,7 @@ __pycache__/
 # Data
 *.duckdb
 *.duckdb.wal
-data/
+/data/
 
 # Web
 web/node_modules/
@@ -26,3 +26,11 @@ web/playwright-report/
 
 # Claude local
 .claude/
+
+# Artifacts
+artifacts/
+.coverage
+htmlcov/
+
+# Local GitHub identity for issue skills
+.github/config.json

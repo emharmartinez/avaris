@@ -1,0 +1,14 @@
+venue,kind,city,lat,lon,tz,altitude_m
+AdventHealth Arena,bubble,Lake Buena Vista,28.3372,-81.5562,America/New_York,30
+HP Field House,bubble,Lake Buena Vista,28.3372,-81.5562,America/New_York,30
+VISA Athletic Center,bubble,Lake Buena Vista,28.3372,-81.5562,America/New_York,30
+The O2 Arena,international,London,51.5030,0.0032,Europe/London,5
+Co-op Live,international,Manchester,53.4847,-2.1997,Europe/London,40
+AccorHotels Arena,international,Paris,48.8386,2.3786,Europe/Paris,35
+Accor Arena,international,Paris,48.8386,2.3786,Europe/Paris,35
+Uber Arena,international,Berlin,52.5079,13.4432,Europe/Berlin,35
+Mexico City Arena,international,Mexico City,19.4877,-99.1770,America/Mexico_City,2240
+Arena Ciudad de Mexico,international,Mexico City,19.4877,-99.1770,America/Mexico_City,2240
+Arena CDMX,international,Mexico City,19.4877,-99.1770,America/Mexico_City,2240
+T-Mobile Arena,cup,Las Vegas,36.1029,-115.1784,America/Los_Angeles,610
+Hinkle Fieldhouse,cup,Indianapolis,39.8418,-86.1683,America/Indiana/Indianapolis,230
