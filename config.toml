@@ -16,3 +16,66 @@ refetch_days = 7       # in-progress season: refetch this many days of game logs
 first_season = "2021-22"
 min_interval_s = 0.5
 step_back_hours = 4.0     # try earlier report slots this far back when one is missing
+
+[models]
+artifacts_dir = "artifacts"
+seed = 7
+oof_seasons = 3           # seasons of out-of-fold predictions for calibration and sigma
+promote_tolerance = 0.02  # a new artifact's OOF metric may be up to 2% worse than production
+retrain_every_days = 7
+tune_first_season = "2015-16"  # tuning and rung selection window (ADR-002)
+tune_last_season = "2019-20"
+n_trials = 60
+n_jobs = 3
+
+# Frozen hyperparameters (feature version 2): Optuna, 60 trials per study, walk-forward 2015-16 to 2019-20 with
+# one refit per season, regular-season log loss or MAE (2026-10-12). `rung` and
+# `calibration` are set from the weekly walk-forward comparison on the same window
+[models.home_win]
+rung = "linear"
+calibration = "none"  # isotonic raised walk-forward log loss by 0.003 (linear) to 0.008 (lgbm)
+
+[models.home_win.linear]
+C = 0.002269
+
+[models.home_win.lgbm]
+n_estimators = 586
+learning_rate = 0.008265
+num_leaves = 4
+min_child_samples = 71
+subsample = 0.5395
+colsample_bytree = 0.9186
+reg_lambda = 0.002443
+subsample_freq = 1
+
+[models.margin]
+rung = "lgbm"
+
+[models.margin.linear]
+alpha = 1360.0
+
+[models.margin.lgbm]
+n_estimators = 612
+learning_rate = 0.005101
+num_leaves = 33
+min_child_samples = 43
+subsample = 0.5396
+colsample_bytree = 0.8513
+reg_lambda = 0.103
+subsample_freq = 1
+
+[models.total]
+rung = "linear"
+
+[models.total.linear]
+alpha = 56.32
+
+[models.total.lgbm]
+n_estimators = 745
+learning_rate = 0.01442
+num_leaves = 6
+min_child_samples = 14
+subsample = 0.6989
+colsample_bytree = 0.4259
+reg_lambda = 0.005447
+subsample_freq = 1
