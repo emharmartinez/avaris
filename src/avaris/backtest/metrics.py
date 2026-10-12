@@ -1,9 +1,11 @@
 import numpy as np
+import pandas as pd
 from scipy.stats import norm
 
 PROB_CLIP = 1e-6
 INTERVAL_LEVEL = 0.8
 Z_80 = float(norm.ppf(0.5 + INTERVAL_LEVEL / 2))
+CAL_BINS = 10  # reliability, ECE and PIT histogram bins
 
 
 def log_loss(y: np.ndarray, p: np.ndarray) -> float:
@@ -49,3 +51,37 @@ def score(
 def primary_metric(target: str) -> str:
     # Lower is better: rung selection, tuning and promotion use it
     return "log_loss" if target == "home_win" else "mae"
+
+
+def _bin_index(p: np.ndarray, bins: int) -> np.ndarray:
+    # Equal-width bins on [0, 1]; p = 1 falls in the top bin
+    return np.minimum((np.asarray(p) * bins).astype(int), bins - 1)
+
+
+def reliability(y: np.ndarray, p: np.ndarray, bins: int = CAL_BINS) -> pd.DataFrame:
+    # Per non-empty bin: games, mean predicted probability and observed frequency
+    idx = _bin_index(p, bins)
+    n = np.bincount(idx, minlength=bins)
+    sum_p = np.bincount(idx, weights=p, minlength=bins)
+    sum_y = np.bincount(idx, weights=y, minlength=bins)
+    used = n > 0
+    return pd.DataFrame({
+        "bin": np.flatnonzero(used), "n": n[used],
+        "mean_p": sum_p[used] / n[used], "freq": sum_y[used] / n[used],
+    })
+
+
+def ece(y: np.ndarray, p: np.ndarray, bins: int = CAL_BINS) -> float:
+    # Expected calibration error: game-weighted |mean probability - frequency| over bins
+    idx = _bin_index(p, bins)
+    gap = np.bincount(idx, weights=p, minlength=bins) - np.bincount(idx, weights=y, minlength=bins)
+    return float(np.abs(gap).sum() / len(y))
+
+
+def pit(y: np.ndarray, mu: np.ndarray, sigma: np.ndarray) -> np.ndarray:
+    # Probability integral transform under N(mu, sigma): uniform when sigma is right
+    return np.asarray(norm.cdf(y, loc=mu, scale=sigma))
+
+
+def pit_counts(values: np.ndarray, bins: int = CAL_BINS) -> np.ndarray:
+    return np.bincount(_bin_index(values, bins), minlength=bins)
