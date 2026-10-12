@@ -163,6 +163,45 @@ MIGRATIONS: list[str] = [
     drop table api_usage;
     drop sequence api_usage_seq;
     """,
+    # Phase 3: point-in-time features per game and team ratings as of each game (ADR-015)
+    """
+    create table features (
+        game_id varchar not null,
+        decision_ts timestamp not null,
+        report_ts timestamp,  -- the injury report frozen at decision_ts, if any
+        feature_hash varchar not null,
+        season varchar not null,
+        season_type varchar not null,
+        game_date_et date not null,
+        home_team_id integer not null,
+        away_team_id integer not null,
+        home_court integer not null,
+        no_fans integer not null,
+        is_preseason integer not null,
+        is_postseason integer not null,
+        home_elo double, away_elo double, elo_prob double, elo_margin double,
+        home_ortg double, away_ortg double, home_drtg double, away_drtg double,
+        home_net double, away_net double, home_pace double, away_pace double,
+        home_net_l10 double, away_net_l10 double, home_gp integer, away_gp integer,
+        league_total double, league_pace double,
+        home_rest_days double, away_rest_days double, home_b2b integer, away_b2b integer,
+        home_3in4 integer, away_3in4 integer, home_travel_km double, away_travel_km double,
+        home_tz_shift double, away_tz_shift double, altitude_m double,
+        home_full_strength double, away_full_strength double,
+        home_lost_actual double, away_lost_actual double,
+        home_lost_report double, away_lost_report double,
+        primary key (game_id, decision_ts)
+    );
+    create table team_ratings (
+        team_id integer not null,
+        game_id varchar not null,  -- ratings as of this game's decision_ts
+        as_of_ts timestamp not null,
+        season varchar not null,
+        elo double, ortg double, drtg double, net double, pace double, net_l10 double,
+        gp integer,
+        primary key (team_id, game_id)
+    );
+    """,
 ]
 
 

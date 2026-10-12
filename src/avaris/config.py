@@ -1,5 +1,6 @@
 import tomllib
 from pathlib import Path
+from typing import Any, Literal
 
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
@@ -29,12 +30,55 @@ class InjurySettings(BaseModel):
     step_back_hours: float = 4.0  # how far back earlier slots are tried for a missing report
 
 
+class TargetModelSettings(BaseModel):
+    # The kept rung and frozen hyperparameters per rung (tuned on 2015-16 to 2019-20)
+    rung: Literal["elo", "linear", "lgbm"] = "elo"
+    calibration: Literal["isotonic", "none"] = "isotonic"  # home_win only
+    linear: dict[str, Any] = {}
+    lgbm: dict[str, Any] = {}
+
+    def params(self, rung: str | None = None) -> dict[str, Any]:
+        rung = rung or self.rung
+        return dict(self.linear if rung == "linear" else self.lgbm if rung == "lgbm" else {})
+
+
+class ModelsSettings(BaseModel):
+    artifacts_dir: Path = Path("artifacts")
+    seed: int = 7
+    oof_seasons: int = 3  # seasons of out-of-fold predictions for calibration and sigma
+    promote_tolerance: float = 0.02  # a new artifact's OOF metric may be this much worse
+    retrain_every_days: int = 7
+    tune_first_season: str = "2015-16"
+    tune_last_season: str = "2019-20"
+    n_trials: int = 40
+    n_jobs: int = 1
+    home_win: TargetModelSettings = TargetModelSettings()
+    margin: TargetModelSettings = TargetModelSettings()
+    total: TargetModelSettings = TargetModelSettings()
+
+    @property
+    def models_dir(self) -> Path:
+        return self.artifacts_dir / "models"
+
+    @property
+    def reports_dir(self) -> Path:
+        return self.artifacts_dir / "reports"
+
+    @property
+    def optuna_storage(self) -> Path:
+        return self.artifacts_dir / "optuna.sqlite3"
+
+    def target(self, name: str) -> TargetModelSettings:
+        return {"home_win": self.home_win, "margin": self.margin, "total": self.total}[name]
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AVARIS_", env_nested_delimiter="__")
 
     paths: PathsSettings = PathsSettings()
     stats: StatsSettings = StatsSettings()
     injuries: InjurySettings = InjurySettings()
+    models: ModelsSettings = ModelsSettings()
 
     @classmethod
     def settings_customise_sources(

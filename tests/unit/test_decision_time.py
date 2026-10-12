@@ -29,3 +29,10 @@ def test_no_report_falls_back_to_tip_minus_60() -> None:
 def test_unsorted_reports() -> None:
     reports = [datetime(2022, 1, 15, 22, 30), datetime(2022, 1, 15, 18, 30)]
     assert decision_ts(TIP, reports) == datetime(2022, 1, 15, 22, 30)
+
+
+def test_previous_day_report_is_ignored() -> None:
+    # Only reports within 12 h of tip-off belong to the game's day
+    assert decision_ts(TIP, [datetime(2022, 1, 14, 22, 30)]) == datetime(2022, 1, 15, 23, 0)
+    assert decision_ts(TIP, [datetime(2022, 1, 15, 11, 30)]) == datetime(2022, 1, 15, 23, 0)
+    assert decision_ts(TIP, [datetime(2022, 1, 15, 12, 0)]) == datetime(2022, 1, 15, 12, 0)

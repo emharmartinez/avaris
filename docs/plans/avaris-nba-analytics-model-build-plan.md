@@ -43,7 +43,7 @@ The goal is accurate, well-calibrated predictions with honest uncertainty. All e
   1. Elo baseline: margin of victory, home advantage, carryover between seasons.
   2. Logistic/ridge regression.
   3. LightGBM tuned with Optuna.
-  Each target keeps a rung only if it beats the one below on walk-forward log loss or MAE. Classifiers are calibrated with isotonic regression.
+  Each target keeps a rung only if it beats the one below on walk-forward log loss or MAE. Isotonic calibration of classifiers is a per-target option chosen on the tuning window (off for `home_win`, ADR-016).
 - **Decision timestamp (`decision_ts`):** every final prediction is made "as of" one instant per game, and the injury report and features are frozen at it.
   - Default `decision_ts` = latest injury report at or before **tip-off − 60 min** (the 5:30 pm ET report covers 7 pm tips). If no report exists for the game (all of 2020-21 and earlier, every preseason game, or a missing day), `decision_ts` = tip-off − 60 min. The NBA publishes no injury report on preseason days (the CDN returns 403).
   - Backtests and live use the same rule. The leakage test checks at timestamp granularity, not date granularity: deleting rows with `ts > decision_ts` leaves that game's features unchanged.
@@ -154,7 +154,7 @@ DuckDB tables: `games` (incl. `tip_off_utc`, `game_date_et`, `season_type`, `neu
   - `grep -ri "odds\|devig\|CreditGuard" src tests` finds only migrations 2, 3 and 4 in `db.py` and the migration 4 test in `test_db.py`, and the real DB has no odds tables after migration 4.
   - The gates pass.
 
-### Phase 3 — Features + models
+### Phase 3 — Features + models (done, branch `phase-3-features-models`; see `docs/plans/phase-3-features-models.md`)
 - `decision_ts` resolution per game, and all feature families as of `decision_ts`, including neutral-site handling and the availability rules for trades and roster moves.
 - `team_ratings` table, filled from the same as-of feature code.
 - Model ladder, LightGBM + Optuna (one refit per season during trials, SQLite storage), calibration, σ fitting.

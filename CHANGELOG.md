@@ -6,6 +6,15 @@
 - **Phase 2, odds removal (ADR-014):** The Odds API client, `CreditGuard`, snapshot slot planner, odds backfill, `avaris odds` CLI group, odds and guard settings, and de-vig (`betting/`). Migration 4 drops `odds_events`, `odds_snapshots` and `api_usage`
 
 ### Added
+- **Phase 3, features + models**
+  - Migration 5: `features` (game + `decision_ts`, with `feature_hash`) and `team_ratings`
+  - Per-game `decision_ts` resolution with a `[tip - 12 h, tip - 60 min]` report window, shared with the injury check
+  - Point-in-time feature event loop (ADR-015): Elo, EW team form, league averages, rest and travel, home court, availability from who played and from the decision report; preseason never feeds features
+  - Model ladder (Elo, logistic/ridge, LightGBM), optional isotonic calibration, σ per `season_type` bucket, walk-forward with season or weekly refits, Optuna tuning with SQLite storage
+  - `avaris features build`, `avaris tune`, `avaris backtest`, `avaris train [--through] [--promote]`; artifacts with `meta.json` and a registry with promotion rules and feature-hash refusal
+  - Frozen hyperparameters and kept rungs in `config.toml`; walk-forward report in `docs/reports/`
+  - Synthetic league fixture for feature, model and CLI tests
+  - Dependencies: scikit-learn, LightGBM, Optuna, SciPy
 - **Phase 2, injuries**
   - Schema: `injury_report_files`, `injury_reports` (plus odds tables, dropped again by migration 4)
   - `avaris ingest injuries`: official NBA injury report PDFs at each game's decision slot (hourly and 15-minute URL formats), `report_ts` from the PDF header, players matched to IDs; coverage check in `avaris ingest status`

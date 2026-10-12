@@ -1,4 +1,5 @@
 import json
+import shutil
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,7 @@ import respx
 
 from avaris.ingest.endpoints import GAME_LOG, ROSTER, SCHEDULE
 from avaris.ingest.stats_client import BASE_URL
+from tests.fixtures.synthetic import write_league
 
 STATS_FIXTURES = Path(__file__).parent / "fixtures" / "stats"
 
@@ -63,3 +65,16 @@ def stats_api() -> Iterator[respx.MockRouter]:
     with respx.mock(assert_all_called=False) as router:
         router.get(url__startswith=BASE_URL).mock(side_effect=_fixture_response)
         yield router
+
+
+@pytest.fixture(scope="session")
+def synthetic_db_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    return write_league(tmp_path_factory.mktemp("synthetic") / "league.duckdb")
+
+
+@pytest.fixture
+def synthetic_db(synthetic_db_template: Path, tmp_path: Path) -> Path:
+    # A fresh copy per test, so tests can delete rows
+    path = tmp_path / "league.duckdb"
+    shutil.copy(synthetic_db_template, path)
+    return path
