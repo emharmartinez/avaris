@@ -24,7 +24,7 @@ def load_teams() -> pd.DataFrame:
         return pd.read_csv(f, dtype={"alt_tricodes": "string"})
 
 
-# Other spellings of a team's "City Nickname" seen in external feeds (The Odds API)
+# Other spellings of a team's "City Nickname" seen in external feeds
 TEAM_NAME_ALIASES = {"Los Angeles Clippers": "LA Clippers"}
 
 

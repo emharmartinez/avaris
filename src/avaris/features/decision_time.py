@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 
-# Odds, injuries and features for a game are frozen at its decision_ts (ADR-003)
+# Injuries and features for a game are frozen at its decision_ts (ADR-003)
 DECISION_LEAD = timedelta(minutes=60)
 
 

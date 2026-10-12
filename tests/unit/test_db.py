@@ -7,9 +7,8 @@ import pytest
 from avaris.db import MIGRATIONS, connect, upsert
 
 PHASE_1_TABLES = {"games", "team_games", "player_games", "rosters"}
-PHASE_2_TABLES = {
-    "api_usage", "odds_events", "odds_snapshots", "injury_report_files", "injury_reports"
-}
+PHASE_2_TABLES = {"injury_report_files", "injury_reports"}
+DROPPED_TABLES = {"api_usage", "odds_events", "odds_snapshots"}  # migration 4
 
 
 def tables(con: duckdb.DuckDBPyConnection) -> set[str]:
@@ -22,6 +21,7 @@ def test_connect_creates_file_and_schema(tmp_path: Path) -> None:
     con = connect(db_path)
     assert db_path.exists()
     assert tables(con) >= PHASE_1_TABLES | PHASE_2_TABLES
+    assert not tables(con) & DROPPED_TABLES
     version = con.execute("select max(version) from schema_version").fetchone()
     assert version is not None
     assert version[0] == len(MIGRATIONS)
@@ -66,20 +66,20 @@ def test_season_type_values_are_checked(tmp_path: Path) -> None:
         )
 
 
-def test_api_usage_ids_autoincrement(tmp_path: Path) -> None:
-    con = connect(tmp_path / "a.duckdb")
-    for _ in range(2):
-        con.execute(
-            "insert into api_usage (run_id, ts_utc, endpoint, purpose, est_cost, status) "
-            "values ('r', now(), '/v4/sports', 'prime', 0, 'ok')"
-        )
-    assert con.execute("select id from api_usage order by id").fetchall() == [(1,), (2,)]
-
-
-def test_odds_snapshot_kind_is_checked(tmp_path: Path) -> None:
-    con = connect(tmp_path / "a.duckdb")
-    with pytest.raises(duckdb.ConstraintException):
-        con.execute(
-            "insert into odds_snapshots (game_id, event_id, snapshot_ts, book, market, side, "
-            "line, price, kind) values ('1', 'e', now(), 'b', 'h2h', 'home', null, 1.9, 'x')"
-        )
+def test_migration_4_drops_tables_from_a_version_3_db(tmp_path: Path) -> None:
+    # The real DB was created at version 3 with populated tables
+    db_path = tmp_path / "a.duckdb"
+    con = duckdb.connect(str(db_path))
+    con.execute("create table schema_version (version integer primary key)")
+    for version, ddl in enumerate(MIGRATIONS[:3], start=1):
+        con.execute(ddl)
+        con.execute("insert into schema_version values (?)", [version])
+    con.execute(
+        "insert into api_usage (run_id, ts_utc, endpoint, purpose, est_cost, status) "
+        "values ('r', now(), '/v4/sports', 'prime', 0, 'ok')"
+    )
+    con.close()
+    con = connect(db_path)
+    assert not tables(con) & DROPPED_TABLES
+    assert tables(con) >= PHASE_1_TABLES | PHASE_2_TABLES
+    assert con.execute("select max(version) from schema_version").fetchone() == (4,)

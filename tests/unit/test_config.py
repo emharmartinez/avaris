@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from avaris.config import OddsSettings, load_settings
+from avaris.config import load_settings
 
 
 def test_defaults_without_file(tmp_path: Path) -> None:
@@ -39,26 +39,7 @@ def test_env_overrides_toml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert load_settings(cfg).stats.refetch_days == 9
 
 
-def test_odds_and_injury_defaults(tmp_path: Path) -> None:
+def test_injury_defaults(tmp_path: Path) -> None:
     s = load_settings(tmp_path / "missing.toml")
-    assert s.odds.markets == ["h2h", "spreads", "totals"]
-    assert s.odds.regions == ["us"]
-    assert s.odds.guard.max_credits_per_run == 6
-    assert s.odds.guard.monthly_credit_budget == 450
-    assert s.odds.guard.min_remaining_reserve == 30
-    assert s.odds.close_window_min == 45
     assert s.injuries.first_season == "2021-22"
-
-
-def test_repo_config_has_live_guard_defaults() -> None:
-    s = load_settings(Path(__file__).parents[2] / "config.toml")
-    assert s.odds.guard.monthly_credit_budget == 450
-    assert s.odds.guard.headroom["open"] > s.odds.guard.headroom["close"]
-    assert s.odds.guard.headroom["close"] > s.odds.guard.headroom.get("decision", 0)
-
-
-def test_odds_markets_and_regions_cannot_be_empty() -> None:
-    with pytest.raises(ValueError):
-        OddsSettings(markets=[])
-    with pytest.raises(ValueError):
-        OddsSettings(regions=[])
+    assert s.injuries.step_back_hours == 4.0

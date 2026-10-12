@@ -156,6 +156,13 @@ MIGRATIONS: list[str] = [
     drop table odds_events;
     alter table odds_events_v3 rename to odds_events;
     """,
+    # Analytics pivot (ADR-014): The Odds API is dropped, so are its tables
+    """
+    drop table odds_snapshots;
+    drop table odds_events;
+    drop table api_usage;
+    drop sequence api_usage_seq;
+    """,
 ]
 
 

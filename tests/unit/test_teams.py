@@ -71,7 +71,7 @@ def test_blank_venue_is_not_neutral_unless_flagged() -> None:
     assert venues.is_neutral("", LAL, flagged=True)
 
 
-def test_team_ids_by_name_include_odds_api_spelling() -> None:
+def test_team_ids_by_name_include_alternate_spellings() -> None:
     ids = team_ids_by_name()
     assert ids["LA Clippers"] == ids["Los Angeles Clippers"] == 1610612746
     assert ids["Milwaukee Bucks"] == 1610612749

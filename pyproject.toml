@@ -1,7 +1,7 @@
 [project]
 name = "avaris"
 version = "0.1.0"
-description = "Personal NBA betting model (moneyline, spread, total)"
+description = "Personal NBA analytics model (win probability, margin, total)"
 authors = [
     { name = "Emz1998" }
 ]
