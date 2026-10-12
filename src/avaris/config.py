@@ -21,11 +21,50 @@ class StatsSettings(BaseModel):
     refetch_days: int = 7
 
 
+class GuardSettings(BaseModel):
+    # Live (free tier) defaults; backfills pass explicit caps on the command line
+    max_credits_per_run: int = 6
+    monthly_credit_budget: int = 450
+    min_remaining_reserve: int = 30
+    usd_per_credit: float = 0.0
+    max_monthly_usd: float = 0.0
+    # A call is refused once the month would come within this many credits of the budget,
+    # so opening snapshots go first, then closing, and decision snapshots last
+    headroom: dict[str, int] = {"open": 30, "close": 15, "decision": 0}
+
+
+class OddsSettings(BaseModel):
+    sport: str = "basketball_nba"
+    regions: list[str] = ["us"]
+    markets: list[str] = ["h2h", "spreads", "totals"]
+    first_date: str = "2020-12-22"
+    timeout_s: float = 30.0
+    max_attempts: int = 3
+    match_window_min: int = 120  # event commence_time vs games.tip_off_utc
+    open_time_et: str = "09:00"
+    early_band_from_et: str = "17:00"  # tips before this are matinees
+    late_band_from_et: str = "21:30"
+    close_window_min: int = 45
+    close_lead_min: int = 2  # closing snapshot this long before the first covered tip
+    live_max_close_slots: int = 3
+    guard: GuardSettings = GuardSettings()
+
+
+class InjurySettings(BaseModel):
+    first_season: str = "2021-22"
+    min_interval_s: float = 0.5
+    timeout_s: float = 30.0
+    max_attempts: int = 3
+    max_step_back: int = 4  # earlier report slots tried when the target report is missing
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AVARIS_", env_nested_delimiter="__")
 
     paths: PathsSettings = PathsSettings()
     stats: StatsSettings = StatsSettings()
+    odds: OddsSettings = OddsSettings()
+    injuries: InjurySettings = InjurySettings()
 
     @classmethod
     def settings_customise_sources(

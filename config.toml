@@ -11,3 +11,30 @@ min_interval_s = 1.0   # throttle: about 1 request/sec to stats.nba.com
 timeout_s = 60.0
 max_attempts = 4
 refetch_days = 7       # in-progress season: refetch this many days of game logs per run
+
+[odds]
+sport = "basketball_nba"
+regions = ["us"]
+markets = ["h2h", "spreads", "totals"]
+first_date = "2020-12-22"   # opening night of 2020-21; historical odds start 2020-06-06
+match_window_min = 120      # Odds API commence_time vs games.tip_off_utc
+open_time_et = "09:00"      # opening snapshot (backfill only; none live on the free tier)
+early_band_from_et = "17:00"   # decision bands by tip time: matinee < 17:00 <= early < 21:30 <= late
+late_band_from_et = "21:30"
+close_window_min = 45       # closing line = last snapshot within 45 min before tip-off
+close_lead_min = 2
+live_max_close_slots = 3
+
+[odds.guard]
+# Live free-tier limits (500 credits/month). Backfills pass --max-credits and --monthly-budget
+max_credits_per_run = 6
+monthly_credit_budget = 450
+min_remaining_reserve = 30
+usd_per_credit = 0.0        # 5M plan: 119 / 5_000_000
+max_monthly_usd = 0.0
+headroom = { open = 30, close = 15, decision = 0 }   # refusal order: open, close, decision
+
+[injuries]
+first_season = "2021-22"
+min_interval_s = 0.5
+max_step_back = 4
