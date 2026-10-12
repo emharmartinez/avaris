@@ -1,4 +1,5 @@
-from datetime import UTC, datetime
+import json
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -8,10 +9,14 @@ import typer
 
 from avaris.config import DEFAULT_CONFIG_PATH, Settings, load_settings
 from avaris.db import connect
+from avaris.features.build import build_features, feature_hash, write_features
 from avaris.ingest.injuries import InjuryClient, ingest_injuries
 from avaris.ingest.runner import ingest_stats
 from avaris.ingest.stats_client import RawCache, StatsClient, Throttle
 from avaris.ingest.status import check_injuries, check_report, injury_report, season_report
+from avaris.models.dataset import with_targets
+from avaris.models.ladder import TARGETS
+from avaris.models.registry import Registry
 from avaris.seasons import season_for_date, season_range, today_et
 
 app = typer.Typer(
@@ -21,8 +26,10 @@ app = typer.Typer(
 )
 db_app = typer.Typer(no_args_is_help=True, help="DuckDB maintenance.")
 ingest_app = typer.Typer(no_args_is_help=True, help="Data ingest.")
+features_app = typer.Typer(no_args_is_help=True, help="Point-in-time features.")
 app.add_typer(db_app, name="db")
 app.add_typer(ingest_app, name="ingest")
+app.add_typer(features_app, name="features")
 
 
 def _open_read_only(settings: Settings) -> duckdb.DuckDBPyConnection:
@@ -162,3 +169,135 @@ def ingest_status_command(
     if check and failures:
         raise typer.Exit(1)
 
+
+
+def _training_data(settings: Settings) -> pd.DataFrame:
+    # Features as of each game's decision_ts, plus targets for final games
+    con = _open_read_only(settings)
+    try:
+        return with_targets(build_features(con).features, con)
+    finally:
+        con.close()
+
+
+def _targets(target: list[str] | None) -> tuple[str, ...]:
+    chosen = tuple(target or TARGETS)
+    unknown = set(chosen) - set(TARGETS)
+    if unknown:
+        raise typer.BadParameter(f"unknown target(s): {', '.join(sorted(unknown))}")
+    return chosen
+
+
+TargetOption = Annotated[
+    list[str] | None, typer.Option("--target", help="home_win, margin or total (repeatable).")
+]
+
+
+@features_app.command("build")
+def features_build(ctx: typer.Context) -> None:
+    # Rebuild the features and team_ratings tables from the stored data
+    settings: Settings = ctx.obj
+    con = connect(settings.paths.db_path)
+    try:
+        fs = build_features(con)
+        write_features(con, fs)
+    finally:
+        con.close()
+    typer.echo(f"features: {len(fs.features)} games, team_ratings: {len(fs.team_ratings)} rows")
+
+
+@app.command("tune")
+def tune_command(
+    ctx: typer.Context,
+    target: TargetOption = None,
+    rung: Annotated[list[str] | None, typer.Option(help="linear or lgbm (repeatable).")] = None,
+    trials: Annotated[int | None, typer.Option(help="Trials per study (default: config).")] = None,
+) -> None:
+    # Optuna on the tuning window, one refit per season; resumable (SQLite storage)
+    import optuna
+
+    from avaris.backtest.tuning import best_params, tune
+
+    settings: Settings = ctx.obj
+    cfg = settings.models
+    optuna.logging.set_verbosity(optuna.logging.WARNING)
+    data = _training_data(settings)
+    seasons = season_range(cfg.tune_first_season, cfg.tune_last_season)
+    out_path = cfg.reports_dir / "tuning.json"
+    results = json.loads(out_path.read_text()) if out_path.exists() else {}
+    for t in _targets(target):
+        for r in rung or ["linear", "lgbm"]:
+            study = tune(data, t, r, seasons, n_trials=trials or cfg.n_trials,
+                         n_jobs=cfg.n_jobs, seed=cfg.seed, storage=cfg.optuna_storage)
+            params = best_params(study, r)
+            results.setdefault(t, {})[r] = {
+                "value": study.best_value, "params": params, "trials": len(study.trials),
+            }
+            typer.echo(f"{t} {r}: best {study.best_value:.4f} after {len(study.trials)} trials "
+                       f"{json.dumps(params)}")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(results, indent=2) + "\n")
+    typer.echo(f"Wrote {out_path}; freeze the chosen params in config.toml")
+
+
+@app.command("backtest")
+def backtest_command(
+    ctx: typer.Context,
+    from_season: Annotated[str | None, typer.Option("--from", help="First test season.")] = None,
+    to_season: Annotated[str | None, typer.Option("--to", help="Last test season.")] = None,
+    refit: Annotated[str, typer.Option(help="season or weekly.")] = "weekly",
+    target: TargetOption = None,
+) -> None:
+    # Walk-forward rung comparison with the frozen hyperparameters
+    from avaris.backtest.report import compare_rungs, kept_rungs, to_markdown
+
+    settings: Settings = ctx.obj
+    cfg = settings.models
+    if refit not in ("season", "weekly"):
+        raise typer.BadParameter("refit must be season or weekly")
+    first, last = from_season or cfg.tune_first_season, to_season or cfg.tune_last_season
+    data = _training_data(settings)
+    table, preds = compare_rungs(
+        data, cfg, season_range(first, last), refit, _targets(target),  # type: ignore[arg-type]
+        progress=typer.echo,
+    )
+    kept = kept_rungs(table)
+    name = f"walkforward_{first}_{last}_{refit}"
+    cfg.reports_dir.mkdir(parents=True, exist_ok=True)
+    report = to_markdown(table, kept, f"Walk-forward {first} to {last} ({refit} refits)")
+    (cfg.reports_dir / f"{name}.md").write_text(report + "\n")
+    preds.to_csv(cfg.reports_dir / f"{name}_predictions.csv.gz", index=False)
+    _show(table[table["scope"] == "regular"].drop(columns=["scope"]).round(4))
+    typer.echo(f"Kept rungs: {json.dumps(kept)}")
+    typer.echo(f"Wrote {cfg.reports_dir / name}.md")
+
+
+@app.command("train")
+def train_command(
+    ctx: typer.Context,
+    through: Annotated[
+        str | None, typer.Option(help="Train on games dated before this ET date (default: today).")
+    ] = None,
+    target: TargetOption = None,
+    promote: Annotated[
+        str | None, typer.Option(help="Manually promote this run ID instead of training.")
+    ] = None,
+) -> None:
+    # Refit the kept rungs with frozen hyperparameters; the registry decides promotion
+    from avaris.pipeline.train import train
+
+    settings: Settings = ctx.obj
+    registry = Registry(settings.models.models_dir)
+    if promote:
+        targets = _targets(target) if target else (registry.find_run(promote),)
+        for t in targets:
+            registry.promote(t, promote, feature_hash())
+            typer.echo(f"{t}: promoted {promote}")
+        return
+    cutoff = date.fromisoformat(through) if through else today_et()
+    results = train(_training_data(settings), settings.models, cutoff, _targets(target))
+    for r in results:
+        status = "promoted" if r.decision.promoted else "candidate (" + "; ".join(
+            r.decision.reasons) + ")"
+        typer.echo(f"{r.target}: run {r.run_id}, {r.meta['rung']}, {r.meta['n_rows']} rows, "
+                   f"OOF {r.meta['oof_metric']:.4f}: {status}")

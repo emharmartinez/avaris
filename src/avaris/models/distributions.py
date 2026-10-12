@@ -28,7 +28,8 @@ def fit_sigma(
     sigma = {"all": pooled}
     for name in sorted(set(BUCKETS.values())):
         mask = buckets == name
-        sigma[name] = float(np.sqrt(np.mean(residuals[mask] ** 2))) if mask.sum() >= min_rows else pooled
+        enough = mask.sum() >= min_rows
+        sigma[name] = float(np.sqrt(np.mean(residuals[mask] ** 2))) if enough else pooled
     return sigma
 
 
