@@ -47,7 +47,8 @@ class EwMean:
 
 class TeamForm:
     # Exponentially weighted ORtg, DRtg and pace (carried across seasons with regression
-    # toward the league), plus this season's last-N net rating and games played
+    # toward the league), plus this season's last-N net rating, games played and plain
+    # season-to-date ORtg, DRtg and pace sums (naive-baseline inputs)
     def __init__(self) -> None:
         self.season = ""
         self.ortg = EwMean(FORM_HALF_LIFE)
@@ -55,12 +56,13 @@ class TeamForm:
         self.pace = EwMean(FORM_HALF_LIFE)
         self.last_net: deque[float] = deque(maxlen=LAST_N)
         self.gp = 0
+        self.sums = (0.0, 0.0, 0.0)
 
     def _state(
         self, season: str, league_rtg: float | None, league_pace: float | None
-    ) -> tuple[EwMean, EwMean, EwMean, deque[float], int]:
+    ) -> tuple[EwMean, EwMean, EwMean, deque[float], int, tuple[float, float, float]]:
         if not self.season or self.season >= season:
-            return self.ortg, self.drtg, self.pace, self.last_net, self.gp
+            return self.ortg, self.drtg, self.pace, self.last_net, self.gp, self.sums
 
         def regress(ew: EwMean, prior: float | None) -> EwMean:
             if prior is None:
@@ -73,6 +75,7 @@ class TeamForm:
             regress(self.pace, league_pace),
             deque(maxlen=LAST_N),
             0,
+            (0.0, 0.0, 0.0),
         )
 
     def add(
@@ -84,7 +87,7 @@ class TeamForm:
         league_rtg: float | None = None,
         league_pace: float | None = None,
     ) -> None:
-        self.ortg, self.drtg, self.pace, self.last_net, self.gp = self._state(
+        self.ortg, self.drtg, self.pace, self.last_net, self.gp, self.sums = self._state(
             season, league_rtg, league_pace
         )
         self.season = season
@@ -93,12 +96,14 @@ class TeamForm:
         self.pace.add(pace)
         self.last_net.append(ortg - drtg)
         self.gp += 1
+        self.sums = (self.sums[0] + ortg, self.sums[1] + drtg, self.sums[2] + pace)
 
     def snapshot(
         self, season: str, league_rtg: float | None, league_pace: float | None
     ) -> dict[str, float | None]:
-        ortg, drtg, pace, last_net, gp = self._state(season, league_rtg, league_pace)
+        ortg, drtg, pace, last_net, gp, sums = self._state(season, league_rtg, league_pace)
         o, d = ortg.value, drtg.value
+        o_std, d_std, p_std = (x / gp if gp else None for x in sums)
         return {
             "ortg": o,
             "drtg": d,
@@ -106,4 +111,7 @@ class TeamForm:
             "pace": pace.value,
             "net_l10": sum(last_net) / len(last_net) if last_net else None,
             "gp": gp,
+            "ortg_std": o_std,
+            "drtg_std": d_std,
+            "pace_std": p_std,
         }
