@@ -1,6 +1,6 @@
 from zoneinfo import ZoneInfo
 
-from avaris.ingest.teams import Venues, load_teams
+from avaris.ingest.teams import Venues, load_teams, team_ids_by_name, team_ids_by_tricode
 
 LAL = 1610612747
 LAC = 1610612746
@@ -69,3 +69,16 @@ def test_blank_venue_is_not_neutral_unless_flagged() -> None:
     venues = Venues.load()
     assert not venues.is_neutral("", LAL, flagged=False)
     assert venues.is_neutral("", LAL, flagged=True)
+
+
+def test_team_ids_by_name_include_alternate_spellings() -> None:
+    ids = team_ids_by_name()
+    assert ids["LA Clippers"] == ids["Los Angeles Clippers"] == 1610612746
+    assert ids["Milwaukee Bucks"] == 1610612749
+    assert len(set(ids.values())) == 30
+
+
+def test_team_ids_by_tricode_include_former_codes() -> None:
+    ids = team_ids_by_tricode()
+    assert ids["BKN"] == ids["NJN"] == 1610612751
+    assert ids["NOP"] == ids["NOH"] == 1610612740

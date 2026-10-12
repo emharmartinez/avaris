@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -7,16 +8,38 @@ import typer
 
 from avaris.config import DEFAULT_CONFIG_PATH, Settings, load_settings
 from avaris.db import connect
+from avaris.ingest.injuries import InjuryClient, ingest_injuries
 from avaris.ingest.runner import ingest_stats
 from avaris.ingest.stats_client import RawCache, StatsClient, Throttle
-from avaris.ingest.status import check_report, season_report
+from avaris.ingest.status import check_injuries, check_report, injury_report, season_report
 from avaris.seasons import season_for_date, season_range, today_et
 
-app = typer.Typer(no_args_is_help=True, help="Avaris: personal NBA betting model.")
+app = typer.Typer(
+    no_args_is_help=True,
+    help="Avaris: personal NBA analytics model.",
+    pretty_exceptions_show_locals=False,
+)
 db_app = typer.Typer(no_args_is_help=True, help="DuckDB maintenance.")
 ingest_app = typer.Typer(no_args_is_help=True, help="Data ingest.")
 app.add_typer(db_app, name="db")
 app.add_typer(ingest_app, name="ingest")
+
+
+def _open_read_only(settings: Settings) -> duckdb.DuckDBPyConnection:
+    if not settings.paths.db_path.exists():
+        typer.echo(f"No database at {settings.paths.db_path}; run `avaris ingest stats` first")
+        raise typer.Exit(1)
+    try:
+        return connect(settings.paths.db_path, read_only=True)
+    except duckdb.IOException as exc:
+        # DuckDB allows one writer; a running ingest or server holds the file
+        typer.echo(f"Database is locked by another process: {exc}")
+        raise typer.Exit(1) from exc
+
+
+def _show(df: pd.DataFrame) -> None:
+    with pd.option_context("display.max_columns", None, "display.width", 250):
+        typer.echo(df.to_string(index=False))
 
 
 @app.callback()
@@ -75,32 +98,67 @@ def ingest_stats_command(
     typer.echo(f"Done: {client.requests_made} requests to stats.nba.com")
 
 
+@ingest_app.command("injuries")
+def ingest_injuries_command(
+    ctx: typer.Context,
+    from_season: Annotated[
+        str | None, typer.Option("--from", help="First season, e.g. 2021-22.")
+    ] = None,
+    to_season: Annotated[
+        str | None, typer.Option("--to", help="Last season (default: current).")
+    ] = None,
+) -> None:
+    # Official NBA injury reports at each game's decision slot (cached, throttled)
+    settings: Settings = ctx.obj
+    cfg = settings.injuries
+    seasons = season_range(
+        from_season or cfg.first_season, to_season or season_for_date(today_et())
+    )
+    client = InjuryClient(
+        settings.paths.cache_dir,
+        Throttle(cfg.min_interval_s),
+        timeout_s=cfg.timeout_s,
+        max_attempts=cfg.max_attempts,
+    )
+    con = connect(settings.paths.db_path)
+    try:
+        summary = ingest_injuries(
+            con,
+            client,
+            seasons,
+            now_utc=datetime.now(UTC).replace(tzinfo=None),
+            step_back_hours=cfg.step_back_hours,
+            progress=typer.echo,
+        )
+    finally:
+        client.close()
+        con.close()
+    typer.echo(
+        f"Done: {summary.reports} reports, {summary.entries} entries, "
+        f"{summary.unmatched_players} unmatched player rows, {client.requests_made} requests"
+    )
+
+
 @ingest_app.command("status")
 def ingest_status_command(
     ctx: typer.Context,
-    check: Annotated[bool, typer.Option(help="Exit 1 if a Phase 1 check fails.")] = False,
+    check: Annotated[bool, typer.Option(help="Exit 1 if a data check fails.")] = False,
 ) -> None:
-    # Per-season row counts and data-quality checks
-    settings: Settings = ctx.obj
-    if not settings.paths.db_path.exists():
-        typer.echo(f"No database at {settings.paths.db_path}; run `avaris ingest stats` first")
-        raise typer.Exit(1)
-    try:
-        con = connect(settings.paths.db_path, read_only=True)
-    except duckdb.IOException as exc:
-        # DuckDB allows one writer; a running ingest or server holds the file
-        typer.echo(f"Database is locked by another process: {exc}")
-        raise typer.Exit(1) from exc
+    # Per-season row counts, injury report coverage and data-quality checks
+    con = _open_read_only(ctx.obj)
     try:
         report = season_report(con)
+        injuries = injury_report(con)
     finally:
         con.close()
-    with pd.option_context("display.max_columns", None, "display.width", 250):
-        typer.echo(report.to_string(index=False))
-    failures = check_report(report, today=today_et())
+    _show(report)
+    _show(injuries)
+    today = today_et()
+    failures = [*check_report(report, today=today), *check_injuries(injuries, today=today)]
     for failure in failures:
         typer.echo(f"FAIL {failure}")
     if not failures:
         typer.echo("All checks passed")
     if check and failures:
         raise typer.Exit(1)
+

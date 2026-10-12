@@ -1,7 +1,7 @@
 [project]
 name = "avaris"
 version = "0.1.0"
-description = "Personal NBA betting model (moneyline, spread, total)"
+description = "Personal NBA analytics model (win probability, margin, total)"
 authors = [
     { name = "Emz1998" }
 ]
@@ -9,6 +9,7 @@ requires-python = ">=3.12"
 dependencies = [
     "duckdb>=1.5.6",
     "httpx>=0.28.1",
+    "nba-injury-report==0.1.0",
     "pandas>=3.0.6",
     "pydantic-settings>=2.15.0",
     "tenacity>=9.2.1",

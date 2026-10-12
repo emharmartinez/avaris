@@ -21,11 +21,20 @@ class StatsSettings(BaseModel):
     refetch_days: int = 7
 
 
+class InjurySettings(BaseModel):
+    first_season: str = "2021-22"
+    min_interval_s: float = 0.5
+    timeout_s: float = 30.0
+    max_attempts: int = 3
+    step_back_hours: float = 4.0  # how far back earlier slots are tried for a missing report
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AVARIS_", env_nested_delimiter="__")
 
     paths: PathsSettings = PathsSettings()
     stats: StatsSettings = StatsSettings()
+    injuries: InjurySettings = InjurySettings()
 
     @classmethod
     def settings_customise_sources(

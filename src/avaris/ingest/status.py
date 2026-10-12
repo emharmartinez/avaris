@@ -110,3 +110,64 @@ def check_report(report: pd.DataFrame, today: date) -> list[str]:
                 f"({row['bubble_neutral']} neutral, {row['bubble_not_neutral']} not)"
             )
     return failures
+
+
+FIRST_INJURY_SEASON = "2021-22"
+MAX_UNMATCHED_PLAYER_RATE = 0.05
+
+INJURY_SQL = """
+with g as (
+    select game_id, season, tip_off_utc from games
+    where season_type = 'regular' and season >= ? and tip_off_utc is not null
+),
+covered as (
+    -- A report fetched within 12 h before the cutoff; a game can be absent from it when
+    -- neither team lists a player. The previous evening's report does not count
+    select distinct g.game_id from g join injury_report_files f
+        on f.status = 'ok' and f.report_ts between g.tip_off_utc - interval 12 hour
+            and g.tip_off_utc - interval 60 minute
+),
+entries as (
+    select g.season,
+        count(*) filter (where i.player_name <> '') as named_entries,
+        count(*) filter (where i.player_name <> '' and i.player_id is null) as unmatched_players
+    from injury_reports i join g using (game_id) group by g.season
+)
+select g.season, count(*) as regular_games, count(c.game_id) as with_decision_report,
+    any_value(e.named_entries) as named_entries,
+    any_value(e.unmatched_players) as unmatched_players
+from g left join covered c using (game_id) left join entries e using (season)
+group by g.season order by g.season
+"""
+
+
+def injury_report(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+    # Per season from 2021-22: regular-season games with an injury report fetched between
+    # tip-off - 12 h and tip-off - 60 min, and report rows without a player ID
+    report = con.execute(INJURY_SQL, [FIRST_INJURY_SEASON]).df()
+    count_cols = report.columns.drop("season")
+    report[count_cols] = report[count_cols].fillna(0).astype(int)
+    return report
+
+
+def check_injuries(report: pd.DataFrame, today: date) -> list[str]:
+    # Phase 2 done-when for finished seasons; one message per failure
+    if report.empty:
+        return ["no injury reports ingested"]
+    failures: list[str] = []
+    for row in report.to_dict("records"):
+        season = str(row["season"])
+        if not is_finished(season, today):
+            continue
+        if row["with_decision_report"] != row["regular_games"]:
+            failures.append(
+                f"{season}: {row['with_decision_report']} of {row['regular_games']} "
+                "regular-season games with a report by tip-off - 60"
+            )
+        named, unmatched = row["named_entries"], row["unmatched_players"]
+        if named and unmatched / named >= MAX_UNMATCHED_PLAYER_RATE:
+            failures.append(
+                f"{season}: {unmatched} of {named} injury rows without a player ID "
+                f"({unmatched / named:.2%}, limit < 5%)"
+            )
+    return failures

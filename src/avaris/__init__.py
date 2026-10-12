@@ -1,1 +1,1 @@
-# Avaris: personal NBA betting model.
+# Avaris: personal NBA analytics model.

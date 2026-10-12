@@ -37,3 +37,9 @@ def test_env_overrides_toml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     cfg.write_text("[stats]\nrefetch_days = 3\n")
     monkeypatch.setenv("AVARIS_STATS__REFETCH_DAYS", "9")
     assert load_settings(cfg).stats.refetch_days == 9
+
+
+def test_injury_defaults(tmp_path: Path) -> None:
+    s = load_settings(tmp_path / "missing.toml")
+    assert s.injuries.first_season == "2021-22"
+    assert s.injuries.step_back_hours == 4.0
