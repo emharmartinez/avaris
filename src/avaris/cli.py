@@ -272,6 +272,71 @@ def backtest_command(
     typer.echo(f"Wrote {cfg.reports_dir / name}.md")
 
 
+@app.command("evaluate")
+def evaluate_command(
+    ctx: typer.Context,
+    from_season: Annotated[str | None, typer.Option("--from", help="First test season.")] = None,
+    to_season: Annotated[str | None, typer.Option("--to", help="Last test season.")] = None,
+    availability: Annotated[
+        list[str] | None, typer.Option(help="actual or report (repeatable; default actual).")
+    ] = None,
+    holdout: Annotated[
+        bool, typer.Option("--holdout", help="Score the holdout season (once only).")
+    ] = False,
+    n_boot: Annotated[int, typer.Option(help="Bootstrap replicates.")] = 1000,
+) -> None:
+    # Weekly walk-forward of the kept rungs against Elo and the naive baselines, with
+    # bootstrap CIs, calibration, drivers and charts
+    from avaris.backtest.evaluate import evaluate, render_report
+
+    settings: Settings = ctx.obj
+    cfg = settings.models
+    modes = availability or ["actual"]
+    if set(modes) - {"actual", "report"}:
+        raise typer.BadParameter("availability must be actual or report")
+    marker = cfg.reports_dir / "holdout_used.json"
+    if holdout:
+        if marker.exists():
+            typer.echo(f"The {cfg.holdout_season} holdout has already been scored "
+                       f"({marker}); it is used once (ADR-002)")
+            raise typer.Exit(1)
+        seasons = [cfg.holdout_season]
+        name = f"holdout_{cfg.holdout_season}"
+    else:
+        first = from_season or cfg.eval_first_season
+        last = to_season or cfg.eval_last_season
+        seasons = season_range(first, last)
+        if last >= cfg.holdout_season:
+            typer.echo(f"{cfg.holdout_season} is the holdout: score it once with --holdout")
+            raise typer.Exit(1)
+        name = f"evaluation_{first}_{last}"
+    if "report" in modes and seasons[0] < settings.injuries.first_season:
+        first_reports = settings.injuries.first_season
+        typer.echo(f"report availability: injury reports start in {first_reports}; "
+                   f"pass --from {first_reports}")
+        raise typer.Exit(1)
+    data = _training_data(settings)
+    data = data[data["season"] <= seasons[-1]]
+    runs = {
+        m: evaluate(data, cfg, seasons, m, progress=typer.echo)  # type: ignore[arg-type]
+        for m in modes
+    }
+    title = f"Evaluation {seasons[0]} to {seasons[-1]}" + (" (holdout)" if holdout else "")
+    report, charts = render_report(runs, title, data, n_boot=n_boot, seed=cfg.seed)
+    out = cfg.reports_dir / name
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "report.md").write_text(report + "\n")
+    for chart, svg in charts.items():
+        (out / chart).write_text(svg + "\n")
+    pd.concat(runs.values()).to_csv(out / "predictions.csv.gz", index=False)
+    if holdout:
+        marker.write_text(json.dumps({
+            "season": cfg.holdout_season, "availability": modes,
+            "scored_at": datetime.now(UTC).isoformat(), "report": str(out),
+        }, indent=2) + "\n")
+    typer.echo(f"Wrote {out / 'report.md'}")
+
+
 @app.command("train")
 def train_command(
     ctx: typer.Context,

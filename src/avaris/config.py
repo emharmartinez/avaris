@@ -50,6 +50,9 @@ class ModelsSettings(BaseModel):
     retrain_every_days: int = 7
     tune_first_season: str = "2015-16"
     tune_last_season: str = "2019-20"
+    eval_first_season: str = "2020-21"  # scored walk-forward window (Phase 4)
+    eval_last_season: str = "2024-25"
+    holdout_season: str = "2025-26"  # scored once (ADR-002)
     n_trials: int = 40
     n_jobs: int = 1
     home_win: TargetModelSettings = TargetModelSettings()

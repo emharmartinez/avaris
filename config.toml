@@ -25,6 +25,9 @@ promote_tolerance = 0.02  # a new artifact's OOF metric may be up to 2% worse th
 retrain_every_days = 7
 tune_first_season = "2015-16"  # tuning and rung selection window (ADR-002)
 tune_last_season = "2019-20"
+eval_first_season = "2020-21"  # scored walk-forward window
+eval_last_season = "2024-25"
+holdout_season = "2025-26"     # scored once: `avaris evaluate --holdout` (ADR-002)
 n_trials = 60
 n_jobs = 3
 
