@@ -20,6 +20,7 @@ from avaris.ingest.odds_api import (
     OddsApiError,
     load_api_key,
 )
+from avaris.ingest.odds_status import reconcile_run
 
 KEY = "SECRET-KEY-123"
 SNAPSHOT = datetime(2022, 1, 15, 22, 30)
@@ -262,6 +263,8 @@ def test_retry_after_transport_error_reprimes_and_counts_the_hidden_charge(
     client.prime()
     client.historical_odds(SNAPSHOT, "open", *WINDOW)
     assert client.guard.run_spent == 60  # the lost response's 30 credits are counted
+    # The ledger attributes the hidden charge to the failed attempt, so the run reconciles
+    assert reconcile_run(con, "run-1") == (60, 60)
 
 
 def test_retry_is_refused_when_the_hidden_charge_hits_the_cap(

@@ -114,6 +114,17 @@ class CreditGuard:
             self.record(endpoint, params, purpose, cost, {}, "refused", reason)
             raise CreditRefused(f"{endpoint} ({purpose}, {cost} credits) refused: {reason}")
 
+    def attribute_lost_charge(self, credits: int) -> None:
+        # A request whose response never arrived was charged: book it on its error row
+        self._charged += credits
+        self.con.execute(
+            """
+            update api_usage set actual_cost = ?, message = message || ' (charged, response lost)'
+            where id = (select max(id) from api_usage where run_id = ? and status = 'error')
+            """,
+            [credits, self.run_id],
+        )
+
     def record(
         self,
         endpoint: str,
@@ -271,7 +282,11 @@ class OddsApiClient:
                     raise OddsApiError(f"{endpoint} failed: {message}") from None
                 if purpose != "prime":
                     # The lost request may have been charged: refresh usage before retrying
+                    used_before = self.guard.used or 0
                     self.prime()
+                    hidden = (self.guard.used or 0) - used_before
+                    if hidden > 0:
+                        self.guard.attribute_lost_charge(hidden)
             else:
                 if response.status_code == 200:
                     try:
