@@ -33,3 +33,9 @@ def test_markdown_table() -> None:
 
     out = markdown_table(pd.DataFrame({"rung": ["elo"], "mae": [10.12345]}))
     assert out.splitlines() == ["| rung | mae |", "|---|---|", "| elo | 10.1235 |"]
+
+
+def test_markdown_table_prints_counts_without_decimals() -> None:
+    from avaris.backtest.report import markdown_table
+
+    assert markdown_table(pd.DataFrame({"n": [5979.0]})).splitlines()[-1] == "| 5979 |"

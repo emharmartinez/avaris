@@ -84,7 +84,9 @@ def to_markdown(table: pd.DataFrame, kept: dict[str, str], title: str) -> str:
 
 def markdown_table(df: pd.DataFrame) -> str:
     def cell(v: object) -> str:
-        return f"{v:.4f}" if isinstance(v, float) else str(v)
+        if isinstance(v, float):
+            return f"{v:.0f}" if v.is_integer() else f"{v:.4f}"
+        return str(v)
 
     rows = [
         "| " + " | ".join(df.columns) + " |",
