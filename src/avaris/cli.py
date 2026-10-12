@@ -1,10 +1,12 @@
 import json
 import re
+import time
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Annotated
 
 import duckdb
+import httpx
 import pandas as pd
 import typer
 
@@ -39,6 +41,7 @@ app.add_typer(ingest_app, name="ingest")
 app.add_typer(features_app, name="features")
 
 SEASON_RE = re.compile(r"\d{4}-\d{2}")
+POLL_S = 1.0  # job status polling while the server runs a CLI job
 
 
 def _open_read_only(settings: Settings) -> duckdb.DuckDBPyConnection:
@@ -383,6 +386,87 @@ def evaluate_command(
     typer.echo(f"Wrote {out / 'report.md'}")
 
 
+def _run_job(settings: Settings, kind: str, params: dict[str, object]) -> None:
+    # In-process on a read-write connection; when a server holds the database (one
+    # writer), the job runs there instead
+    from avaris.pipeline.jobs import default_runners
+
+    try:
+        con = connect(settings.paths.db_path)
+    except duckdb.IOException as exc:
+        _server_job(settings, kind, params, exc)
+        return
+    try:
+        message = default_runners(settings)[kind](con, params, typer.echo)
+    finally:
+        con.close()
+    typer.echo(message)
+
+
+def _server_job(
+    settings: Settings, kind: str, params: dict[str, object], locked: Exception
+) -> None:
+    base = f"http://{settings.server.host}:{settings.server.port}"
+    try:
+        response = httpx.post(f"{base}/api/jobs/{kind}", json=params or None, timeout=10)
+        if response.status_code == 409:
+            typer.echo(f"The server is busy: {response.json()['detail']}")
+            raise typer.Exit(1)
+        response.raise_for_status()
+        job = response.json()
+        typer.echo(f"Database held by the server at {base}: running {kind} as job "
+                   f"{job['job_id']}")
+        seen = 0
+        while True:
+            job = httpx.get(f"{base}/api/jobs/{job['job_id']}", timeout=10).json()
+            for line in job["log"][seen:]:
+                typer.echo(line)
+            seen = len(job["log"])
+            if job["status"] != "running":
+                break
+            time.sleep(POLL_S)
+    except httpx.HTTPError as exc:
+        typer.echo(f"Database is locked by another process ({locked}) and no Avaris server "
+                   f"answers at {base} ({exc})")
+        raise typer.Exit(1) from exc
+    typer.echo(job["message"] or job["status"])
+    if job["status"] != "succeeded":
+        raise typer.Exit(1)
+
+
+@app.command("daily")
+def daily_command(
+    ctx: typer.Context,
+    offline: Annotated[bool, typer.Option(help="Skip the stats and injury refresh.")] = False,
+) -> None:
+    # Refresh, retrain when stale, provisional and final predictions for today and any
+    # missed game, then score; idempotent
+    _run_job(ctx.obj, "daily", {"offline": True} if offline else {})
+
+
+@app.command("score")
+def score_command(ctx: typer.Context) -> None:
+    # Per-game scores of final predictions once the games are final
+    _run_job(ctx.obj, "score", {})
+
+
+@app.command("serve")
+def serve_command(
+    ctx: typer.Context,
+    daily: Annotated[bool, typer.Option(help="Run `daily` once on startup.")] = True,
+    host: Annotated[str | None, typer.Option(help="Bind address (default: config).")] = None,
+    port: Annotated[int | None, typer.Option(help="Port (default: config).")] = None,
+) -> None:
+    # The local API; holds the one read-write DuckDB connection
+    import uvicorn
+
+    from avaris.api.main import create_app
+
+    settings: Settings = ctx.obj
+    api = create_app(settings, daily_on_startup=settings.server.daily_on_startup and daily)
+    uvicorn.run(api, host=host or settings.server.host, port=port or settings.server.port)
+
+
 @app.command("train")
 def train_command(
     ctx: typer.Context,
@@ -395,8 +479,6 @@ def train_command(
     ] = None,
 ) -> None:
     # Refit the kept rungs with frozen hyperparameters; the registry decides promotion
-    from avaris.pipeline.train import train
-
     settings: Settings = ctx.obj
     registry = Registry(settings.models.models_dir)
     if promote:
@@ -405,10 +487,7 @@ def train_command(
             registry.promote(t, promote, feature_hash())
             typer.echo(f"{t}: promoted {promote}")
         return
-    cutoff = date.fromisoformat(through) if through else today_et()
-    results = train(_training_data(settings), settings.models, cutoff, _targets(target))
-    for r in results:
-        status = "promoted" if r.decision.promoted else "candidate (" + "; ".join(
-            r.decision.reasons) + ")"
-        typer.echo(f"{r.target}: run {r.run_id}, {r.meta['rung']}, {r.meta['n_rows']} rows, "
-                   f"OOF {r.meta['oof_metric']:.4f}: {status}")
+    params: dict[str, object] = {"target": list(_targets(target))}
+    if through:
+        params["through"] = date.fromisoformat(through).isoformat()
+    _run_job(settings, "train", params)

@@ -196,6 +196,6 @@ def default_runners(settings: Settings, clock: Clock = utc_now) -> dict[str, Job
             lines.append(f"{r.target}: run {r.run_id}, {r.meta['rung']}, {r.meta['n_rows']} "
                          f"rows, OOF {r.meta['oof_metric']:.4f}: {status}")
             progress(lines[-1])
-        return "; ".join(lines)
+        return f"trained {len(lines)} target(s)"
 
     return {"daily": daily, "score": score, "train": train_job}
