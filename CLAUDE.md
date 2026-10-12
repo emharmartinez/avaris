@@ -17,7 +17,7 @@ uv run pyright
 uv run pytest                                  # all tests
 uv run pytest tests/unit/test_devig.py::test_x # single test
 uv run pytest -m e2e                           # pipeline E2E only
-uv run avaris ...                              # Typer CLI (ingest, odds, daily, settle, serve)
+uv run avaris ...                              # Typer CLI (ingest, odds, train, daily, settle, serve)
 ```
 
 **Web** (from `web/`; always pass `--cache "$TMPDIR/npm-cache"` to npm because of the sandbox)
@@ -40,10 +40,11 @@ All gates must be green at the end of every phase.
   5. Picks and bets are served by the FastAPI server and shown in the PWA.
 - **Evaluation is against the de-vigged closing line**, not raw accuracy. Walk-forward only. The **2025-26 season is a holdout used once**; never tune on it.
 - **Features must be as of tip-off.** The leakage test must hold: deleting rows after date D cannot change features for games on D.
+- **Tuning uses 2015-16 to 2019-20 only.** Hyperparameters and the kept rung are frozen for 2020-21+. Blend `w` and edge thresholds are fitted walk-forward per season.
 - **Market odds are never a model feature.** They enter only through the betting-layer blend `p = w·model + (1−w)·market`.
 - **Single DuckDB writer.**
   - The FastAPI process owns the read-write connection.
-  - CLI jobs run in-process only when the server is down. Otherwise they go through `POST /api/jobs/{daily,settle}`.
+  - CLI jobs run in-process only when the server is down. Otherwise they go through `POST /api/jobs/{daily,settle,train}`.
   - The UI never calls external APIs.
 - **Odds spend is guarded by `CreditGuard`.**
   - Every Odds API call is cost-estimated first and refused if it would break the per-run, monthly-credit, monthly-USD or reserve limits.
@@ -90,3 +91,8 @@ All gates must be green at the end of every phase.
 ## Sandbox
 
 **VERY IMPORTANT**: If you hit a sandbox blocker, try running outside of it first. If a classifier blocks you, only then you escalate to the user. Be autonomous as much as possible!
+
+## GitHub
+
+- Always ensure `git status` clean once done with task. Do not leave it dirty.
+- Commit often but ask the user first before pushing

@@ -52,6 +52,17 @@ The goal is to make money against the market. Betting lines are very efficient, 
   - De-vig with multiplicative and Shin methods; consensus = median across books; track the best available price.
   - Bet when edge ≥ a threshold, sized at flat stake or ¼ Kelly with a per-bet cap.
 - **Walk-forward evaluation:** train on seasons before S, test on S, retraining weekly inside the season. Models train from 2012-13; betting simulation runs 2020-21+. **2025-26 is a holdout, used once.**
+- **Tuning and fitting splits (no tuning on scored seasons):**
+  - Optuna tuning and rung selection use walk-forward over **2015-16 to 2019-20** only. Hyperparameters and the kept rung are then **frozen** for 2020-21+.
+  - Blend weight `w` and edge thresholds are fitted walk-forward: before season S, fit them on out-of-sample predictions plus closing odds from 2020-21 to S−1.
+  - 2020-21 has no earlier odds, so it uses `w = 0.5` and the config default threshold. It is reported separately as a warm-up season.
+- **Production training:**
+  - `avaris train --through DATE` refits the kept rung per target on every game that tipped off before `DATE`, with the frozen hyperparameters. Calibration and σ come from out-of-fold predictions.
+  - Each run writes `artifacts/models/<target>/<run_id>/` with `model.joblib` and `meta.json`: train window, feature list + feature hash, hyperparameters, seed, git SHA, package versions and OOF metrics.
+  - `artifacts/models/registry.json` points to the production artifact per target. A new artifact is promoted automatically only if its feature hash matches the current feature builder, it has more training rows than the previous artifact, and its OOF metrics are within `promote_tolerance` of the previous artifact's. Otherwise it stays a candidate, and `daily` warns. `avaris train --promote RUN_ID` is the manual override (needed after any hyperparameter or rung change, which first requires a new walk-forward run).
+  - `daily` refuses to predict with an artifact whose feature hash does not match the current feature builder.
+  - **Cadence:** weekly, matching the backtest. `avaris daily` runs `train` first when the production artifact is older than `retrain_every_days` (default 7).
+  - **Reproducibility:** fixed `seed` in `config.toml`, recorded in `meta.json`.
 - **Odds stop-gap (`CreditGuard`):**
   - Each run first calls `/v4/sports` (0 credits) to read `x-requests-remaining` and `x-requests-used`.
   - The cost is computed before every call: `10 × markets × regions` for historical, `markets × regions` for live, 1 for historical events.
@@ -61,11 +72,12 @@ The goal is to make money against the market. Betting lines are very efficient, 
 - **Odds cost:**
   - Historical data needs a paid plan. The backfill is about 27–35k credits per season (30 credits per snapshot, 1 opening + 3–5 closing snapshots per game day), or ≈ 160–210k for 2020-21 to 2025-26.
   - Buy **one month of the 5M plan ($119)**, do the test run and the backfill in that month, then **downgrade to free**. Daily use is ≈ 270 credits/month, which fits the free 500.
-- **DuckDB allows one writer process.** The FastAPI server owns the read-write connection. CLI jobs run in-process when the server is down, or through `POST /api/jobs/{daily,settle}` when it's up. The UI only reads DuckDB and never calls external APIs.
+- **DuckDB allows one writer process.** The FastAPI server owns the read-write connection. CLI jobs run in-process when the server is down, or through `POST /api/jobs/{daily,settle,train}` when it's up. The UI only reads DuckDB and never calls external APIs.
 
 ## Testing approach
 - **TDD by default:** write a failing test first, make it pass, then refactor. This applies to all deterministic code:
   - `CreditGuard`, ledger, cache, de-vig, edge, staking, Elo, features, availability rules, distributions, API routes.
+  - Training plumbing: `--through` cutoff, registry promotion and refusal rules, feature-hash check, retrain staleness trigger, walk-forward `w`/threshold fitting.
   - Web: data hooks, formatters, and components with logic (Vitest + React Testing Library).
 - **Vitest environments (jsdom is slow, so use it only where a DOM is needed):**
   - Default environment is `node`. Two Vitest `projects`: `*.test.ts` runs in `node`, `*.test.tsx` runs in `jsdom`.
@@ -75,7 +87,7 @@ The goal is to make money against the market. Betting lines are very efficient, 
 - **Test-after is allowed only** for exploratory model tuning and report styling. Tests must still exist before the phase is done.
 - **No live network in tests.** Use recorded stats, odds and injury responses from the cache, plus a small fixture DuckDB built by `tests/fixtures/`.
 - **E2E tests:**
-  1. **Pipeline E2E** (pytest, `@pytest.mark.e2e`): fixture responses → `avaris daily` → `avaris settle`. Asserts on picks, bets, CLV, P&L and `api_usage` rows.
+  1. **Pipeline E2E** (pytest, `@pytest.mark.e2e`): fixture responses → `avaris train` → `avaris daily` → `avaris settle`. Asserts on picks, bets, CLV, P&L and `api_usage` rows.
   2. **UI E2E** (Playwright, `web/e2e/`): starts `avaris serve` on the fixture DB, then checks that every page renders real data, Bet Log can add and settle a bet, Usage shows spend vs. cap, and the manifest and service worker load.
 
 ## Layout (`/home/emhar/avaris`)
@@ -87,7 +99,7 @@ src/avaris/  config.py db.py cli.py
   models/    baselines.py gbm.py calibration.py distributions.py registry.py
   betting/   devig.py edge.py staking.py
   backtest/  walkforward.py metrics.py report.py
-  pipeline/  daily.py settle.py
+  pipeline/  train.py daily.py settle.py
   api/       main.py routes/{picks,performance,backtests,injuries,usage,bets,jobs}.py
 web/         Next.js PWA (app/: today, performance, backtests, injuries, usage, bet-log; components/ui from shadcn; e2e/ Playwright)
 data/ (gitignored)   artifacts/ (models, reports)
@@ -120,23 +132,28 @@ DuckDB tables: `games`, `team_games`, `player_games`, `rosters`, `injury_reports
 
 ### Phase 3 — Features + models
 - All feature families, including the availability rules for trades and roster moves.
-- Model ladder, LightGBM + Optuna, calibration, σ fitting, registry.
+- Model ladder, LightGBM + Optuna, calibration, σ fitting.
+- Tune and select rungs on 2015-16 to 2019-20, then freeze hyperparameters in `config.toml`.
+- `avaris train`, artifacts with `meta.json`, and the registry with its promotion rules.
 - **Done when:**
   - The leakage test passes: deleting all rows after date D leaves features for games on D unchanged.
   - The trade test passes.
-  - Walk-forward results on validation seasons show LightGBM (or the rung that's kept) beating Elo on log loss and MAE.
+  - The train cutoff test passes: `avaris train --through D` uses no game on or after D.
+  - Walk-forward results on 2015-16 to 2019-20 show LightGBM (or the rung that's kept) beating Elo on log loss and MAE.
+  - Registry tests pass: promotion, candidate hold, manual `--promote` and feature-hash refusal.
 
 ### Phase 4 — Betting layer + backtest
 - Consensus de-vig, model/market blend, edge thresholds, flat and ¼-Kelly staking.
-- Walk-forward betting simulation for 2020-21 to 2024-25.
+- Walk-forward betting simulation for 2020-21 to 2024-25, with `w` and thresholds fitted walk-forward (2020-21 as the warm-up season).
 - Re-run on 2021-22+ using injury reports instead of actual availability, to measure the cost of late scratches.
 - Markdown + chart report; then run once on the 2025-26 holdout.
-- **Done when:** the report shows log loss vs. Elo and vs. the de-vigged close, ROI with a bootstrap confidence interval, CLV % and calibration plots. It states plainly if there's no edge.
+- **Final refit for live use:** after the holdout run, `avaris train --through` the end of 2025-26 (playoffs included) and promote it as the first production model. Refit `w` and thresholds on 2020-21 to 2025-26. Hyperparameters are not retuned.
+- **Done when:** the report shows log loss vs. Elo and vs. the de-vigged close, ROI with a bootstrap confidence interval, CLV % and calibration plots. It states plainly if there's no edge. A production artifact trained through 2025-26 is in the registry.
 
 ### Phase 5 — Daily pipeline + API
-- `avaris daily`: refresh stats, rosters and injuries → live odds (guarded) → features → predict → log picks.
+- `avaris daily`: refresh stats, rosters and injuries → retrain if the production model is stale → live odds (guarded) → features → predict with the production artifact → log picks.
 - `avaris settle`: closing line + results → CLV and P&L.
-- FastAPI read endpoints for picks, games, performance, backtests, injuries and usage; `POST` for the manual bet log and job triggers. The single-writer connection model described above.
+- FastAPI read endpoints for picks, games, performance, backtests, injuries and usage; `POST` for the manual bet log and job triggers (`daily`, `settle`, `train`). The single-writer connection model described above.
 - **Done when:** API tests pass (FastAPI TestClient), the pipeline E2E test passes, and on a game day `avaris daily` then `GET /api/picks/today` returns that day's games with model probability, market probability, edge and stake.
 
 ### Phase 6 — Desktop PWA
@@ -162,7 +179,7 @@ DuckDB tables: `games`, `team_games`, `player_games`, `rosters`, `injury_reports
 - Python: `uv run ruff check && uv run pyright && uv run pytest`. Web: `npm run lint && npm run typecheck && npm run test && npm run build`, plus `npm run test:e2e` once Phase 6 starts. All green at the end of every phase.
 - Every phase is built test-first; a phase is not done if its new code lacks tests.
 - End to end on a game day:
-  1. `avaris daily`
+  1. `avaris daily` (retrains first if the production model is over a week old)
   2. `avaris serve`
   3. Open the installed PWA → Today shows the slate with edges.
   4. After the games, `avaris settle` → Performance updates with CLV.
