@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -7,6 +8,7 @@ import typer
 
 from avaris.config import DEFAULT_CONFIG_PATH, Settings, load_settings
 from avaris.db import connect
+from avaris.ingest.injuries import InjuryClient, ingest_injuries
 from avaris.ingest.runner import ingest_stats
 from avaris.ingest.stats_client import RawCache, StatsClient, Throttle
 from avaris.ingest.status import check_report, season_report
@@ -73,6 +75,47 @@ def ingest_stats_command(
         client.close()
         con.close()
     typer.echo(f"Done: {client.requests_made} requests to stats.nba.com")
+
+
+@ingest_app.command("injuries")
+def ingest_injuries_command(
+    ctx: typer.Context,
+    from_season: Annotated[
+        str | None, typer.Option("--from", help="First season, e.g. 2021-22.")
+    ] = None,
+    to_season: Annotated[
+        str | None, typer.Option("--to", help="Last season (default: current).")
+    ] = None,
+) -> None:
+    # Official NBA injury reports at each game's decision slot (cached, throttled)
+    settings: Settings = ctx.obj
+    cfg = settings.injuries
+    seasons = season_range(
+        from_season or cfg.first_season, to_season or season_for_date(today_et())
+    )
+    client = InjuryClient(
+        settings.paths.cache_dir,
+        Throttle(cfg.min_interval_s),
+        timeout_s=cfg.timeout_s,
+        max_attempts=cfg.max_attempts,
+    )
+    con = connect(settings.paths.db_path)
+    try:
+        summary = ingest_injuries(
+            con,
+            client,
+            seasons,
+            now_utc=datetime.now(UTC).replace(tzinfo=None),
+            max_step_back=cfg.max_step_back,
+            progress=typer.echo,
+        )
+    finally:
+        client.close()
+        con.close()
+    typer.echo(
+        f"Done: {summary.reports} reports, {summary.entries} entries, "
+        f"{summary.unmatched_players} unmatched player rows, {client.requests_made} requests"
+    )
 
 
 @ingest_app.command("status")

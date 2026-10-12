@@ -24,6 +24,31 @@ def load_teams() -> pd.DataFrame:
         return pd.read_csv(f, dtype={"alt_tricodes": "string"})
 
 
+# Other spellings of a team's "City Nickname" seen in external feeds (The Odds API)
+TEAM_NAME_ALIASES = {"Los Angeles Clippers": "LA Clippers"}
+
+
+def _read_teams() -> list[dict[str, str]]:
+    with (DATA / "teams.csv").open() as f:
+        return list(csv.DictReader(f))
+
+
+def team_ids_by_name() -> dict[str, int]:
+    # "LA Clippers", "Los Angeles Clippers", "Milwaukee Bucks", ...
+    ids = {f"{r['city']} {r['nickname']}": int(r["team_id"]) for r in _read_teams()}
+    ids.update({alias: ids[name] for alias, name in TEAM_NAME_ALIASES.items()})
+    return ids
+
+
+def team_ids_by_tricode() -> dict[str, int]:
+    # Current and former tricodes (NJN, NOH)
+    ids: dict[str, int] = {}
+    for r in _read_teams():
+        for code in [r["tricode"], *filter(None, r["alt_tricodes"].split("|"))]:
+            ids[code] = int(r["team_id"])
+    return ids
+
+
 def _read_venues(name: str) -> list[dict[str, str]]:
     with (DATA / name).open() as f:
         return list(csv.DictReader(f))
