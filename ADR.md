@@ -5,7 +5,7 @@ One entry per binding decision. Newest first. Status is `accepted`, `superseded`
 ## ADR-014: Avaris is an analytics model; The Odds API is dropped
 
 - **Date:** 2026-10-12 · **Status:** accepted
-- **Decision:** Avaris predicts every non-preseason game's home win probability, margin and total (N(μ, σ), 80% interval) and shows drivers, team ratings and injury impact. No odds, market blend, bets, staking or spend tracking. The odds client, `CreditGuard`, slot planner, backfill and de-vig code are deleted; migration 4 drops `odds_events`, `odds_snapshots` and `api_usage`. No scheduler: `avaris daily` is idempotent and runs on `serve` startup and from the UI Refresh button. `settle` becomes `score`.
+- **Decision:** Avaris predicts every game's home win probability, margin and total (N(μ, σ), 80% interval) and shows drivers, team ratings and injury impact. No odds, market blend, bets, staking or spend tracking. The odds client, `CreditGuard`, slot planner, backfill and de-vig code are deleted; migration 4 drops `odds_events`, `odds_snapshots` and `api_usage`. No scheduler: `avaris daily` is idempotent and runs on `serve` startup and from the UI Refresh button. `settle` becomes `score`.
 - **Why:** user decision. The historical odds backfill was paid-only and the goal is now accurate, calibrated predictions, not beating the market.
 - **Consequences:** evaluation uses log loss, Brier, MAE, RMSE, calibration and interval coverage against Elo and two naive baselines, not CLV. Nothing shows absolute quality against the market; a free historical-lines benchmark is a follow-up. Supersedes ADR-005, 006, 008, 011 and 013.
 
@@ -70,11 +70,11 @@ One entry per binding decision. Newest first. Status is `accepted`, `superseded`
 - **Decision:** no cross-book median price for spreads or totals. Each book's de-vigged price is a fair probability at its own line; model P(cover) is evaluated at that line; bet goes to the largest edge. Moneyline keeps the cross-book median. `w` is per target. `spread` is the home line, negative when home is favored.
 - **Why:** books post different lines, so a median price across them is meaningless.
 
-## ADR-004: `season_type` and `neutral_site` on `games`; preseason dropped
+## ADR-004: `season_type` and `neutral_site` on `games`; preseason predicted but never a feature source
 
-- **Date:** 2026-10-12 · **Status:** accepted
-- **Decision:** preseason is dropped at ingest. Training uses regular season, play-in and playoffs with `season_type` as a feature. Predictions cover every non-preseason game, play-in and playoffs included; headline metrics use the regular season and play-in and playoffs are reported separately (amended by ADR-014; was: betting on the regular season only). Neutral-site games get `home_court = 0` and venue-based travel.
-- **Why:** preseason rosters are not representative; playoffs have different home court and rest effects and a small sample; the 2019-20 bubble sits inside the tuning window.
+- **Date:** 2026-10-12 · **Status:** accepted (amended 2026-10-12 by ADR-014 and the preseason decision; was: betting on the regular season only, preseason dropped)
+- **Decision:** preseason is stored with `season_type = preseason`. Every game is predicted and scored, preseason, play-in and playoffs included, with `season_type` as a model feature and σ fitted per bucket (preseason, regular, postseason). Headline metrics use the regular season; the other types are reported separately. Preseason results never update Elo, form or availability features, and preseason games are predicted at full strength (no injury report exists for preseason days). Neutral-site games get `home_court = 0` and venue-based travel.
+- **Why:** the user wants preseason covered; preseason rotations are not representative, so they must not leak into regular-season features; playoffs have different home court and rest effects and a small sample; the 2019-20 bubble sits inside the tuning window.
 
 ## ADR-003: One `decision_ts` per game freezes injuries and features
 

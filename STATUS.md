@@ -2,7 +2,7 @@
 
 - **Phase:** Phase 2 done (injuries + odds removal), PR #5 on branch `phase-2-odds-injuries`. Phase 1 merged (PR #2)
 - **Pivot (2026-10-12):** Avaris is now an analytics model, not a betting model; The Odds API is dropped (ADR-014)
-- **Plan:** `docs/plans/avaris-nba-analytics-model-build-plan.md`
+- **Plan:** `docs/plans/avaris-nba-analytics-model-build-plan.md`. Its five decisions are approved, decision 4 revised: preseason games are predicted and scored too
 - **Next:** merge PR #5, then Phase 3 (features + models)
 - **Important!** The 2026-27 season starts in late October 2026. Live predictions need Phases 1-5 done, including the final refit through 2025-26.
 

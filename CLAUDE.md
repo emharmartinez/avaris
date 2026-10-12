@@ -40,7 +40,7 @@ All gates must be green at the end of every phase.
   5. Predictions are served by the FastAPI server and shown in the PWA.
 - **Evaluation uses proper scoring rules** (log loss, Brier, MAE, RMSE, calibration, interval coverage) against Elo and two naive baselines. Walk-forward only. The **2025-26 season is a holdout used once**; never tune on it.
 - **Features must be as of `decision_ts`** (one instant per game, default the latest injury report at or before tip-off minus 60 min). Injuries and features are frozen at it, in backtests and live. The leakage test must hold at timestamp granularity: deleting rows with `ts > decision_ts` cannot change that game's features.
-- **Every non-preseason game is predicted;** headline metrics use the regular season, play-in and playoffs are reported separately. `season_type` and `neutral_site` live on `games`; preseason is dropped at ingest. `game_date` is the ET date of tip-off; timestamps are stored in UTC.
+- **Every game is predicted, preseason included;** headline metrics use the regular season, preseason, play-in and playoffs are reported separately. Preseason results never feed features (Elo, form, availability). `season_type` and `neutral_site` live on `games`. `game_date` is the ET date of tip-off; timestamps are stored in UTC.
 - **No scheduler.** `avaris daily` is idempotent and catches up whenever it runs; `avaris serve` runs it on startup and the UI has a Refresh button.
 - **Tuning uses 2015-16 to 2019-20 only.** Hyperparameters and the kept rung are frozen for 2020-21+.
 - **No odds or market data.** The Odds API was dropped (ADR-014); do not add odds, bets or spend tracking back.

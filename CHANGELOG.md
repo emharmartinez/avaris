@@ -20,6 +20,7 @@
   - Unit, integration and CLI e2e tests on trimmed recorded responses
 
 ### Changed
+- **Plan (decision 4):** preseason games are predicted and scored, reported separately, and never feed features; σ per `season_type` bucket (ADR-004)
 - **Pivot to an analytics model (ADR-014):** plan renamed to `docs/plans/avaris-nba-analytics-model-build-plan.md` and rewritten (predictive distributions, drivers, team ratings, injury impact, proper scoring rules, no scheduler, `score` replaces `settle`); ADR-005, 006, 008, 011 and 013 superseded; ADR-001 to 004, `CLAUDE.md` and `README.md` updated
 - **Plan / CLAUDE.md:** stats come from a thin httpx client instead of `nba_api` (ADR-009); neutral-site rule (ADR-010); sandbox notes for stats.nba.com and `UV_CACHE_DIR`
 - **Plan:** closed gaps in `docs/plans/avaris-nba-analytics-model-build-plan.md` and added a Risks and mitigation table
