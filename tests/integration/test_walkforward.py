@@ -182,3 +182,8 @@ def test_walk_forward_drivers_sum_to_the_raw_output(data: pd.DataFrame, target: 
                            isotonic=False)
     assert "base" not in without.columns
     np.testing.assert_allclose(preds["pred"], without["pred"])
+    # raw is the model's own prediction on the link scale, not the drivers' sum
+    from scipy.special import logit
+
+    expected = logit(preds["pred"]) if target == "home_win" else preds["pred"]
+    np.testing.assert_allclose(preds["raw"], expected, rtol=1e-6, atol=1e-6)

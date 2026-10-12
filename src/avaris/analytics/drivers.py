@@ -47,9 +47,13 @@ def _link(p: np.ndarray) -> np.ndarray:
     return np.asarray(logit(np.clip(p, PROB_CLIP, 1 - PROB_CLIP)), dtype=float)
 
 
+def link_output(target: str, prediction: np.ndarray) -> np.ndarray:
+    # A rung's raw prediction on the drivers' scale: log-odds for home_win
+    return _link(prediction) if target == "home_win" else np.asarray(prediction, dtype=float)
+
+
 def _elo(rung: EloRung, target: str, x: pd.DataFrame) -> Drivers:
-    raw = rung.predict(x)
-    output = _link(raw) if target == "home_win" else raw
+    output = link_output(target, rung.predict(x))
     contrib = pd.DataFrame(0.0, index=x.index, columns=MODEL_FEATURES)
     contrib[ELO_COLUMN[target]] = output
     return Drivers(np.zeros(len(x)), contrib, output)

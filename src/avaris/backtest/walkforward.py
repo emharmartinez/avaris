@@ -3,7 +3,7 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 
-from avaris.analytics.drivers import explain
+from avaris.analytics.drivers import explain, link_output
 from avaris.features.build import AvailabilityMode
 from avaris.models.dataset import xy
 from avaris.models.ladder import make_rung
@@ -65,7 +65,9 @@ def walk_forward(
             if drivers:
                 d = explain(model, target, x_test)
                 families = d.families().add_prefix("drv_").reset_index(drop=True)
-                frame = pd.concat([frame.assign(base=d.base, raw=d.output), families], axis=1)
+                # raw comes from the model, not the drivers, so the sum check can fail
+                raw_link = link_output(target, raw)
+                frame = pd.concat([frame.assign(base=d.base, raw=raw_link), families], axis=1)
             rows.append(frame)
     return pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
 
