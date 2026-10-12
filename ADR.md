@@ -2,6 +2,20 @@
 
 One entry per binding decision. Newest first. Status is `accepted`, `superseded` or `proposed`.
 
+## ADR-018: Live predictions are provisional until tip-off - 60 min, final once, and never from a model that saw the game
+
+- **Date:** 2026-10-12 · **Status:** accepted
+- **Decision:**
+  - `avaris daily` runs refresh → features → predict with the current production models → retrain when stale → predict again → score. It predicts this season's games dated on or before today (ET) that have no final prediction.
+  - A prediction is final once `now >= tip_off - 60 min`, from the injury reports stored at that moment, and provisional before. `predictions` keeps one row per game: a provisional row is replaced only when a value changed, a final row is never replaced.
+  - A game is predicted only if every target's run has `through <= game_date_et` (the model never trained on it). Missed games are therefore finalized before a retrain, which cuts off at today.
+  - Retrain when a target has no production model, or its newest run (production or held candidate) has `through` `retrain_every_days` or more before today. A held candidate is a warning; predictions keep using production.
+  - A failed source refresh (network) is a warning; `daily` continues on stored data.
+  - `avaris serve` owns the one read-write DuckDB connection; requests and jobs use cursors. Jobs run one at a time in a background thread (`409` when busy) and are recorded in `jobs`; jobs left running by a stopped server are marked failed at startup. CLI `daily`, `score` and `train` post a job when the database is locked.
+  - Model artifacts are pickles: `model_sha256` in `meta.json` is verified before `joblib.load` (#6); an unhashed artifact is refused until a manual promote seals it.
+- **Why:** a final prediction must be reproducible and honest: frozen at the decision time, from a model that had not seen the result. One current row per game keeps reruns idempotent. DuckDB allows one writer process.
+- **Consequences:** an injury report for the decision slot that lands after a game was finalized is ignored for that game (the stored `report_ts` shows what was used). Games of finished seasons are never predicted live; the backtest covers them. A long job holds the lock; the UI shows its status.
+
 ## ADR-017: Evaluation against Elo and two naive baselines with paired bootstrap CIs; holdout scored once by the CLI
 
 - **Date:** 2026-10-12 · **Status:** accepted

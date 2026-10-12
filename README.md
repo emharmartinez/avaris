@@ -62,6 +62,23 @@ uv run avaris evaluate --from 2021-22 --availability report        # decision in
 - Win probabilities use the model's own probabilities (isotonic calibration is a per-target option, off for `home_win`, ADR-016); margin and total use N(μ, σ) with σ fitted per `season_type` bucket from out-of-fold residuals.
 - Artifacts go to `artifacts/models/<target>/<run_id>/` (`model.joblib`, `meta.json`); `artifacts/models/registry.json` points to production. Reports and Optuna's SQLite store are in `artifacts/`.
 
+## Daily pipeline and API
+
+```
+uv run avaris daily                            # refresh, retrain if stale, predict, score
+uv run avaris daily --offline                  # same on stored data, no stats or injury fetch
+uv run avaris score                            # per-game scores of final predictions
+uv run avaris serve                            # API on 127.0.0.1:8000; runs `daily` on startup
+uv run avaris serve --no-daily
+```
+
+- `daily` predicts this season's games dated today (ET) and any earlier game still missing a final prediction. A prediction is **provisional** before tip-off - 60 min and **final** after; a final row is never rewritten. Reruns change nothing unless new data arrived (ADR-018).
+- A game is predicted only by a model whose training cutoff (`through`) is on or before its date. Missed games are finalized with the current model before a stale model is retrained (older than `retrain_every_days`).
+- Each prediction stores drivers (family contributions per target) and injury impact (strength lost per side and the players behind it) as JSON.
+- **Single writer:** `serve` holds the read-write DuckDB connection. While it runs, `avaris daily`, `score` and `train` run as server jobs (`POST /api/jobs/{daily,score,train}`, one at a time, `409` when busy).
+- **Endpoints:** `GET /api/health`, `/api/predictions/today`, `/api/predictions?date=`, `/api/games/{game_id}`, `/api/teams`, `/api/teams/{team_id}`, `/api/performance`, `/api/backtests`, `/api/injuries?date=`, `/api/jobs`, `/api/jobs/{job_id}`. Timestamps are UTC with a `Z`.
+- **Important!** `model.joblib` is checked against the `model_sha256` in `meta.json` before loading. An artifact written before the hash existed is sealed with `avaris train --promote RUN_ID --target <t>`.
+
 ## Data
 
 DuckDB at `data/avaris.duckdb` (gitignored):
@@ -76,6 +93,9 @@ DuckDB at `data/avaris.duckdb` (gitignored):
 | `injury_report_files` | Report slots fetched (`ok`) or known missing |
 | `features` | One row per game as of `decision_ts`, with `feature_hash` (rebuilt by `avaris features build`) |
 | `team_ratings` | Elo, ORtg, DRtg, net rating, pace and games played per team as of each game |
+| `predictions` | One row per game: `status` (provisional or final), `decision_ts`, runs, `p_home_win`, margin and total μ and σ, drivers and injuries JSON |
+| `prediction_scores` | Per final prediction after the game: log loss, Brier, errors, 80% interval hits, PIT |
+| `jobs` | Background jobs: kind, status, params, log tail |
 
 Reference data in `src/avaris/data/`: `teams.csv`, `arenas.csv` (home arenas with coordinates, time zone, altitude) and `neutral_venues.csv` (bubble, international and Cup venues).
 
