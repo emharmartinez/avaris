@@ -1,3 +1,4 @@
+import hashlib
 import json
 import math
 import os
@@ -26,6 +27,18 @@ class FeatureHashMismatch(Exception):
 
 class NoProductionModel(Exception):
     pass
+
+
+class ArtifactIntegrityError(Exception):
+    pass
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 @dataclass(frozen=True)
@@ -85,6 +98,13 @@ class Registry:
     def promote(self, target: str, run_id: str, current_hash: str) -> None:
         meta = self.read_meta(target, run_id)
         _check_hash(meta, current_hash)
+        if "model_sha256" in meta:
+            self._check_model(target, run_id, meta)
+        else:
+            # A manual promote vouches for an artifact written before hashes were recorded
+            meta["model_sha256"] = file_sha256(self.run_dir(target, run_id) / MODEL_FILE)
+            meta_path = self.run_dir(target, run_id) / META_FILE
+            meta_path.write_text(json.dumps(meta, indent=2) + "\n")
         state = self._load()
         _set_production(self._entry(state, target), run_id, "manual_promote")
         self._save(state)
@@ -94,9 +114,25 @@ class Registry:
         if run_id is None:
             raise NoProductionModel(f"no production {target} model; run avaris train")
         meta = self.read_meta(target, run_id)
-        # Refuse before loading: a stale feature set would silently mispredict
+        # Refuse before loading: a stale feature set would silently mispredict, and
+        # model.joblib is a pickle, so only the bytes written at train time are loaded
         _check_hash(meta, current_hash)
+        self._check_model(target, run_id, meta)
         return joblib.load(self.run_dir(target, run_id) / MODEL_FILE), meta
+
+    def _check_model(self, target: str, run_id: str, meta: dict[str, Any]) -> None:
+        expected = meta.get("model_sha256")
+        if expected is None:
+            raise ArtifactIntegrityError(
+                f"{target} artifact {run_id} has no model_sha256; if you trust it, seal it "
+                f"with `avaris train --promote {run_id}`"
+            )
+        actual = file_sha256(self.run_dir(target, run_id) / MODEL_FILE)
+        if actual != expected:
+            raise ArtifactIntegrityError(
+                f"{target} artifact {run_id}: model.joblib sha256 {actual[:12]} does not match "
+                f"meta.json {str(expected)[:12]}; refusing to load it"
+            )
 
     def _load(self) -> dict[str, Entry]:
         return json.loads(self.path.read_text()) if self.path.exists() else {}

@@ -15,7 +15,7 @@ from avaris.config import ModelsSettings
 from avaris.features.build import FEATURE_VERSION, MODEL_FEATURES, feature_hash
 from avaris.models.ladder import TARGETS
 from avaris.models.predictor import GamePredictor, fit_predictor, oof_metric
-from avaris.models.registry import META_FILE, MODEL_FILE, Decision, Registry
+from avaris.models.registry import META_FILE, MODEL_FILE, Decision, Registry, file_sha256
 
 PACKAGES = ("avaris", "lightgbm", "scikit-learn", "numpy", "pandas", "duckdb")
 
@@ -84,6 +84,8 @@ def train(
         out = settings.models_dir / target / run_id
         out.mkdir(parents=True)
         joblib.dump(predictor, out / MODEL_FILE)
+        # Hash of the bytes on disk: loading refuses a model.joblib that changed since
+        meta["model_sha256"] = file_sha256(out / MODEL_FILE)
         (out / META_FILE).write_text(json.dumps(meta, indent=2) + "\n")
         decision = registry.register(target, run_id, feature_hash(), settings.promote_tolerance)
         results.append(TrainResult(target, run_id, predictor, meta, decision))

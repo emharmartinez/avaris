@@ -9,7 +9,7 @@ import pandas as pd
 from avaris.config import ModelsSettings, TargetModelSettings
 from avaris.features.build import build_features, feature_hash
 from avaris.models.dataset import with_targets
-from avaris.models.registry import Registry
+from avaris.models.registry import Registry, file_sha256
 from avaris.pipeline.train import train
 
 THROUGH = date(2021, 11, 10)
@@ -47,6 +47,8 @@ def test_train_writes_artifacts_and_promotes_the_first_run(
         assert meta["through"] == THROUGH.isoformat()
         assert meta["seed"] == cfg.seed and meta["git_sha"]
         assert set(meta) >= {"params", "rung", "n_rows", "oof_metric", "features", "versions"}
+        model_path = cfg.models_dir / r.target / "r1" / "model.joblib"
+        assert meta["model_sha256"] == file_sha256(model_path)
     sigma = results[1].meta["sigma"]
     assert set(sigma) == {"all", "preseason", "regular", "postseason"}
 

@@ -6,10 +6,12 @@ import joblib
 import pytest
 
 from avaris.models.registry import (
+    ArtifactIntegrityError,
     Decision,
     FeatureHashMismatch,
     NoProductionModel,
     Registry,
+    file_sha256,
 )
 
 HASH = "h1"
@@ -21,6 +23,7 @@ def write_artifact(models_dir: Path, run_id: str, target: str = "home_win", **me
     run_dir.mkdir(parents=True)
     joblib.dump({"run": run_id}, run_dir / "model.joblib")
     base: dict[str, Any] = {
+        "model_sha256": file_sha256(run_dir / "model.joblib"),
         "run_id": run_id,
         "target": target,
         "rung": "lgbm",
@@ -210,3 +213,42 @@ def test_calibration_change_is_held(reg: Registry) -> None:
     decision = held(reg, "r2", n_rows=120, calibration="none")
     assert len(decision.reasons) == 1
     assert "calibration" in decision.reasons[0]
+
+
+def _meta_path(reg: Registry, run_id: str) -> Path:
+    return reg.models_dir / "home_win" / run_id / "meta.json"
+
+
+def test_load_production_refuses_a_tampered_model(reg: Registry) -> None:
+    joblib.dump({"run": "evil"}, reg.models_dir / "home_win" / "r1" / "model.joblib")
+    with pytest.raises(ArtifactIntegrityError, match="sha256"):
+        reg.load_production("home_win", HASH)
+
+
+def test_load_production_refuses_an_unsealed_model(reg: Registry) -> None:
+    path = _meta_path(reg, "r1")
+    meta = json.loads(path.read_text())
+    del meta["model_sha256"]
+    path.write_text(json.dumps(meta))
+    with pytest.raises(ArtifactIntegrityError, match="--promote r1"):
+        reg.load_production("home_win", HASH)
+
+
+def test_manual_promote_seals_an_unsealed_model(reg: Registry) -> None:
+    path = _meta_path(reg, "r1")
+    meta = json.loads(path.read_text())
+    del meta["model_sha256"]
+    path.write_text(json.dumps(meta))
+    reg.promote("home_win", "r1", HASH)
+    model_path = reg.models_dir / "home_win" / "r1" / "model.joblib"
+    assert json.loads(path.read_text())["model_sha256"] == file_sha256(model_path)
+    model, _ = reg.load_production("home_win", HASH)
+    assert model == {"run": "r1"}
+
+
+def test_manual_promote_refuses_a_tampered_model(reg: Registry) -> None:
+    held(reg, "r2", rung="linear")
+    joblib.dump({"run": "evil"}, reg.models_dir / "home_win" / "r2" / "model.joblib")
+    with pytest.raises(ArtifactIntegrityError):
+        reg.promote("home_win", "r2", HASH)
+    assert reg.production("home_win") == "r1"
