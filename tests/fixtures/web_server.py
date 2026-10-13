@@ -21,6 +21,7 @@ from tests.fixtures.synthetic import BOS, INJURED_STAR, write_league
 from tests.integration.test_daily import add_report
 
 NOW = datetime(2021, 11, 27, 17, 0)  # D1 games final and scored, D2 provisional
+UNPREDICTED = "0022100047"  # ATL @ DEN: left for the Refresh flow to predict
 REFERENCE = "evaluation_2021-22_2024-25"
 REPORT = """# Evaluation 2021-22 to 2024-25
 
@@ -65,6 +66,7 @@ def build(root: Path, web: Path) -> Settings:
         con.execute("update games set home_pts = 110, away_pts = 100, status = 'final' "
                     "where game_date_et = ?", [D1])
         run_daily(con, settings, now=NOW, refresh=None)
+        con.execute("delete from predictions where game_id = ?", [UNPREDICTED])
     finally:
         con.close()
     write_reference(settings.models.reports_dir)
