@@ -2,6 +2,13 @@
 
 One entry per binding decision. Newest first. Status is `accepted`, `superseded` or `proposed`.
 
+## ADR-020: An edge calculator compares odds the user types in with the model, in the browser only
+
+- **Date:** 2026-10-13 · **Status:** accepted · narrows ADR-014
+- **Decision:** the PWA gains an Edge tab (`/edge/?date=&game=`). The user picks a predicted game and types moneyline, spread and total odds (American or decimal). The page shows the model probability, the implied probability (vig removed proportionally when both prices are in, raw `1/odds` otherwise), edge in percentage points, EV per 100 staked and the model's fair price. Margin and total N(μ, σ) are read as integer scores in unit bands, so a whole-number line has a push probability (stake returned); a pick'em spread never pushes. All maths runs in `web/src/lib/edge.ts`; nothing is fetched, stored or sent to the API.
+- **Why:** user decision. A quick way to read the model against a price without bringing back odds ingestion.
+- **Consequences:** ADR-014 still holds for the pipeline: no odds client, odds tables, market blend, staking, bet or spend tracking, and evaluation stays on proper scoring rules. The calculator is not evaluated and does not feed features or models.
+
 ## ADR-019: The PWA is a static export served by the API; drift is judged against resampled n-game means
 
 - **Date:** 2026-10-12 · **Status:** accepted

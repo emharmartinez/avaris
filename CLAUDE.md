@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Status
 
 - **In progress:** see `STATUS.md` for the current phase. The source of truth is `docs/plans/avaris-nba-analytics-model-build-plan.md`: it holds the stack, design, layout and six phases, each with a "Done when". Read it before starting a phase.
-- Avaris is a personal, single-user, local-only NBA analytics model: win probability, margin and total (with 80% intervals), plus drivers, team ratings and injury impact. It is not a betting model (ADR-014). Do not add accounts, auth, hosting, multi-tenancy or billing code.
+- Avaris is a personal, single-user, local-only NBA analytics model: win probability, margin and total (with 80% intervals), plus drivers, team ratings and injury impact. It is not a betting model (ADR-014); the Edge tab only compares odds the user types in (ADR-020). Do not add accounts, auth, hosting, multi-tenancy or billing code.
 
 ## Commands
 
@@ -43,7 +43,7 @@ All gates must be green at the end of every phase.
 - **Every game is predicted, preseason included;** headline metrics use the regular season, preseason, play-in and playoffs are reported separately. Preseason results never feed features (Elo, form, availability). `season_type` and `neutral_site` live on `games`. `game_date` is the ET date of tip-off; timestamps are stored in UTC.
 - **No scheduler.** `avaris daily` is idempotent and catches up whenever it runs; `avaris serve` runs it on startup and the UI has a Refresh button.
 - **Tuning uses 2015-16 to 2019-20 only.** Hyperparameters and the kept rung are frozen for 2020-21+.
-- **No odds or market data.** The Odds API was dropped (ADR-014); do not add odds, bets or spend tracking back.
+- **No odds or market data in the pipeline.** The Odds API was dropped (ADR-014); do not add odds ingestion, odds tables, bets, staking or spend tracking back. The one exception is the Edge tab (ADR-020): odds the user types in, compared with the model in the browser, never fetched or stored.
 - **Single DuckDB writer.**
   - The FastAPI process owns the read-write connection.
   - CLI jobs run in-process only when the server is down. Otherwise they go through `POST /api/jobs/{daily,score,train}`.

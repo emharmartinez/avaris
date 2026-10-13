@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Added
+- Edge tab (`/edge/`, ADR-020): pick a predicted game, type moneyline, spread and total odds (American or decimal) and see model probability, no-vig implied probability, edge, EV per 100 and fair price. Whole-number lines show the push chance. Odds stay in the browser
+
 ### Fixed
 - The app could hang after a rebuild: pages had no `Cache-Control`, so Chrome reused an old page whose scripts the rebuild deleted. Pages are now `no-cache`, hashed `_next/static/` assets `immutable`, and the service worker revalidates pages
 
