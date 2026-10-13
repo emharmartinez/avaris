@@ -1,6 +1,6 @@
 # Status
 
-- **Phase:** Phase 6 (desktop PWA) in progress on branch `phase-6-desktop-pwa`. Phase 5 merged (PR #14), Phase 4 merged (PR #10), Phase 3 merged (PR #8), Phase 2 merged (PR #5), Phase 1 merged (PR #2)
+- **Phase:** Phase 6 (desktop PWA) built and reviewed on branch `phase-6-desktop-pwa`; install check is manual. Phase 5 merged (PR #14), Phase 4 merged (PR #10), Phase 3 merged (PR #8), Phase 2 merged (PR #5), Phase 1 merged (PR #2)
 - **Pivot (2026-10-12):** Avaris is now an analytics model, not a betting model; The Odds API is dropped (ADR-014)
 - **Plan:** `docs/plans/avaris-nba-analytics-model-build-plan.md`; phase detail in `docs/plans/phase-3-features-models.md`, `docs/plans/phase-4-evaluation-analytics.md`, `docs/plans/phase-5-daily-pipeline-api.md` and `docs/plans/phase-6-desktop-pwa.md`
 - **Next:** install the PWA from Chrome (manual check), push and open the Phase 6 PR

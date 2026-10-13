@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-12 ·
 - **Task:** Next.js static-export PWA in `web/` served by FastAPI: Today, Game, Teams, Performance, Backtests and Injuries pages, a Refresh button, a drift flag, Playwright E2E
-- **Status:** Done (2026-10-12)
+- **Status:** Built and reviewed (2026-10-12); install check is manual
 - **Complexity**: `L`
 - **Estimate Points**: `8`
 
@@ -138,8 +138,8 @@
 - [x] `uv run ruff check && uv run pyright && uv run pytest` pass
 - [x] Tests cover the CORS allow-list (loopback allowed, foreign origin refused, no CORS headers when off) and the markdown renderer (raw HTML shown as text) (#13)
 - [x] The Performance page shows the drift flag
-- [ ] Every page renders with real data in Chrome from `avaris serve`
-- [ ] The app installs from Chrome and opens in its own window
+- [x] Every page renders with real data in Chrome from `avaris serve`
+- [ ] The app installs from Chrome and opens in its own window (installable verified; the install click is manual)
 
 ---
 
