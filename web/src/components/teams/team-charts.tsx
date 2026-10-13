@@ -2,6 +2,7 @@
 
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { axisTick } from "@/lib/format";
 import type { HistoryPoint } from "@/lib/teams";
 
 const eloConfig = { elo: { label: "Elo", color: "var(--chart-2)" } } satisfies ChartConfig;
@@ -10,8 +11,6 @@ const netPaceConfig = {
   pace: { label: "Pace", color: "var(--chart-4)" },
 } satisfies ChartConfig;
 
-const round = (digits: number) => (x: number) => x.toFixed(digits);
-
 export function EloChart({ points }: { points: HistoryPoint[] }) {
   return (
     <ChartContainer config={eloConfig} className="aspect-auto h-56 w-full">
@@ -19,7 +18,7 @@ export function EloChart({ points }: { points: HistoryPoint[] }) {
         <CartesianGrid vertical={false} />
         <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={24} />
         <YAxis domain={["auto", "auto"]} tickLine={false} axisLine={false} width={44}
-          tickFormatter={round(0)} />
+          tickFormatter={axisTick} />
         <ChartTooltip content={<ChartTooltipContent />} />
         <Line dataKey="elo" type="monotone" stroke="var(--color-elo)" strokeWidth={2} dot={false} />
       </LineChart>
@@ -35,9 +34,9 @@ export function NetPaceChart({ points }: { points: HistoryPoint[] }) {
         <CartesianGrid vertical={false} />
         <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={24} />
         <YAxis yAxisId="net" domain={["auto", "auto"]} tickLine={false} axisLine={false} width={36}
-          tickFormatter={round(0)} />
+          tickFormatter={axisTick} />
         <YAxis yAxisId="pace" orientation="right" domain={["auto", "auto"]} tickLine={false}
-          axisLine={false} width={36} tickFormatter={round(0)} />
+          axisLine={false} width={36} tickFormatter={axisTick} />
         <ChartTooltip content={<ChartTooltipContent />} />
         <Line yAxisId="net" dataKey="net" type="monotone" stroke="var(--color-net)" strokeWidth={2}
           dot={false} connectNulls />

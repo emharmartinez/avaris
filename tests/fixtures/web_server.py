@@ -29,10 +29,10 @@ REPORT = """# Evaluation 2021-22 to 2024-25
 
 <script>window.__injected = true</script>
 
-| model | log_loss | mae |
-|---|---|---|
-| model | 0.6131 | 10.79 |
-| elo | 0.6375 | 10.94 |
+| model | log_loss | log_loss vs Elo | brier | brier vs Elo | accuracy | accuracy vs Elo | ece | ece vs Elo | margin_mae | margin_mae vs Elo | total_mae | total_mae vs Elo |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| model | 0.6131 (0.6071 to 0.6190) | -0.0244 (-0.0300 to -0.0190) | 0.2134 (0.2110 to 0.2160) | -0.0090 (-0.0110 to -0.0070) | 0.6620 (0.6490 to 0.6750) | 0.0150 (0.0050 to 0.0250) | 0.0180 (0.0120 to 0.0310) | -0.0040 (-0.0110 to 0.0030) | 10.79 (10.61 to 10.98) | -0.15 (-0.25 to -0.05) | 14.60 (14.37 to 14.83) | -1.11 (-1.25 to -0.97) |
+| elo | 0.6375 (0.6320 to 0.6430) | 0 | 0.2224 (0.2200 to 0.2250) | 0 | 0.6470 (0.6340 to 0.6600) | 0 | 0.0220 (0.0150 to 0.0340) | 0 | 10.94 (10.75 to 11.13) | 0 | 15.71 (15.47 to 15.95) | 0 |
 """
 CHART = ('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60">'
          '<rect width="120" height="60" fill="#888"/></svg>\n')

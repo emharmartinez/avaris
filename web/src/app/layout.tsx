@@ -22,7 +22,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Providers>
           <SidebarProvider>
             <AppSidebar />
-            <SidebarInset>
+            {/* min-w-0: a wide table scrolls inside its card, not the whole page */}
+            <SidebarInset className="min-w-0">
               <header className="flex h-14 items-center justify-between gap-4 border-b px-4">
                 <SidebarTrigger />
                 <RefreshButton />

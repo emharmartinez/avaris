@@ -58,3 +58,15 @@ test("injuries: today's report lists the BOS player out", async ({ page }) => {
   await expect(row.getByRole("cell").nth(2)).toHaveText("out");
   await expect(game.getByRole("group", { name: "BOS impact" })).toContainText("Player 2001");
 });
+
+test("wide tables scroll inside the page, never the page itself", async ({ page }) => {
+  for (const url of ["/backtests/?name=evaluation_2021-22_2024-25", "/performance/", "/teams/"]) {
+    await page.setViewportSize({ width: 1024, height: 800 });
+    await page.goto(url);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("table").first()).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow, url).toBeLessThanOrEqual(0);
+    await expect(page.getByRole("button", { name: "Refresh", exact: true })).toBeInViewport();
+  }
+});

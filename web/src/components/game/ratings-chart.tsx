@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig,
 } from "@/components/ui/chart";
-import { ET, teamLabel } from "@/lib/format";
+import { axisTick, ET, teamLabel } from "@/lib/format";
 import { mergeRatings } from "@/lib/game";
 import type { GameDetail } from "@/lib/types";
 
@@ -43,7 +43,7 @@ export function RatingsChart({ game }: { game: GameDetail }) {
                       <CartesianGrid vertical={false} />
                       <XAxis dataKey="ts" tickFormatter={tickDate} tickLine={false} minTickGap={24} />
                       <YAxis domain={["auto", "auto"]} width={40} tickLine={false}
-                        tickFormatter={(v: number) => Math.round(v).toString()} />
+                        tickFormatter={axisTick} />
                       <ChartTooltip content={<ChartTooltipContent
                         labelFormatter={(_, payload) => tickDate(String(payload?.[0]?.payload?.ts ?? ""))} />} />
                       <Line dataKey={h} stroke={`var(--color-${h})`} strokeWidth={2} dot={false}

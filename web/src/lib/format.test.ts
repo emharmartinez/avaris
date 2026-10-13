@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  axisTick,
   countdownToFinal,
   driverLabel,
   formatDriver,
@@ -32,6 +33,14 @@ describe("numbers", () => {
     expect(formatMetric(0.61314, 4)).toBe("0.6131");
     expect(formatMetric(null)).toBe("–");
     expect(formatMetric(0.8, 0, true)).toBe("80%");
+  });
+});
+
+describe("axis ticks", () => {
+  it("keeps one decimal on small scales so narrow ranges do not repeat labels", () => {
+    expect([-0.6, -0.9, 0.2].map(axisTick)).toEqual(["−0.6", "−0.9", "0.2"]);
+    expect(axisTick(99.46)).toBe("99.5");
+    expect(axisTick(1611.4)).toBe("1611");
   });
 });
 

@@ -34,7 +34,7 @@ export function DistributionChart({ title, interval, signedScale, actual, zeroLi
       </CardHeader>
       <CardContent>
         <ChartContainer config={config} className="aspect-[2/1] w-full">
-          <AreaChart data={normalCurve(interval)} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+          <AreaChart data={normalCurve(interval)} margin={{ left: 0, right: 8, top: 24, bottom: 0 }}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="x" type="number" domain={["dataMin", "dataMax"]}
               tickFormatter={(x: number) => Math.round(x).toString()} tickLine={false} />

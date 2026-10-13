@@ -17,7 +17,10 @@ export function TodayLoader({ date }: { date: string | null }) {
   const day = games.data?.date ?? date;
   return (
     <>
-      <PageHeader title="Today" description={isDay(day) ? formatDate(day) : undefined}>
+      <PageHeader
+        title={date && isDay(day) ? formatDate(day) : "Today"}
+        description={!date && isDay(day) ? formatDate(day) : undefined}
+      >
         {isDay(day) && <DayNav day={day} pinned={date != null} />}
       </PageHeader>
       <QueryState query={games} label="games">

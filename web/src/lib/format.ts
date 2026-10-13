@@ -16,6 +16,12 @@ export function signed(x: number, digits = 1): string {
   return x > 0 ? `+${text}` : `${MINUS}${text}`;
 }
 
+export function axisTick(x: number): string {
+  // Elo-sized values as integers; net rating and pace (narrow ranges) with one decimal
+  const text = Math.abs(x) >= 1000 ? Math.round(x).toString() : x.toFixed(1);
+  return text.startsWith("-") ? `${MINUS}${text.slice(1)}` : text;
+}
+
 export function formatInterval(i: Interval, withSign: boolean): string {
   const f = (x: number) => (withSign ? signed(x) : x.toFixed(1));
   return `${f(i.lo)} to ${f(i.hi)}`;
