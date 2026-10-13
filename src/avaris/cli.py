@@ -3,7 +3,7 @@ import re
 import time
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import duckdb
 import httpx
@@ -464,17 +464,27 @@ def serve_command(
     dev: Annotated[
         bool, typer.Option(help="Allow CORS from loopback origins (for `next dev`).")
     ] = False,
+    idle_min: Annotated[
+        float | None,
+        typer.Option(min=0, help="Stop after this many minutes without a request; 0 = never "
+                     "(default: config)."),
+    ] = None,
 ) -> None:
     # The local API and the PWA; holds the one read-write DuckDB connection
     import uvicorn
 
+    from avaris.api import main as api_main
     from avaris.api.deps import LOOPBACK_HOSTS
-    from avaris.api.main import create_app
 
     settings: Settings = ctx.obj
+    overrides: dict[str, Any] = {}
     if dev:
+        overrides["dev_cors"] = True
+    if idle_min is not None:
+        overrides["idle_shutdown_min"] = idle_min
+    if overrides:
         settings = settings.model_copy(
-            update={"server": settings.server.model_copy(update={"dev_cors": True})})
+            update={"server": settings.server.model_copy(update=overrides)})
     bind = host or settings.server.host
     if bind not in LOOPBACK_HOSTS and bind != "::1":
         typer.echo(f"WARNING: binding to {bind}: the API has no authentication, and it "
@@ -482,8 +492,17 @@ def serve_command(
     if not settings.server.web_dir.is_dir():
         typer.echo(f"No PWA at {settings.server.web_dir}: run `npm run build` in web/ "
                    "(serving the API only)")
-    api = create_app(settings, daily_on_startup=settings.server.daily_on_startup and daily)
-    uvicorn.run(api, host=bind, port=port or settings.server.port)
+    server: uvicorn.Server | None = None
+
+    def stop() -> None:
+        # Graceful: uvicorn finishes in-flight responses, then runs the app's shutdown
+        if server is not None:
+            server.should_exit = True
+
+    api = api_main.create_app(settings, daily_on_startup=settings.server.daily_on_startup and daily,
+                              shutdown=stop)
+    server = uvicorn.Server(uvicorn.Config(api, host=bind, port=port or settings.server.port))
+    server.run()
 
 
 @app.command("train")

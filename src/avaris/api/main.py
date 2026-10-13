@@ -1,4 +1,8 @@
-from collections.abc import AsyncIterator, Mapping
+import asyncio
+import contextlib
+import logging
+import time
+from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -10,7 +14,17 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.types import Scope
 
 from avaris.api.deps import LOOPBACK_HOSTS, Cursor, Jobs, json_value
-from avaris.api.routes import backtests, games, injuries, jobs, performance, predictions, teams
+from avaris.api.lifecycle import IdleWatch, Monotonic
+from avaris.api.routes import (
+    backtests,
+    games,
+    injuries,
+    jobs,
+    performance,
+    predictions,
+    server,
+    teams,
+)
 from avaris.config import Settings
 from avaris.db import connect
 from avaris.pipeline.jobs import Clock, JobManager, JobRunner, default_runners, utc_now
@@ -24,6 +38,7 @@ LOOPBACK_ORIGIN = r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:[0-9]+)?$"
 # rebuild deleted. Build assets under _next/static/ have hashed names, so never change
 PAGE_CACHE = "no-cache"
 ASSET_CACHE = "public, max-age=31536000, immutable"
+log = logging.getLogger("uvicorn.error")
 
 
 class WebFiles(StaticFiles):
@@ -50,10 +65,25 @@ def create_app(
     daily_on_startup: bool | None = None,
     clock: Clock = utc_now,
     runners: Mapping[str, JobRunner] | None = None,
+    shutdown: Callable[[], None] | None = None,
+    monotonic: Monotonic = time.monotonic,
+    idle_check_s: float = 15.0,
 ) -> FastAPI:
     # The app owns the one read-write DuckDB connection unless given one; requests read
-    # through cursors, jobs write in a background thread
+    # through cursors, jobs write in a background thread. `shutdown` stops the server (set by
+    # `avaris serve`): the Stop server button, and idle shutdown once no request has come in
+    # for `idle_shutdown_min` (the open app polls /api/health every minute)
     on_startup = settings.server.daily_on_startup if daily_on_startup is None else daily_on_startup
+    idle_min = settings.server.idle_shutdown_min
+    idle = IdleWatch(idle_min * 60, monotonic)
+
+    async def watch_idle(app: FastAPI, stop: Callable[[], None]) -> None:
+        while True:
+            await asyncio.sleep(idle_check_s)
+            if idle.expired(busy=app.state.jobs.current is not None):
+                log.info("No requests for %g min: stopping (idle_shutdown_min)", idle_min)
+                stop()
+                return
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -64,9 +94,16 @@ def create_app(
         app.state.clock = clock
         app.state.jobs = JobManager(connection, runners or default_runners(settings, clock),
                                     clock)
+        app.state.shutdown = shutdown
         if on_startup:
             app.state.jobs.submit("daily", {})
+        watcher = (asyncio.create_task(watch_idle(app, shutdown))
+                   if shutdown is not None and idle_min > 0 else None)
         yield
+        if watcher is not None:
+            watcher.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await watcher
         # A job still running keeps the connection; the process exit releases it
         if owned and app.state.jobs.current is None:
             connection.close()
@@ -75,6 +112,7 @@ def create_app(
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next: Any) -> Response:
+        idle.touch()  # any request, page or API, keeps the server up
         response: Response = await call_next(request)
         for name, value in SECURITY_HEADERS.items():
             response.headers.setdefault(name, value)
@@ -87,7 +125,7 @@ def create_app(
     # Added last, so it runs first (preflights included). DNS rebinding: a remote page
     # resolved to 127.0.0.1 still sends its own host name
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=sorted(LOOPBACK_HOSTS))
-    for module in (predictions, games, teams, performance, backtests, injuries, jobs):
+    for module in (predictions, games, teams, performance, backtests, injuries, jobs, server):
         app.include_router(module.router)
 
     @app.get("/api/health")

@@ -88,3 +88,4 @@ subsample_freq = 1
 host = "127.0.0.1"       # local-only
 port = 8000
 daily_on_startup = true  # `avaris serve` runs `avaris daily` once when it starts
+idle_shutdown_min = 5    # `serve` stops after this long without a request (app closed); 0 = never

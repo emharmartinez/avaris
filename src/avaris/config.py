@@ -2,7 +2,7 @@ import tomllib
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 DEFAULT_CONFIG_PATH = Path("config.toml")
@@ -83,6 +83,7 @@ class ServerSettings(BaseModel):
     dev_cors: bool = False  # `serve --dev`: CORS for loopback origins (next dev on :3000)
     web_dir: Path = Path("web/out")  # the PWA's static export, served at /
     drift_reference: str = "evaluation_2021-22_2024-25"  # report-mode backtest for drift
+    idle_shutdown_min: float = Field(default=5, ge=0)  # `serve` stops after this idle; 0 = never
 
 
 class Settings(BaseSettings):

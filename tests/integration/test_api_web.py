@@ -1,7 +1,11 @@
-# The API as the PWA's host: static export, dev-only loopback CORS, JSON 404s under /api
-from collections.abc import Iterator
+# The API as the PWA's host: static export, dev-only loopback CORS, JSON 404s under /api,
+# idle shutdown and the stop button
+import threading
+import time
+from collections.abc import Callable, Iterator
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -132,3 +136,119 @@ def test_dev_cors_preflight_still_checks_the_host(dev_client: TestClient) -> Non
         "Access-Control-Request-Method": "POST",
     })
     assert preflight.status_code == 400
+
+
+class Monotonic:
+    def __init__(self) -> None:
+        self.t = 0.0
+
+    def __call__(self) -> float:
+        return self.t
+
+
+def lifecycle_client(
+    tmp_path: Path, shutdown: Callable[[], None] | None, idle_min: float = 1,
+    monotonic: Callable[[], float] = time.monotonic, runners: dict[str, Any] | None = None,
+) -> tuple[Any, TestClient]:
+    settings = Settings(paths=PathsSettings(db_path=tmp_path / "a.duckdb"),
+                        server=ServerSettings(web_dir=tmp_path / "missing",
+                                              idle_shutdown_min=idle_min))
+    app = create_app(settings, con=connect(settings.paths.db_path), daily_on_startup=False,
+                     clock=lambda: NOW, shutdown=shutdown, monotonic=monotonic,
+                     idle_check_s=0.01, runners=runners)
+    return app, TestClient(app, base_url="http://127.0.0.1:8000")
+
+
+def test_stops_after_the_idle_timeout_without_requests(tmp_path: Path) -> None:
+    stopped = threading.Event()
+    clock = Monotonic()
+    _, client = lifecycle_client(tmp_path, stopped.set, idle_min=1, monotonic=clock)
+    with client:
+        clock.t = 50
+        client.get("/api/health")  # any request resets the countdown
+        clock.t = 105
+        assert not stopped.wait(0.2)
+        clock.t = 110
+        assert stopped.wait(2)
+
+
+def test_idle_shutdown_is_off_at_zero_minutes(tmp_path: Path) -> None:
+    stopped = threading.Event()
+    clock = Monotonic()
+    _, client = lifecycle_client(tmp_path, stopped.set, idle_min=0, monotonic=clock)
+    with client:
+        clock.t = 10_000
+        assert not stopped.wait(0.2)
+
+
+def test_idle_shutdown_waits_for_a_running_job(tmp_path: Path) -> None:
+    stopped, started, release = threading.Event(), threading.Event(), threading.Event()
+    clock = Monotonic()
+
+    def slow(*_args: Any) -> str:
+        started.set()
+        assert release.wait(5)
+        return "done"
+
+    app, client = lifecycle_client(tmp_path, stopped.set, idle_min=1, monotonic=clock,
+                                   runners={"daily": slow})
+    with client:
+        job_id = client.post("/api/jobs/daily").json()["job_id"]
+        assert started.wait(5)
+        clock.t = 1000
+        assert not stopped.wait(0.2)
+        release.set()
+        app.state.jobs.wait(job_id)
+        clock.t = 1059  # the countdown restarts once the job is done
+        assert not stopped.wait(0.2)
+        clock.t = 1061
+        assert stopped.wait(2)
+
+
+def test_the_stop_button_stops_the_server(tmp_path: Path) -> None:
+    stopped = threading.Event()
+    _, client = lifecycle_client(tmp_path, stopped.set, idle_min=0)
+    with client:
+        response = client.post("/api/server/stop")
+        assert response.status_code == 202
+        assert response.json() == {"status": "stopping"}
+        assert stopped.wait(2)
+
+
+@pytest.mark.parametrize("headers", [
+    {"Origin": "https://evil.example"},
+    {"Sec-Fetch-Site": "cross-site"},
+])
+def test_a_cross_site_stop_is_refused(tmp_path: Path, headers: dict[str, str]) -> None:
+    stopped = threading.Event()
+    _, client = lifecycle_client(tmp_path, stopped.set, idle_min=0)
+    with client:
+        assert client.post("/api/server/stop", headers=headers).status_code == 403
+        assert client.get("/api/server/stop").status_code in (404, 405)
+    assert not stopped.is_set()
+
+
+def test_stop_is_refused_while_a_job_runs(tmp_path: Path) -> None:
+    stopped, started, release = threading.Event(), threading.Event(), threading.Event()
+
+    def slow(*_args: Any) -> str:
+        started.set()
+        assert release.wait(5)
+        return "done"
+
+    app, client = lifecycle_client(tmp_path, stopped.set, idle_min=0, runners={"daily": slow})
+    with client:
+        job_id = client.post("/api/jobs/daily").json()["job_id"]
+        assert started.wait(5)
+        busy = client.post("/api/server/stop")
+        assert busy.status_code == 409
+        assert "daily" in busy.json()["detail"]
+        release.set()
+        app.state.jobs.wait(job_id)
+    assert not stopped.is_set()
+
+
+def test_stop_is_unavailable_without_a_server_to_stop(tmp_path: Path) -> None:
+    _, client = lifecycle_client(tmp_path, None, idle_min=0)
+    with client:
+        assert client.post("/api/server/stop").status_code == 503
