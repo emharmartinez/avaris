@@ -31,7 +31,8 @@ def teams(cur: Cursor, clock: AppClock) -> list[dict[str, Any]]:
     # Each team's current ratings, strongest Elo first
     current = rows(cur, CURRENT_SQL.format(where="true") + " order by elo desc",
                    {"now": clock()})
-    return [{**team(r["team_id"]), **r} for r in current]
+    # NBA teams only: non-NBA preseason opponents have ratings rows too
+    return [{**team(r["team_id"]), **r} for r in current if r["team_id"] in TEAMS]
 
 
 @router.get("/{team_id}")

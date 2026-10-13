@@ -252,3 +252,13 @@ def test_foreign_host_header_is_refused(client: TestClient) -> None:
     assert client.get("/api/health", headers={"Host": "attacker.example"}).status_code == 400
     assert client.get("/api/health", headers={"Host": "127.0.0.1:8000"}).status_code == 200
     assert client.get("/api/health", headers={"Host": "localhost:8000"}).status_code == 200
+
+
+def test_teams_lists_nba_teams_only(
+    env: tuple[duckdb.DuckDBPyConnection, Settings], client: TestClient
+) -> None:
+    con, _ = env
+    # A non-NBA preseason opponent has ratings rows too
+    con.execute("insert into team_ratings (team_id, game_id, as_of_ts, season, elo) "
+                "values (50015, 'x', '2021-11-27 10:00', '2021-22', 1500)")
+    assert 50015 not in {t["team_id"] for t in get(client, "/api/teams")}
