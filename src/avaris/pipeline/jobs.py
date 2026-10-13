@@ -118,9 +118,15 @@ class JobManager:
             raise
         return job
 
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
     def close(self) -> bool:
         # Before the server stops: take the job lock for good, so nothing starts between the
         # decision to stop and the exit. False while a job runs
+        if self._closed:
+            return True
         if not self._lock.acquire(blocking=False):
             return False
         self._closed = True

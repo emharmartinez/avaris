@@ -231,6 +231,7 @@ def test_the_stop_button_stops_the_server(tmp_path: Path) -> None:
         late = client.post("/api/jobs/daily")  # nothing starts while it shuts down
         assert late.status_code == 409
         assert "stopping" in late.json()["detail"]
+        assert client.post("/api/server/stop").status_code == 202  # a second click is fine
 
 
 @pytest.mark.parametrize("headers", [
