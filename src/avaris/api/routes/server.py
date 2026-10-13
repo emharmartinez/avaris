@@ -13,8 +13,9 @@ def stop(request: Request, jobs: Jobs, background: BackgroundTasks) -> dict[str,
     shutdown = request.app.state.shutdown
     if shutdown is None:
         raise HTTPException(503, "this server cannot be stopped from the app")
-    current = jobs.current
-    if current is not None:
-        raise HTTPException(409, f"job {current.kind} {current.job_id} is running")
+    if not jobs.close():
+        current = jobs.current
+        running = f"job {current.kind} {current.job_id}" if current else "a job"
+        raise HTTPException(409, f"{running} is running")
     background.add_task(shutdown)  # after the response is sent
     return {"status": "stopping"}

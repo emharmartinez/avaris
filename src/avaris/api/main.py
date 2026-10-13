@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.types import Scope
 
-from avaris.api.deps import LOOPBACK_HOSTS, Cursor, Jobs, json_value
+from avaris.api.deps import LOOPBACK_HOSTS, Cursor, Jobs, is_cross_site, json_value
 from avaris.api.lifecycle import IdleWatch, Monotonic
 from avaris.api.routes import (
     backtests,
@@ -80,7 +80,8 @@ def create_app(
     async def watch_idle(app: FastAPI, stop: Callable[[], None]) -> None:
         while True:
             await asyncio.sleep(idle_check_s)
-            if idle.expired(busy=app.state.jobs.current is not None):
+            # close() fails if a job slipped in after the check: keep watching
+            if idle.expired(busy=app.state.jobs.current is not None) and app.state.jobs.close():
                 log.info("No requests for %g min: stopping (idle_shutdown_min)", idle_min)
                 stop()
                 return
@@ -112,7 +113,10 @@ def create_app(
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next: Any) -> Response:
-        idle.touch()  # any request, page or API, keeps the server up
+        # Any request from the app, page or API, keeps the server up; another site's cannot
+        if not is_cross_site(request.headers.get("origin"),
+                             request.headers.get("sec-fetch-site")):
+            idle.touch()
         response: Response = await call_next(request)
         for name, value in SECURITY_HEADERS.items():
             response.headers.setdefault(name, value)

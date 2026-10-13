@@ -112,3 +112,17 @@ def test_jobs_left_running_are_marked_interrupted(con: duckdb.DuckDBPyConnection
     assert old["status"] == "failed" and old["message"] == "interrupted (server stopped)"
     assert jobs.get("missing") is None
     assert [j["job_id"] for j in jobs.recent(5)] == ["old"]
+
+
+def test_close_refuses_new_jobs_once_none_runs(con: duckdb.DuckDBPyConnection) -> None:
+    # Stopping the server closes the manager first, so no job can start in between
+    gate = Gate()
+    jobs = manager(con, daily=gate)
+    first = jobs.submit("daily", {})
+    assert gate.started.wait(5)
+    assert jobs.close() is False  # a job runs: not closed
+    gate.release.set()
+    jobs.wait(first.job_id)
+    assert jobs.close() is True
+    with pytest.raises(JobBusy, match="stopping"):
+        jobs.submit("daily", {})

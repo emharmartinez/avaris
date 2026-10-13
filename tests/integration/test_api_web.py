@@ -172,6 +172,21 @@ def test_stops_after_the_idle_timeout_without_requests(tmp_path: Path) -> None:
         assert stopped.wait(2)
 
 
+def test_cross_site_requests_do_not_keep_the_server_up(tmp_path: Path) -> None:
+    # Only the app counts: another site's request to 127.0.0.1 must not reset the countdown
+    stopped = threading.Event()
+    clock = Monotonic()
+    _, client = lifecycle_client(tmp_path, stopped.set, idle_min=1, monotonic=clock)
+    with client:
+        clock.t = 50
+        client.get("/api/health")
+        clock.t = 100
+        client.get("/api/health", headers={"Sec-Fetch-Site": "cross-site"})
+        client.post("/api/server/stop", headers={"Origin": "https://evil.example"})
+        clock.t = 110
+        assert stopped.wait(2)
+
+
 def test_idle_shutdown_is_off_at_zero_minutes(tmp_path: Path) -> None:
     stopped = threading.Event()
     clock = Monotonic()
@@ -213,6 +228,9 @@ def test_the_stop_button_stops_the_server(tmp_path: Path) -> None:
         assert response.status_code == 202
         assert response.json() == {"status": "stopping"}
         assert stopped.wait(2)
+        late = client.post("/api/jobs/daily")  # nothing starts while it shuts down
+        assert late.status_code == 409
+        assert "stopping" in late.json()["detail"]
 
 
 @pytest.mark.parametrize("headers", [

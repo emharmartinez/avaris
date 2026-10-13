@@ -35,6 +35,14 @@ class JobBusy(Exception):
         self.kind = kind
 
 
+class JobsClosed(JobBusy):
+    # The server is stopping: no new job may start
+    def __init__(self) -> None:
+        Exception.__init__(self, "the server is stopping")
+        self.job_id = "stopping"
+        self.kind = "?"
+
+
 @dataclass
 class Job:
     job_id: str
@@ -68,6 +76,7 @@ class JobManager:
         self._lock = threading.Lock()
         self._jobs: dict[str, Job] = {}  # this process's jobs, by ID
         self._current: Job | None = None
+        self._closed = False
         with con.cursor() as cur:
             cur.execute(
                 "update jobs set status = 'failed', finished_at = ?, "
@@ -82,7 +91,11 @@ class JobManager:
     def submit(self, kind: str, params: dict[str, Any]) -> Job:
         if kind not in self.runners:
             raise ValueError(f"unknown job kind {kind!r}")
+        if self._closed:
+            raise JobsClosed()
         if not self._lock.acquire(blocking=False):
+            if self._closed:
+                raise JobsClosed()
             running = self._current  # None while a finished job releases the lock
             raise JobBusy(running.job_id if running else "finishing",
                           running.kind if running else "?")
@@ -104,6 +117,14 @@ class JobManager:
             self._lock.release()
             raise
         return job
+
+    def close(self) -> bool:
+        # Before the server stops: take the job lock for good, so nothing starts between the
+        # decision to stop and the exit. False while a job runs
+        if not self._lock.acquire(blocking=False):
+            return False
+        self._closed = True
+        return True
 
     def _run(self, job: Job) -> None:
         def progress(line: str) -> None:
