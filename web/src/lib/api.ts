@@ -13,6 +13,10 @@ export class ApiError extends Error {
   }
 }
 
+// A request that never reached the server (fetch rejects with a TypeError)
+export const SERVER_DOWN =
+  "Server not running. Open Avaris from the Avaris Launcher, or run `uv run avaris serve`.";
+
 export function apiUrl(path: string): string {
   return `${API_BASE}${path}`;
 }
@@ -32,7 +36,12 @@ function errorDetail(detail: unknown): string | null {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(apiUrl(path), init);
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(path), init);
+  } catch (e) {
+    throw e instanceof TypeError ? new ApiError(0, SERVER_DOWN) : e;
+  }
   if (!response.ok) {
     const body = await response.json().catch(() => null) as { detail?: unknown } | null;
     throw new ApiError(response.status, errorDetail(body?.detail) || response.statusText
