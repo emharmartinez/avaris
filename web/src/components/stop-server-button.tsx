@@ -14,8 +14,10 @@ export function StopServerButton() {
   const [confirming, setConfirming] = useState(false);
   const stop = useMutation({ mutationFn: api.stopServer, onSettled: () => setConfirming(false) });
   const busy = health.data?.job?.status === "running";
+  // Stopped until the server answers again (restarted from the launcher)
+  const stopped = stop.isSuccess && health.dataUpdatedAt <= stop.submittedAt;
 
-  if (stop.isSuccess) {
+  if (stopped) {
     return (
       <span role="status" className="truncate text-sm text-muted-foreground">
         Server stopped. Open Avaris from the Avaris Launcher to start it again.

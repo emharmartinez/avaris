@@ -1,11 +1,13 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { health, job } from "@/test/data";
 import { renderWithQuery } from "@/test/render";
 import { server } from "@/test/server";
 import { StopServerButton } from "./stop-server-button";
+
+afterEach(() => vi.useRealTimers());
 
 describe("StopServerButton", () => {
   it("asks first, then stops the server and says how to start it again", async () => {
@@ -45,5 +47,21 @@ describe("StopServerButton", () => {
     await user.click(await screen.findByRole("button", { name: "Stop server" }));
     await user.click(screen.getByRole("button", { name: "Stop" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("job daily j1 is running");
+  });
+
+  it("comes back once the server answers again (started from the launcher)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    server.use(
+      http.get("*/api/health", () => HttpResponse.json(health())),
+      http.post("*/api/server/stop", () => HttpResponse.json({ status: "stopping" }, { status: 202 })),
+    );
+    renderWithQuery(<StopServerButton />);
+    await user.click(await screen.findByRole("button", { name: "Stop server" }));
+    await user.click(screen.getByRole("button", { name: "Stop" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(/server stopped/i);
+    await vi.advanceTimersByTimeAsync(60_000); // the next health poll succeeds
+    expect(await screen.findByRole("button", { name: "Stop server" })).toBeEnabled();
+    expect(screen.queryByRole("status")).toBeNull();
   });
 });
