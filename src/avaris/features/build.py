@@ -1,3 +1,4 @@
+import bisect
 import hashlib
 import math
 from collections import defaultdict
@@ -19,7 +20,9 @@ from avaris.features.elo import (
 )
 from avaris.features.schedule import ScheduleTracker
 from avaris.features.team_form import EwMean, TeamForm, game_ratings
-from avaris.ingest.teams import Venue, Venues
+from avaris.ingest.espn import OUT_WINDOW_HOURS, is_out
+from avaris.ingest.teams import Venue, Venues, load_teams
+from avaris.seasons import season_label, season_start_year
 
 # A game's result counts as known this long after tip-off (ADR-015)
 RESULT_LAG = timedelta(hours=3)
@@ -40,6 +43,10 @@ MODEL_FEATURES = [
     "home_full_strength", "away_full_strength", "home_lost", "away_lost", "lost_diff",
 ]
 AvailabilityMode = Literal["actual", "report"]
+REST_COLUMNS = [
+    "game_id", "decision_ts", "snapshot_ts", "home_players", "home_lost_espn",
+    "home_lost_actual", "away_players", "away_lost_espn", "away_lost_actual",
+]
 
 
 def feature_hash() -> str:
@@ -53,6 +60,10 @@ class FeatureSet:
     team_ratings: pd.DataFrame  # one row per team and game
     availability: pd.DataFrame  # per team, game and player: rate, minutes, absences
     venues: pd.DataFrame  # game_id, venue
+    # Preseason NBA-v-NBA games only, never model inputs (ADR-022): per side, value of the
+    # players ESPN lists out as of decision_ts (lost_espn, NaN without a snapshot) and of
+    # the players who sat out the box score (lost_actual, for the fit only)
+    rest: pd.DataFrame
 
 
 def _records(df: pd.DataFrame) -> list[dict[str, Any]]:
@@ -66,7 +77,9 @@ def _nan(x: float | None) -> float:
 class _Loop:
     # Chronological event loop: a result event (tip-off + RESULT_LAG) updates state, a
     # decision event (decision_ts) snapshots it. At the same instant results apply first
-    def __init__(self, con: duckdb.DuckDBPyConnection) -> None:
+    def __init__(
+        self, con: duckdb.DuckDBPyConnection, rest_window_hours: float = OUT_WINDOW_HOURS
+    ) -> None:
         self.venues = Venues.load()
         self.games = con.execute("select * from games where tip_off_utc is not null").df()
         self.boxes = self._team_boxes(con)
@@ -82,6 +95,60 @@ class _Loop:
         self.feature_rows: list[dict[str, Any]] = []
         self.rating_rows: list[dict[str, Any]] = []
         self.avail_rows: list[dict[str, Any]] = []
+        self.rest_window = timedelta(hours=rest_window_hours)
+        self.nba_teams = {int(t) for t in load_teams()["team_id"]}
+        self.espn_fetches, self.espn_lists = self._espn(con)
+        self.preseason_played, self.preseason_pool = self._preseason_played(con)
+        self.regular_members = self._regular_members(con)
+        self.rest_rows: list[dict[str, Any]] = []
+
+    @staticmethod
+    def _espn(
+        con: duckdb.DuckDBPyConnection,
+    ) -> tuple[list[tuple[datetime, datetime]], dict[tuple[datetime, int], list[dict[str, Any]]]]:
+        # Fetches (fetched_at, snapshot_ts) in time order, and each snapshot's entries by team
+        fetches = [
+            (pd.Timestamp(f).to_pydatetime(), pd.Timestamp(s).to_pydatetime())
+            for f, s in con.execute(
+                "select fetched_at, snapshot_ts from espn_injury_fetches order by fetched_at"
+            ).fetchall()
+        ]
+        df = con.execute(
+            "select fetched_at, team_id, player_name, player_id, status, comment, entry_ts "
+            "from espn_injury_snapshots order by fetched_at, team_id, player_name"
+        ).df()
+        lists: dict[tuple[datetime, int], list[dict[str, Any]]] = defaultdict(list)
+        for r in _records(df):
+            key = (pd.Timestamp(r["fetched_at"]).to_pydatetime(), int(r["team_id"]))
+            lists[key].append(r)
+        return fetches, lists
+
+    @staticmethod
+    def _preseason_played(
+        con: duckdb.DuckDBPyConnection,
+    ) -> tuple[dict[str, dict[int, set[int]]], dict[tuple[str, int], set[int]]]:
+        # Preseason box scores: game -> team -> players with minutes > 0, and every
+        # player who played for the team in the season's preseason
+        played: dict[str, dict[int, set[int]]] = defaultdict(lambda: defaultdict(set))
+        pool: dict[tuple[str, int], set[int]] = defaultdict(set)
+        for game_id, season, team_id, player_id in con.execute(
+            "select game_id, season, team_id, player_id from preseason_player_games "
+            "where minutes > 0"
+        ).fetchall():
+            played[str(game_id)][int(team_id)].add(int(player_id))
+            pool[(str(season), int(team_id))].add(int(player_id))
+        return played, pool
+
+    @staticmethod
+    def _regular_members(con: duckdb.DuckDBPyConnection) -> dict[tuple[str, int], set[int]]:
+        # Players with a regular-season game for the team, by season
+        members: dict[tuple[str, int], set[int]] = defaultdict(set)
+        for season, team_id, player_id in con.execute(
+            "select distinct season, team_id, player_id from player_games "
+            "where season_type = 'regular' and minutes > 0"
+        ).fetchall():
+            members[(str(season), int(team_id))].add(int(player_id))
+        return members
 
     @staticmethod
     def _team_boxes(con: duckdb.DuckDBPyConnection) -> dict[str, dict[int, dict[str, Any]]]:
@@ -232,6 +299,63 @@ class _Loop:
         row["league_pace"] = _nan(league_pace)
         row["altitude_m"] = venue.altitude_m if venue else math.nan
         self.feature_rows.append(row)
+        if preseason and {home, away} <= self.nba_teams:
+            self.rest_rows.append(self.rest(game, tip, decision_ts))
+
+    def value(self, player_id: int, season: str) -> float:
+        rate, minutes = self.players.rate(player_id, season)
+        return rate * minutes
+
+    def snapshot(self, tip: datetime, decision_ts: datetime) -> datetime | None:
+        # The list in force at the latest fetch in [tip - window, decision_ts]
+        times = [f for f, _ in self.espn_fetches]
+        i = bisect.bisect_right(times, decision_ts) - 1
+        if i < 0 or self.espn_fetches[i][0] < tip - self.rest_window:
+            return None
+        return self.espn_fetches[i][1]
+
+    def rest(self, game: dict[str, Any], tip: datetime, decision_ts: datetime) -> dict[str, Any]:
+        # Preseason only: what the rest adjustment reads (ADR-022)
+        game_id, season = str(game["game_id"]), str(game["season"])
+        previous = season_label(season_start_year(season) - 1)
+        snapshot_ts = self.snapshot(tip, decision_ts)
+        row: dict[str, Any] = {"game_id": game_id, "decision_ts": decision_ts,
+                               "snapshot_ts": snapshot_ts}
+        box = self.preseason_played.get(game_id, {})
+        for side in ("home", "away"):
+            team = int(game[f"{side}_team_id"])
+            players = []
+            if snapshot_ts is not None:
+                for e in self.espn_lists.get((snapshot_ts, team), []):
+                    entry_ts = None if pd.isna(e["entry_ts"]) else pd.Timestamp(
+                        e["entry_ts"]).to_pydatetime()
+                    if not is_out(str(e["status"]), e["comment"], entry_ts, tip,
+                                  self.rest_window.total_seconds() / 3600):
+                        continue
+                    pid = None if pd.isna(e["player_id"]) else int(e["player_id"])
+                    players.append({
+                        "name": str(e["player_name"]), "player_id": pid,
+                        "status": str(e["status"]), "comment": e["comment"],
+                        "value": 0.0 if pid is None else self.value(pid, season),
+                        "matched": pid is not None,
+                    })
+            row[f"{side}_players"] = players
+            row[f"{side}_lost_espn"] = (
+                math.nan if snapshot_ts is None else sum(p["value"] for p in players)
+            )
+            # The team's preseason players who were on its regular-season roster last
+            # season or this one, and did not play this game; NaN without a box score
+            played = box.get(team)
+            if played is None:
+                row[f"{side}_lost_actual"] = math.nan
+                continue
+            pool = self.preseason_pool[(season, team)] & (
+                self.regular_members.get((previous, team), set())
+                | self.regular_members.get((season, team), set())
+            )
+            row[f"{side}_lost_actual"] = sum(
+                self.value(pid, season) for pid in sorted(pool - played))
+        return row
 
     def availability(
         self, game: dict[str, Any], team: int, report_ts: datetime | None
@@ -276,8 +400,10 @@ def _site(game: dict[str, Any]) -> tuple[int, int]:
     return home_court, no_fans
 
 
-def build_features(con: duckdb.DuckDBPyConnection) -> FeatureSet:
-    loop = _Loop(con)
+def build_features(
+    con: duckdb.DuckDBPyConnection, rest_window_hours: float = OUT_WINDOW_HOURS
+) -> FeatureSet:
+    loop = _Loop(con, rest_window_hours)
     loop.run(decision_times(con))
     features = pd.DataFrame(loop.feature_rows).sort_values(["decision_ts", "game_id"])
     features = features.reset_index(drop=True)
@@ -286,6 +412,7 @@ def build_features(con: duckdb.DuckDBPyConnection) -> FeatureSet:
         team_ratings=pd.DataFrame(loop.rating_rows),
         availability=pd.DataFrame(loop.avail_rows),
         venues=loop.games[["game_id", "venue"]].copy(),
+        rest=pd.DataFrame(loop.rest_rows, columns=REST_COLUMNS),
     )
 
 
