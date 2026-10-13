@@ -28,11 +28,12 @@ def test_parse_maps_teams_and_reads_every_entry() -> None:
     assert brunson["entry_ts"] == datetime(2026, 10, 13, 2, 20)
 
 
-def test_parse_rejects_an_unknown_team() -> None:
-    bad = payload()
-    bad["injuries"][0]["displayName"] = "Shanghai Sharks"  # type: ignore[index]
-    with pytest.raises(ValueError, match="unknown team"):
-        parse_espn_injuries(bad)
+def test_parse_skips_an_unknown_team() -> None:
+    # A non-NBA club on the list must not cost every game its adjustment
+    odd = payload()
+    odd["injuries"][0]["displayName"] = "Shanghai Sharks"  # type: ignore[index]
+    df = parse_espn_injuries(odd)
+    assert len(df) == 9 and LAC not in set(df["team_id"])
 
 
 def test_parse_of_an_empty_list() -> None:

@@ -33,13 +33,14 @@ Progress = Callable[[str], None]
 
 
 def parse_espn_injuries(payload: dict[str, Any]) -> pd.DataFrame:
-    # One row per listed player; entry_ts is the note's posting time (naive UTC)
+    # One row per listed player of an NBA team; entry_ts is the note's posting time (naive
+    # UTC). Other clubs are skipped: their games get no adjustment anyway (#11)
     by_name = team_ids_by_name()
     rows = []
     for team in payload.get("injuries", []):
         team_id = by_name.get(str(team.get("displayName")))
         if team_id is None:
-            raise ValueError(f"unknown team in ESPN injuries: {team.get('displayName')}")
+            continue
         for e in team.get("injuries", []):
             rows.append({
                 "team_id": team_id, "player_name": str(e["athlete"]["displayName"]),
