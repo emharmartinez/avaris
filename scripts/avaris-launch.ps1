@@ -60,9 +60,8 @@ if ($Install) {
 }
 
 if ($Stop) {
-  # Only a server this launcher started has a pid file. A server that stopped itself (idle
-  # shutdown, the app's Stop button) leaves it behind: kill only if that pid is still serving
-  Invoke-Wsl 'pid=$(cat data/serve.pid 2>/dev/null); if test -n "$pid" && tr "\0" " " < /proc/$pid/cmdline 2>/dev/null | grep -q "avaris serve"; then kill $pid; rm -f data/serve.pid; else rm -f data/serve.pid; echo No launcher-started server is running; exit 1; fi'
+  # Only a server this launcher started has a pid file (scripts/stop-serve.sh)
+  Invoke-Wsl 'bash scripts/stop-serve.sh'
   exit $LASTEXITCODE
 }
 
