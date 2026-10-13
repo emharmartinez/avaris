@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { preseasonGame, rest } from "@/test/data";
 import {
-  adjustedRest, edgeRestNote, rawWinText, REST_LABEL, restComparison, restLostText, restStatus,
+  adjustedRest, edgeRestNote, rawText, REST_LABEL, restComparison, restLostText, restStatus,
 } from "./rest";
 
 const adjusted = preseasonGame().prediction!;
@@ -44,15 +44,23 @@ describe("restLostText", () => {
   });
 });
 
-describe("rawWinText", () => {
-  it("gives the raw split in one string, away first", () => {
-    expect(rawWinText(adjusted.rest!, "TOR", "NYK")).toBe("raw NYK 62% · TOR 38%");
+const marginOnly = preseasonGame(rest({ k: { margin: 0.11, total: 0, win: 0 } })).prediction!;
+
+describe("rawText", () => {
+  it("gives the raw value of each adjusted output in one string, the split away first", () => {
+    expect(rawText(adjusted.rest!, "TOR", "NYK")).toBe("raw NYK 62% · TOR 38%, margin −3.4, total 221.0");
+  });
+
+  it("leaves out outputs whose coefficient is off", () => {
+    expect(rawText(marginOnly.rest!, "TOR", "NYK")).toBe("raw margin −3.4");
   });
 });
 
 describe("edgeRestNote", () => {
-  it("names the raw home win probability only for an adjusted prediction", () => {
-    expect(edgeRestNote(adjusted, "TOR")).toBe("Preseason: rest-adjusted from ESPN list (raw TOR 37.9%)");
+  it("names the raw values only for an adjusted prediction", () => {
+    expect(edgeRestNote(adjusted, "TOR"))
+      .toBe("Preseason: rest-adjusted from ESPN list (raw TOR 37.9%, margin −3.4, total 221.0)");
+    expect(edgeRestNote(marginOnly, "TOR")).toBe("Preseason: rest-adjusted from ESPN list (raw margin −3.4)");
     expect(edgeRestNote(notAdjusted, "TOR")).toBeNull();
     expect(edgeRestNote({ ...adjusted, rest: null }, "TOR")).toBeNull();
   });

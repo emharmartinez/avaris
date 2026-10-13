@@ -154,7 +154,7 @@ describe("EdgeView", () => {
   it("notes a rest-adjusted preseason prediction with the raw win probability", async () => {
     serve({ date: "2026-10-13", games: [preseasonGame()] });
     renderWithQuery(<EdgeView date={null} gameId={null} onGameChange={vi.fn()} />);
-    expect(await screen.findByText(/^Preseason: rest-adjusted from ESPN list \(raw TOR 37\.9%\)$/))
+    expect(await screen.findByText(/^Preseason: rest-adjusted from ESPN list \(raw TOR 37\.9%, margin −3\.4, total 221\.0\)$/))
       .toBeInTheDocument();
     // The calculator prices the adjusted values
     const ml = screen.getByRole("table", { name: "Moneyline" });

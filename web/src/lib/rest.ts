@@ -32,15 +32,25 @@ export function restLostText(side: RestSide): string {
   return side.lost == null ? "No ESPN list (unknown)" : `${side.lost.toFixed(1)} Game Score lost`;
 }
 
-// The model's own split, in one string so it never collides with the adjusted percentages
-export function rawWinText(rest: Rest, home: string, away: string): string {
+// The model's own margin and total, for the outputs whose coefficient is on
+function rawPointParts(rest: Rest): string[] {
+  return [
+    ...(rest.k.margin ? [`margin ${signed(rest.raw_margin_mu)}`] : []),
+    ...(rest.k.total ? [`total ${rest.raw_total_mu.toFixed(1)}`] : []),
+  ];
+}
+
+// The model's own values of the adjusted outputs, in one string so they never collide with
+// the adjusted ones; the win split away first, like the WinBar
+export function rawText(rest: Rest, home: string, away: string): string {
   const s = winSplit(rest.raw_p_home_win);
-  return `raw ${away} ${s.awayText} · ${home} ${s.homeText}`;
+  const win = rest.k.win ? [`${away} ${s.awayText} · ${home} ${s.homeText}`] : [];
+  return `raw ${[...win, ...rawPointParts(rest)].join(", ")}`;
 }
 
 export function edgeRestNote(p: Prediction, home: string): string | null {
   const rest = adjustedRest(p);
-  return rest
-    ? `Preseason: rest-adjusted from ESPN list (raw ${home} ${pct(rest.raw_p_home_win, 1)})`
-    : null;
+  if (!rest) return null;
+  const win = rest.k.win ? [`${home} ${pct(rest.raw_p_home_win, 1)}`] : [];
+  return `Preseason: rest-adjusted from ESPN list (raw ${[...win, ...rawPointParts(rest)].join(", ")})`;
 }

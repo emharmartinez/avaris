@@ -79,7 +79,7 @@ describe("GameCard", () => {
   it("labels a rest-adjusted preseason prediction and shows the raw split beside it", () => {
     renderWithQuery(<GameCard game={preseasonGame()} now={NOW} />);
     expect(screen.getByText("Rest-adjusted (ESPN)")).toBeInTheDocument();
-    expect(screen.getByText("raw NYK 62% · TOR 38%")).toBeInTheDocument();
+    expect(screen.getByText("raw NYK 62% · TOR 38%, margin −3.4, total 221.0")).toBeInTheDocument();
     // The headline is the adjusted split
     expect(screen.getByText("61%")).toBeInTheDocument();
     expect(screen.getByText("39%")).toBeInTheDocument();

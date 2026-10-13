@@ -8,7 +8,7 @@ import {
   countdownToFinal, driverLabel, formatDriver, formatInterval, formatTip, signed, teamLabel,
   teamName,
 } from "@/lib/format";
-import { adjustedRest, rawWinText, REST_LABEL } from "@/lib/rest";
+import { adjustedRest, rawText, REST_LABEL } from "@/lib/rest";
 import { injuryText, topDrivers } from "@/lib/today";
 import type { Game, Prediction } from "@/lib/types";
 import { WinBar } from "./win-bar";
@@ -80,7 +80,7 @@ function PredictionSummary({ game, prediction }: { game: Game; prediction: Predi
         {rest && (
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
             <Badge variant="secondary">{REST_LABEL}</Badge>
-            <span className="tabular-nums">{rawWinText(rest, teamLabel(home), teamLabel(away))}</span>
+            <span className="tabular-nums">{rawText(rest, teamLabel(home), teamLabel(away))}</span>
           </div>
         )}
       </div>
