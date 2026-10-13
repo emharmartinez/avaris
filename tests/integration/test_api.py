@@ -1,3 +1,4 @@
+import math
 import shutil
 import threading
 from collections.abc import Iterator
@@ -6,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import duckdb
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
@@ -262,3 +264,32 @@ def test_teams_lists_nba_teams_only(
     con.execute("insert into team_ratings (team_id, game_id, as_of_ts, season, elo) "
                 "values (50015, 'x', '2021-11-27 10:00', '2021-22', 1500)")
     assert 50015 not in {t["team_id"] for t in get(client, "/api/teams")}
+
+
+def test_performance_drift_against_the_reference_backtest(
+    env: tuple[duckdb.DuckDBPyConnection, Settings]
+) -> None:
+    con, settings = env
+    reference = settings.models.reports_dir / "evaluation_2021-22_2024-25"
+    reference.mkdir(parents=True)
+    rows_ = [{"game_id": f"g{i}", "season": "2021-22", "season_type": "regular", "y": y,
+              "pred": p, "target": t, "model": "model", "availability": "report"}
+             for i in range(40)
+             for t, y, p in (("home_win", i % 2, 0.5), ("margin", 0.0, 2.0),
+                             ("total", 200.0, 260.0))]
+    pd.DataFrame(rows_).to_csv(reference / "predictions.csv.gz", index=False)
+    app = create_app(settings, con=con, daily_on_startup=False, clock=lambda: NOON_D2)
+    with TestClient(app, base_url="http://127.0.0.1:8000") as c:
+        body = get(c, "/api/performance")
+    drift = body["drift"]
+    assert drift["reference"] == "evaluation_2021-22_2024-25"
+    regular = drift["scopes"]["regular"]
+    assert regular["n"] == 2
+    assert regular["log_loss"]["lo"] == pytest.approx(math.log(2))
+    assert regular["margin_mae"]["lo"] == regular["margin_mae"]["hi"] == 2.0
+    assert regular["total_mae"]["drift"] is True  # live total errors are not 60
+    assert drift["scopes"]["preseason"] is None
+
+
+def test_performance_drift_without_a_reference(client: TestClient) -> None:
+    assert get(client, "/api/performance")["drift"] is None

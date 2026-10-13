@@ -87,3 +87,20 @@ def test_a_failing_status_poll_exits_1(config: Path, server: respx.MockRouter) -
     assert result.exit_code == 1
     assert "500" in result.output
     assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+@pytest.mark.parametrize(("args", "cors"), [(["--dev"], True), ([], False)])
+def test_serve_dev_turns_on_loopback_cors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, args: list[str], cors: bool
+) -> None:
+    import uvicorn
+
+    served: dict[str, Any] = {}
+    monkeypatch.setattr(uvicorn, "run", lambda api, **kw: served.update(api=api, **kw))
+    path = tmp_path / "config.toml"
+    path.write_text(f'[paths]\ndb_path = "{tmp_path / "a.duckdb"}"\n')
+    result = runner.invoke(app, ["--config", str(path), "serve", "--no-daily", *args])
+    assert result.exit_code == 0, result.output
+    names = [m.cls.__name__ for m in served["api"].user_middleware]  # type: ignore[attr-defined]
+    assert ("CORSMiddleware" in names) is cors
+    assert served["host"] == "127.0.0.1"

@@ -461,14 +461,20 @@ def serve_command(
     daily: Annotated[bool, typer.Option(help="Run `daily` once on startup.")] = True,
     host: Annotated[str | None, typer.Option(help="Bind address (default: config).")] = None,
     port: Annotated[int | None, typer.Option(help="Port (default: config).")] = None,
+    dev: Annotated[
+        bool, typer.Option(help="Allow CORS from loopback origins (for `next dev`).")
+    ] = False,
 ) -> None:
-    # The local API; holds the one read-write DuckDB connection
+    # The local API and the PWA; holds the one read-write DuckDB connection
     import uvicorn
 
     from avaris.api.deps import LOOPBACK_HOSTS
     from avaris.api.main import create_app
 
     settings: Settings = ctx.obj
+    if dev:
+        settings = settings.model_copy(
+            update={"server": settings.server.model_copy(update={"dev_cors": True})})
     bind = host or settings.server.host
     if bind not in LOOPBACK_HOSTS and bind != "::1":
         typer.echo(f"WARNING: binding to {bind}: the API has no authentication, and it "
