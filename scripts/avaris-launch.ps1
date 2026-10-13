@@ -58,7 +58,8 @@ if ($Install) {
 }
 
 if ($Stop) {
-  Invoke-Wsl 'test -f data/serve.pid && kill $(cat data/serve.pid) && rm -f data/serve.pid'
+  # Only a server this launcher started has a pid file
+  Invoke-Wsl 'if test -f data/serve.pid; then kill $(cat data/serve.pid); rm -f data/serve.pid; else echo No launcher-started server: data/serve.pid is missing; exit 1; fi'
   exit $LASTEXITCODE
 }
 
