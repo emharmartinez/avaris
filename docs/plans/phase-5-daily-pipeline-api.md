@@ -32,18 +32,18 @@
 | Decision | Choice | Why |
 | :------- | :----- | :-- |
 | `daily` order | refresh → features → predict with the current model → retrain if stale → predict again | catch-up finals for past games must come from a model that never saw them; a retrain `--through today` trains on them |
-| Model rule | a prediction is written only if every target's run has `through <= game_date_et` | the model never trained on the game; otherwise the game is skipped and counted |
+| Model rule | a prediction is written only if every target's run has `through <= game_date_et` | the model never trained on the game; other games are skipped (the backtest covers them) |
 | Games predicted | current season (`season_for_date(today)`), dated on or before today ET, with a tip-off and no final prediction | "today plus any earlier game still missing a final"; older seasons were scored by the backtest |
 | Provisional vs final | final once `now >= tip_off - 60 min`, from the reports stored at that moment; provisional before it | plan rule; a report that lands later must not change a final |
 | Storage | `predictions` has one row per game: provisional rows are replaced only when a value changed, a final row is written once and never replaced | idempotent reruns; the schema keeps one current prediction |
-| Staleness | retrain when any target has no production model, or the newest `through` among its production and candidate runs is `retrain_every_days` or more before today | `through` is the data cutoff; counting candidates stops a held run from retraining every day |
-| Refresh | stats (schedule, logs, rosters) and injuries for the current season; a network error is a warning and `daily` continues on stored data; `--offline` skips it | local-first; the UI still works when stats.nba.com is down |
+| Staleness | retrain when any target has no production model, or the newest `through` among its production and candidate runs is `retrain_every_days` or more before today; every run warns while a held candidate blocks the retrain | `through` is the data cutoff; counting candidates stops a held run from retraining every day |
+| Refresh | stats (schedule, logs, rosters) and injuries for the current season; any refresh error (network, blocked or malformed response) is a warning and `daily` continues on stored data; `--offline` skips it | local-first; the UI still works when stats.nba.com is down |
 | `score` | `daily` ends with `score`; `prediction_scores` has one row per final prediction of a final game, rewritten only when the result changed | Performance updates without a separate step |
 | Drivers JSON | per target: scale (`log_odds` or `points`), base, every family's contribution, top 3 families | the game view shows top drivers, the families sum to the output |
 | Injury JSON | per side: full strength, lost, lost share, players behind it (report mode); null in preseason | no new data source; the API cannot rebuild features per request |
 | Single writer | the server holds the read-write connection; requests and jobs use `con.cursor()`; CLI `daily`, `score` and `train` post a job to the server when the DB is locked | DuckDB allows one writer process |
 | Jobs | `POST /api/jobs/{daily,score,train}` returns 202 and a `job_id`; a non-blocking process-wide lock returns 409 when busy; `jobs` table keeps status, params, log tail; jobs still `running` at startup are marked failed | plan |
-| `serve` | uvicorn on `127.0.0.1:8000` (`[server]` in `config.toml`), runs `daily` once on startup unless `--no-daily` or `daily_on_startup = false` | local-only; tests and offline use skip it |
+| `serve` | uvicorn on `127.0.0.1:8000` (`[server]` in `config.toml`), runs `daily` once on startup unless `--no-daily` or `daily_on_startup = false`; only loopback `Host` headers; job posts from another site refused | local-only; tests and offline use skip it; DNS rebinding and cross-site requests (security review) |
 | Legacy artifacts | an artifact without `model_sha256` is refused; `avaris train --promote RUN_ID` seals it | #6; the production run predates the hash |
 
 ---
