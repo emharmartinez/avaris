@@ -98,6 +98,7 @@ All gates must be green at the end of every phase.
 - Commit often but ask the user first before pushing
 - Track deferred work as GitHub issues: whenever new tech debt is deferred for later, or a bug or issue surfaces that is out of scope for the current work, create a GitHub issue for it — deferred work must never live only in chat, commit messages, or code comments.
 - Prefer using worktree if needed. Use the `EnterWorktreeTool`
+- Main can be bypassed. Only bypass when the user says so
 
 ## User Input
 
