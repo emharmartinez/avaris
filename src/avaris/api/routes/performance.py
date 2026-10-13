@@ -3,7 +3,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query
 
 from avaris.api.deps import AppClock, AppSettings, Cursor, rows
-from avaris.api.drift import drift_scopes, reference_errors
+from avaris.api.drift import drift_scopes, reference_errors, reference_path
 from avaris.seasons import et_date, season_for_date
 
 router = APIRouter(prefix="/api/performance", tags=["performance"])
@@ -41,6 +41,7 @@ def performance(
     """)]
     # Drift: live metrics against the reference backtest's range for the same number of games
     name = settings.server.drift_reference
-    ref = reference_errors(settings.models.reports_dir / name / "predictions.csv.gz")
+    path = reference_path(settings.models.reports_dir, name)
+    ref = reference_errors(path) if path else None
     drift = {"reference": name, "scopes": drift_scopes(ref, scopes)} if ref else None
     return {"season": season, "scopes": scopes, "seasons": seasons, "drift": drift}

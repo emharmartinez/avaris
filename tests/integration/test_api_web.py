@@ -105,3 +105,19 @@ def test_dev_cors_refuses_other_origins(dev_client: TestClient, origin: str) -> 
 def test_no_cors_headers_unless_dev(plain_client: TestClient) -> None:
     got = plain_client.get("/api/health", headers={"Origin": "http://localhost:3000"})
     assert "access-control-allow-origin" not in got.headers
+
+
+def test_every_response_refuses_framing_and_sniffing(web_client: TestClient) -> None:
+    for url in ("/", "/api/health", "/api/nope"):
+        headers = web_client.get(url).headers
+        assert headers["x-frame-options"] == "DENY"
+        assert headers["content-security-policy"] == "frame-ancestors 'none'"
+        assert headers["x-content-type-options"] == "nosniff"
+
+
+def test_dev_cors_preflight_still_checks_the_host(dev_client: TestClient) -> None:
+    preflight = dev_client.options("/api/jobs/daily", headers={
+        "Host": "evil.example", "Origin": "http://localhost:3000",
+        "Access-Control-Request-Method": "POST",
+    })
+    assert preflight.status_code == 400

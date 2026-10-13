@@ -479,6 +479,9 @@ def serve_command(
     if bind not in LOOPBACK_HOSTS and bind != "::1":
         typer.echo(f"WARNING: binding to {bind}: the API has no authentication, and it "
                    "answers only requests addressed to 127.0.0.1 or localhost")
+    if not settings.server.web_dir.is_dir():
+        typer.echo(f"No PWA at {settings.server.web_dir}: run `npm run build` in web/ "
+                   "(serving the API only)")
     api = create_app(settings, daily_on_startup=settings.server.daily_on_startup and daily)
     uvicorn.run(api, host=bind, port=port or settings.server.port)
 

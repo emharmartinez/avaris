@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import duckdb
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -19,6 +19,13 @@ from avaris.seasons import et_date
 TELEMETRY_OFF: Any = {"tracing": False, "metrics": False, "logs": False, "auto_configure": False}
 # `next dev` on another loopback port; anchored so localhost.evil.example does not match
 LOOPBACK_ORIGIN = r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:[0-9]+)?$"
+# No page may frame the app (a framed Refresh button could be clickjacked); setdefault keeps
+# the charts' stricter CSP
+SECURITY_HEADERS = {
+    "Content-Security-Policy": "frame-ancestors 'none'",
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+}
 
 
 def create_app(
@@ -49,12 +56,21 @@ def create_app(
             connection.close()
 
     app = FastAPI(title="Avaris", lifespan=lifespan, telemetry=TELEMETRY_OFF)
-    # DNS rebinding: a remote page resolved to 127.0.0.1 still sends its own host name
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=sorted(LOOPBACK_HOSTS))
+
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next: Any) -> Response:
+        response: Response = await call_next(request)
+        for name, value in SECURITY_HEADERS.items():
+            response.headers.setdefault(name, value)
+        return response
+
     if settings.server.dev_cors:
         # Dev only: job posts from loopback origins are already allowed (not_cross_site)
         app.add_middleware(CORSMiddleware, allow_origin_regex=LOOPBACK_ORIGIN,
                            allow_methods=["GET", "POST"], allow_headers=["content-type"])
+    # Added last, so it runs first (preflights included). DNS rebinding: a remote page
+    # resolved to 127.0.0.1 still sends its own host name
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=sorted(LOOPBACK_HOSTS))
     for module in (predictions, games, teams, performance, backtests, injuries, jobs):
         app.include_router(module.router)
 

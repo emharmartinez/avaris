@@ -49,7 +49,7 @@ def test_interval_of_n_game_means_narrows_with_n() -> None:
     errors = np.array([0.0, 1.0] * 500)
     lo1, hi1 = interval(errors, 1)
     lo100, hi100 = interval(errors, 100)
-    assert (lo1, hi1) == (0.0, 1.0)
+    assert (lo1, hi1) == (0.0, 1.0)  # n = 1: the draws are the reference values
     assert lo1 < lo100 < 0.5 < hi100 < hi1
     assert interval(errors, 100) == (lo100, hi100)  # fixed seed
 
@@ -74,6 +74,26 @@ def test_drift_flags_live_values_outside_the_interval() -> None:
     assert regular["n"] == 3
     assert regular["log_loss"] == {"live": 0.6, "lo": 0.6, "hi": 0.6, "drift": False}
     assert regular["margin_mae"] == {"live": 12.0, "lo": 10.0, "hi": 10.0, "drift": True}
+    better = drift_scopes(ref, {**scopes, "regular": {**scopes["regular"], "margin_mae": 8.0}})
+    assert better["regular"] is not None
+    assert better["regular"]["margin_mae"]["drift"] is False  # better than the reference
     assert regular["total_mae"] is None
     assert out["preseason"] is None  # no reference games for the scope
     assert out["postseason"] is None  # no live games yet
+
+
+def test_flags_about_one_scope_in_twenty_when_live_matches_the_reference() -> None:
+    # One-sided, Bonferroni over the three metrics: a healthy model raises a false alarm in
+    # about 5% of scopes at any one look
+    rng = np.random.default_rng(1)
+    pool = {m: rng.exponential(1.0, 5000) for m in ("log_loss", "margin_mae", "total_mae")}
+    ref = {"regular": pool, "preseason": pool, "postseason": pool}
+    n, trials, alarms = 30, 400, 0
+    for _ in range(trials):
+        live = {m: float(rng.choice(pool[m], n).mean()) for m in pool}
+        scope = {"n": n, **live}
+        out = drift_scopes(ref, {"regular": scope, "preseason": scope, "postseason": scope,
+                                 "all": scope})["regular"]
+        assert out is not None
+        alarms += any(out[m]["drift"] for m in pool)
+    assert 0.02 < alarms / trials < 0.09
