@@ -1,14 +1,17 @@
 "use client";
 
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
-import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import {
+  type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent,
+} from "@/components/ui/chart";
 import { axisTick } from "@/lib/format";
 import type { HistoryPoint } from "@/lib/teams";
 
-const eloConfig = { elo: { label: "Elo", color: "var(--chart-2)" } } satisfies ChartConfig;
+// The brightest series on the dark theme is chart-5
+const eloConfig = { elo: { label: "Elo", color: "var(--chart-5)" } } satisfies ChartConfig;
 const netPaceConfig = {
-  net: { label: "Net rating", color: "var(--chart-2)" },
-  pace: { label: "Pace", color: "var(--chart-4)" },
+  net: { label: "Net rating", color: "var(--chart-5)" },
+  pace: { label: "Pace", color: "var(--chart-2)" },
 } satisfies ChartConfig;
 
 export function EloChart({ points }: { points: HistoryPoint[] }) {
@@ -38,10 +41,11 @@ export function NetPaceChart({ points }: { points: HistoryPoint[] }) {
         <YAxis yAxisId="pace" orientation="right" domain={["auto", "auto"]} tickLine={false}
           axisLine={false} width={36} tickFormatter={axisTick} />
         <ChartTooltip content={<ChartTooltipContent />} />
+        <ChartLegend content={<ChartLegendContent />} />
         <Line yAxisId="net" dataKey="net" type="monotone" stroke="var(--color-net)" strokeWidth={2}
           dot={false} connectNulls />
         <Line yAxisId="pace" dataKey="pace" type="monotone" stroke="var(--color-pace)" strokeWidth={2}
-          dot={false} connectNulls />
+          strokeDasharray="5 3" dot={false} connectNulls />
       </LineChart>
     </ChartContainer>
   );
