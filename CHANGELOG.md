@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Preseason rest adjustment (ADR-022): preseason win probability, margin and total are shifted by the value of the players ESPN lists out or resting, with coefficients fitted on past preseason box scores (`avaris ingest preseason-logs`, `avaris rest-fit`). `daily` fetches the ESPN list only when a preseason game is due (`avaris ingest espn` by hand). The card, game page and Edge tab label it "Rest-adjusted (ESPN)" and show the raw model values. Regular season, play-in and playoffs are unchanged
 - `avaris serve` stops itself once the app has been closed for `[server] idle_shutdown_min` (default 5; `--idle-min`, `0` = never), never while a job runs (ADR-021)
 - Stop server button in the app header (`POST /api/server/stop`), with an inline confirm
 - Edge tab (`/edge/`, ADR-020): pick a predicted game, type moneyline, spread and total odds (American or decimal) and see model probability, no-vig implied probability, edge, EV per 100 and fair price. Whole-number lines show the push chance. Odds stay in the browser
