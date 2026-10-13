@@ -96,7 +96,7 @@ uv run avaris serve          # open http://127.0.0.1:8000 in Chrome, then "Insta
 powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu\home\<you>\avaris\scripts\avaris-launch.ps1 -Install
 ```
 
-  The server keeps running after the app closes; `-Stop` stops it. `data/serve.log` holds the latest run. When the server is down, pages say so instead of a fetch error.
+  The server keeps running after the app closes; `-Stop` stops a server the launcher started. `data/serve.log` holds the latest run. When the server is down, pages say so instead of a fetch error.
 - **Dev:** `uv run avaris serve --dev` (CORS for loopback origins only) and, in `web/`, `NEXT_PUBLIC_API_BASE=http://localhost:8000 npm run dev`.
 
 ## Data
