@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, CalendarDays, FlaskConical, HeartPulse, Trophy } from "lucide-react";
+import { Activity, Calculator, CalendarDays, FlaskConical, HeartPulse, Trophy } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -14,6 +14,7 @@ const NAV = [
   { href: "/performance/", label: "Performance", icon: Activity },
   { href: "/backtests/", label: "Backtests", icon: FlaskConical },
   { href: "/injuries/", label: "Injuries", icon: HeartPulse },
+  { href: "/edge/", label: "Edge", icon: Calculator },
 ];
 
 export function AppSidebar() {

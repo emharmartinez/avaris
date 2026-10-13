@@ -70,3 +70,30 @@ test("wide tables scroll inside the page, never the page itself", async ({ page 
     await expect(page.getByRole("button", { name: "Refresh", exact: true })).toBeInViewport();
   }
 });
+
+test("edge: pick a game from the sidebar tab, type odds, read the edge", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "Edge" }).click();
+  await expect(page).toHaveURL(/\/edge\/$/);
+  await expect(page.getByRole("heading", { name: "Edge", level: 1 })).toBeVisible();
+
+  // The previous day's finals are stable whatever a Refresh test predicts today
+  await page.getByRole("link", { name: "Previous day" }).click();
+  await expect(page.getByText("Fri, Nov 26, 2021")).toBeVisible();
+  await page.getByRole("combobox", { name: "Game" }).click();
+  await page.getByRole("option", { name: /DEN @ BOS/ }).click();
+  await expect(page).toHaveURL(/\/edge\/\?date=2021-11-26&game=\w+$/);
+  await expect(page.getByRole("combobox", { name: "Game" })).toContainText("DEN @ BOS");
+  await expect(page.getByText(/^Final prediction/)).toBeVisible();
+
+  await page.getByLabel("DEN moneyline").fill("-110");
+  await page.getByLabel("BOS moneyline").fill("-110");
+  const ml = page.getByRole("table", { name: "Moneyline" });
+  await expect(ml.getByRole("row", { name: /^BOS/ }).getByRole("cell").nth(2)).toHaveText("50.0%");
+  await expect(ml.getByRole("row", { name: /^BOS/ }).getByRole("cell").nth(3)).toHaveText(/ pp$/);
+  await expect(page.getByText(/Vig 4\.8%, removed/)).toBeVisible();
+
+  await page.getByLabel("BOS line").fill("-2.5");
+  await expect(page.getByRole("table", { name: "Spread" }).getByRole("row", { name: /^BOS −2\.5/ }))
+    .toBeVisible();
+});
