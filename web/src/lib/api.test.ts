@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, api, apiUrl, isBusy } from "./api";
+import { ApiError, SERVER_DOWN, api, apiUrl, isBusy } from "./api";
 
 function mockFetch(status: number, body: unknown) {
   const fetchMock = vi.fn(async () => new Response(JSON.stringify(body), {
@@ -53,5 +53,20 @@ describe("api client", () => {
     expect((err as ApiError).message).toBe("job daily j1 is running");
     expect(isBusy(err)).toBe(true);
     expect(isBusy(new Error("x"))).toBe(false);
+  });
+
+  it("says the server is not running when the request never reaches it", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
+    const err = await api.health().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(0);
+    expect((err as ApiError).message).toBe(SERVER_DOWN);
+    expect(SERVER_DOWN).toMatch(/Avaris Launcher/);
+  });
+
+  it("passes an aborted request through untouched", async () => {
+    const abort = new DOMException("The operation was aborted.", "AbortError");
+    vi.stubGlobal("fetch", vi.fn(async () => { throw abort; }));
+    await expect(api.health()).rejects.toBe(abort);
   });
 });

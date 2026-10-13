@@ -65,5 +65,6 @@ test("the service worker opens pages offline but never caches the API", async ({
   await page.goto("/teams/?id=1610612738");
   await expect(page.getByRole("heading", { name: "Teams", level: 1 })).toBeVisible();
   await expect(page.getByText(/Could not load/).first()).toBeVisible(); // data stays live-only
+  await expect(page.getByText(/Server not running/).first()).toBeVisible();
   await context.setOffline(false);
 });

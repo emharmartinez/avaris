@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+- `scripts/avaris-launch.ps1`: Windows launcher that starts `avaris serve` in WSL when needed, then opens the installed PWA; `-Install` adds a Start menu shortcut, `-Stop` stops the server
+- The PWA says "Server not running" instead of a fetch error when the API is unreachable
+
 ### Changed
 - The PWA is dark only: shadcn dark theme on `<html>`, `color-scheme: dark`, dark manifest splash and title bar, and a reversed gray chart ramp so every series stays visible on dark cards
 
