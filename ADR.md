@@ -18,7 +18,16 @@ One entry per binding decision. Newest first. Status is `accepted`, `superseded`
   - k is fitted on actual absences but applied to ESPN's list, which misses late rest calls: live gains are smaller than the backtest.
   - No scheduler: a preseason final is adjusted only if a refresh ran between tip - 36 h and tip - 60 min; otherwise its `rest` block says "no ESPN snapshot before decision time", for good (ADR-018).
   - Scored preseason predictions are the adjusted ones; `raw_*` allows scoring the model alone. Non-NBA opponents get no adjustment (#11); the win model's preseason overconfidence is #20.
-- **Fit report:** FIT_REPORT_PENDING
+- **Fit report (2026-10-13):** 24,980 preseason player-games (2014-15 to 2024-25); 331 NBA-v-NBA preseason games with box scores in the fit window, 313 in the gate window.
+
+  | Output | k | Gate metric | Raw | Adjusted | Enabled |
+  | :-- | --: | :-- | --: | --: | :-- |
+  | margin | 0.108 per Game Score point | MAE | 12.217 | 12.148 | yes |
+  | total | -0.080 | MAE | 13.484 | 13.940 | no |
+  | home_win | 0.025 | log loss | 0.707 | 0.721 | no |
+
+  - Only the margin is adjusted. The win probability stays the model's: its preseason log loss (0.707) is already worse than a coin flip, and the shift made it worse (#20). The total has no usable rest signal.
+  - Example: NYK at TOR on 2026-10-13, ESPN's list as if fetched before decision time: NYK lose 52.5 (Brunson 19.8, Anunoby 16.7, Towns 16.0), TOR 3.3, so the TOR margin moves from -0.7 to +4.6. That game was already final, so it stays unadjusted.
 
 ## ADR-021: The server stops itself when the app is closed, or from the app's Stop button
 
