@@ -11,6 +11,8 @@ PHASE_2_TABLES = {"injury_report_files", "injury_reports"}
 DROPPED_TABLES = {"api_usage", "odds_events", "odds_snapshots"}  # migration 4
 PHASE_3_TABLES = {"features", "team_ratings"}
 PHASE_5_TABLES = {"predictions", "prediction_scores", "jobs"}
+REST_TABLES = {"espn_injury_snapshots", "espn_injury_fetches", "preseason_player_games",
+               "rest_params"}  # migration 8
 
 
 def tables(con: duckdb.DuckDBPyConnection) -> set[str]:
@@ -142,4 +144,44 @@ def test_migration_7_upgrades_a_populated_version_6_db(tmp_path: Path) -> None:
     con = connect(db_path)
     assert tables(con) >= PHASE_5_TABLES
     assert con.execute("select count(*) from games").fetchone() == (1,)
-    assert con.execute("select max(version) from schema_version").fetchone() == (7,)
+    assert con.execute("select max(version) from schema_version").fetchone() == (8,)
+
+
+def test_migration_8_adds_rest_tables_and_prediction_columns(tmp_path: Path) -> None:
+    con = connect(tmp_path / "a.duckdb")
+    assert tables(con) >= REST_TABLES
+    cols = {r[0]: r[1] for r in con.execute(
+        "select column_name, data_type from information_schema.columns "
+        "where table_name = 'predictions'").fetchall()}
+    assert cols["raw_p_home_win"] == cols["raw_margin_mu"] == cols["raw_total_mu"] == "DOUBLE"
+    assert cols["rest"] == "VARCHAR"
+    player_cols = [r[0] for r in con.execute(
+        "select column_name from information_schema.columns where table_name = ? "
+        "order by ordinal_position", ["player_games"]).fetchall()]
+    preseason_cols = [r[0] for r in con.execute(
+        "select column_name from information_schema.columns where table_name = ? "
+        "order by ordinal_position", ["preseason_player_games"]).fetchall()]
+    assert preseason_cols == player_cols
+
+
+def test_migration_8_upgrades_a_populated_version_7_db(tmp_path: Path) -> None:
+    db_path = tmp_path / "a.duckdb"
+    con = duckdb.connect(str(db_path))
+    con.execute("create table schema_version (version integer primary key)")
+    for version, ddl in enumerate(MIGRATIONS[:7], start=1):
+        con.execute(ddl)
+        con.execute("insert into schema_version values (?)", [version])
+    con.execute(
+        "insert into predictions (game_id, status, decision_ts, predicted_at, feature_hash, "
+        "home_win_run, margin_run, total_run, p_home_win, margin_mu, margin_sigma, "
+        "total_mu, total_sigma, drivers, injuries) values ('g', 'final', now(), now(), "
+        "'h', 'r', 'r', 'r', 0.5, 1, 10, 220, 15, '{}', '{}')"
+    )
+    con.close()
+    con = connect(db_path)
+    assert tables(con) >= REST_TABLES
+    row = con.execute(
+        "select p_home_win, raw_p_home_win, raw_margin_mu, raw_total_mu, rest from predictions"
+    ).fetchone()
+    assert row == (0.5, None, None, None, None)
+    assert con.execute("select max(version) from schema_version").fetchone() == (8,)
