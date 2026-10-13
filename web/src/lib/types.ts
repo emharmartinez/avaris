@@ -50,6 +50,33 @@ export interface InjuryImpactFull extends InjuryImpact {
   players: InjuredPlayer[];
 }
 
+// Preseason only (ADR-022): players ESPN lists as out or resting, valued in Game Score points
+export interface RestPlayer {
+  name: string;
+  player_id: number | null; // null when the ESPN name matched no roster player
+  status: string;
+  comment: string | null; // ESPN's note, untrusted plain text
+  value: number;
+  matched: boolean;
+}
+
+export interface RestSide {
+  lost: number | null; // null: no ESPN snapshot, so unknown
+  players: RestPlayer[];
+}
+
+export interface Rest {
+  adjusted: boolean; // true: p_home_win, margin.mu and total.mu are the rest-adjusted values
+  note: string | null; // why not adjusted; null when adjusted
+  snapshot_ts: string | null;
+  k: { margin: number; total: number; win: number }; // applied coefficients, 0 = off
+  home: RestSide;
+  away: RestSide;
+  raw_p_home_win: number;
+  raw_margin_mu: number;
+  raw_total_mu: number;
+}
+
 export interface Prediction {
   status: PredictionStatus;
   decision_ts: string | null;
@@ -61,6 +88,7 @@ export interface Prediction {
   total: Interval;
   top_drivers: Record<Target, Driver[]>;
   injury_impact: { home: InjuryImpact | null; away: InjuryImpact | null };
+  rest: Rest | null; // null for every non-preseason game and vs non-NBA clubs
 }
 
 export interface PredictionFull extends Prediction {

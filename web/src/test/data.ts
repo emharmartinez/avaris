@@ -1,4 +1,4 @@
-import type { Game, Health, Job } from "@/lib/types";
+import type { Game, Health, Job, Rest } from "@/lib/types";
 
 // API payloads for component tests, shaped like the fixture league's responses
 export const NOW = "2021-11-27T17:00:00Z";
@@ -43,6 +43,65 @@ export const game = (extra: Partial<Game> = {}): Game => ({
       home: { full_strength: 100.5, lost: 0, lost_share: 0 },
       away: { full_strength: 88.1, lost: 12.3, lost_share: 0.1397 },
     },
+    rest: null,
   },
   ...extra,
 });
+
+// NYK resting its starters at TOR on 2026-10-13: ESPN listed them Day-To-Day, the rest only
+// in the note; one listed player matched no roster entry
+export const rest = (extra: Partial<Rest> = {}): Rest => ({
+  adjusted: true,
+  note: null,
+  snapshot_ts: "2026-10-13T20:05:00Z",
+  k: { margin: 0.25, total: 0.2, win: 0.03 },
+  home: { lost: 0, players: [] },
+  away: {
+    lost: 29.4,
+    players: [
+      { name: "Jalen Brunson", player_id: 1628973, status: "Day-To-Day", value: 12.1, matched: true,
+        comment: "Brunson won't play Tuesday against Toronto for rest purposes." },
+      { name: "Karl-Anthony Towns", player_id: 1626157, status: "Day-To-Day", value: 9.8, matched: true,
+        comment: "Towns won't play Tuesday against Toronto for rest purposes." },
+      { name: "OG Anunoby", player_id: 1628384, status: "Day-To-Day", value: 7.5, matched: true,
+        comment: "Anunoby won't play Tuesday against Toronto for rest purposes." },
+      { name: "Kevin McCullar Jr.", player_id: null, status: "Out", value: 0, matched: false,
+        comment: null },
+    ],
+  },
+  raw_p_home_win: 0.379,
+  raw_margin_mu: -3.4,
+  raw_total_mu: 221.0,
+  ...extra,
+});
+
+export const preseasonGame = (r: Rest | null = rest()): Game => {
+  const base = game();
+  return {
+    ...base,
+    game_id: "0012600012",
+    season: "2026-27",
+    season_type: "preseason",
+    game_date_et: "2026-10-13",
+    tip_off_utc: "2026-10-13T23:30:00Z",
+    venue: "Scotiabank Arena",
+    home: { team_id: 1610612761, abbreviation: "TOR", name: "Toronto Raptors" },
+    away: { team_id: 1610612752, abbreviation: "NYK", name: "New York Knicks" },
+    prediction: {
+      ...base.prediction!,
+      decision_ts: "2026-10-13T22:30:00Z",
+      report_ts: null,
+      predicted_at: "2026-10-13T20:10:00Z",
+      // The headline values are the adjusted ones when the rest block says so
+      p_home_win: r?.adjusted ? 0.612 : 0.379,
+      margin: r?.adjusted
+        ? { mu: 3.9, sigma: 15.2, lo: -15.58, hi: 23.38 }
+        : { mu: -3.4, sigma: 15.2, lo: -22.88, hi: 16.08 },
+      total: r?.adjusted
+        ? { mu: 214.6, sigma: 20.1, lo: 188.84, hi: 240.36 }
+        : { mu: 221.0, sigma: 20.1, lo: 195.24, hi: 246.76 },
+      injury_impact: { home: null, away: null },
+      rest: r,
+    },
+  };
+};

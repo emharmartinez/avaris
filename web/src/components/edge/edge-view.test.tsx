@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import type { GamesOnDate } from "@/lib/types";
-import { game } from "@/test/data";
+import { game, preseasonGame, rest } from "@/test/data";
 import { renderWithQuery } from "@/test/render";
 import { server } from "@/test/server";
 import { EdgeView } from "./edge-view";
@@ -149,5 +149,26 @@ describe("EdgeView", () => {
     renderWithQuery(<EdgeView date={null} gameId={null} onGameChange={vi.fn()} />);
     expect(await screen.findByText("No predicted games on this date.")).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Game" })).toBeNull();
+  });
+
+  it("notes a rest-adjusted preseason prediction with the raw win probability", async () => {
+    serve({ date: "2026-10-13", games: [preseasonGame()] });
+    renderWithQuery(<EdgeView date={null} gameId={null} onGameChange={vi.fn()} />);
+    expect(await screen.findByText(/^Preseason: rest-adjusted from ESPN list \(raw TOR 37\.9%\)$/))
+      .toBeInTheDocument();
+    // The calculator prices the adjusted values
+    const ml = screen.getByRole("table", { name: "Moneyline" });
+    expect(cells(row(ml, "TOR"))[1]).toBe("61.2%");
+  });
+
+  it("has no rest note for a regular game or an unadjusted preseason one", async () => {
+    const unadjusted = preseasonGame(rest({ adjusted: false, note: "no ESPN snapshot before decision time" }));
+    serve({ date: "2021-11-27", games: [game(), { ...unadjusted, game_id: "0012600013" }] });
+    const { rerender } = renderWithQuery(<EdgeView date={null} gameId={null} onGameChange={vi.fn()} />);
+    expect(await screen.findByRole("combobox", { name: "Game" })).toHaveTextContent("ATL @ DEN");
+    expect(screen.queryByText(/rest-adjusted/i)).toBeNull();
+    rerender(<EdgeView date={null} gameId="0012600013" onGameChange={vi.fn()} />);
+    expect(await screen.findByRole("combobox", { name: "Game" })).toHaveTextContent("NYK @ TOR");
+    expect(screen.queryByText(/rest-adjusted/i)).toBeNull();
   });
 });

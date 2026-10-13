@@ -2,7 +2,7 @@ import { screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { beforeAll, describe, expect, it } from "vitest";
 import { server } from "@/test/server";
-import { game } from "@/test/data";
+import { game, rest } from "@/test/data";
 import { renderWithQuery } from "@/test/render";
 import type { GameDetail, PredictionFull, Ratings } from "@/lib/types";
 import { GameLoader } from "./game-loader";
@@ -95,6 +95,20 @@ describe("GameLoader", () => {
     expect(within(away).getByText("Player 7")).toBeInTheDocument();
     expect(within(away).getByText("14% strength lost")).toBeInTheDocument();
     expect(within(home).getByText("No players out")).toBeInTheDocument();
+  });
+
+  it("shows the preseason rest section after the injuries, only with a rest block", async () => {
+    serve(detail({}, { rest: rest() }));
+    const { unmount } = renderWithQuery(<GameLoader id="0022100047" />);
+    const section = await screen.findByRole("region", { name: "Preseason rest" });
+    const injuries = screen.getByRole("region", { name: "DEN injuries" });
+    expect(injuries.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    unmount();
+
+    serve(detail());
+    renderWithQuery(<GameLoader id="0022100047" />);
+    expect(await screen.findByRole("region", { name: "DEN injuries" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Preseason rest" })).toBeNull();
   });
 
   it("says when no injury report was used", async () => {

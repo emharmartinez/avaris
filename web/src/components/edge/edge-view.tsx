@@ -16,6 +16,7 @@ import {
   type MarketResult, type OddsFormat, type Outcome, type Pair,
 } from "@/lib/edge";
 import { formatDate, formatTip, pct, shiftDate, signed, teamLabel } from "@/lib/format";
+import { edgeRestNote } from "@/lib/rest";
 import { cn } from "@/lib/utils";
 import type { Game, GamesOnDate, Prediction } from "@/lib/types";
 
@@ -124,6 +125,7 @@ function Calculator({ game, format, onFormatChange }: {
   const p = game.prediction;
   const away = teamLabel(game.away);
   const home = teamLabel(game.home);
+  const restNote = edgeRestNote(p, home);
   const price = (field: OddsField) => odds[field].exact ?? parseOdds(odds[field].text, format);
   const set = (field: OddsField) => (text: string) => setOdds((o) => ({ ...o, [field]: { text } }));
 
@@ -147,11 +149,14 @@ function Calculator({ game, format, onFormatChange }: {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {p.status === "final"
-            ? "Final prediction, frozen at the decision time."
-            : "Provisional prediction: it can change until tip-off minus 60 minutes."}
-        </p>
+        <div className="space-y-1 text-sm text-muted-foreground">
+          <p>
+            {p.status === "final"
+              ? "Final prediction, frozen at the decision time."
+              : "Provisional prediction: it can change until tip-off minus 60 minutes."}
+          </p>
+          {restNote && <p>{restNote}</p>}
+        </div>
         <div role="group" aria-label="Odds format" className="flex gap-1">
           {(["american", "decimal"] as const).map((f) => (
             <Button

@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { game, NOW } from "@/test/data";
+import { game, NOW, preseasonGame, rest } from "@/test/data";
 import { renderWithQuery } from "@/test/render";
 import { GameCard } from "./game-card";
 
@@ -74,5 +74,25 @@ describe("GameCard", () => {
   it("omits the countdown while the server clock is unknown", () => {
     renderWithQuery(<GameCard game={game()} now={null} />);
     expect(screen.queryByText(/final in/)).not.toBeInTheDocument();
+  });
+
+  it("labels a rest-adjusted preseason prediction and shows the raw split beside it", () => {
+    renderWithQuery(<GameCard game={preseasonGame()} now={NOW} />);
+    expect(screen.getByText("Rest-adjusted (ESPN)")).toBeInTheDocument();
+    expect(screen.getByText("raw NYK 62% · TOR 38%")).toBeInTheDocument();
+    // The headline is the adjusted split
+    expect(screen.getByText("61%")).toBeInTheDocument();
+    expect(screen.getByText("39%")).toBeInTheDocument();
+    expect(screen.getByText("+3.9")).toBeInTheDocument();
+  });
+
+  it("adds nothing without a rest block or when it is not adjusted", () => {
+    renderWithQuery(<GameCard game={game()} now={NOW} />);
+    expect(screen.queryByText("Rest-adjusted (ESPN)")).toBeNull();
+    expect(screen.queryByText(/^raw /)).toBeNull();
+    const notAdjusted = preseasonGame(rest({ adjusted: false, note: "no ESPN snapshot before decision time" }));
+    renderWithQuery(<GameCard game={notAdjusted} now={NOW} />);
+    expect(screen.queryByText("Rest-adjusted (ESPN)")).toBeNull();
+    expect(screen.queryByText(/^raw /)).toBeNull();
   });
 });

@@ -8,6 +8,7 @@ import {
   countdownToFinal, driverLabel, formatDriver, formatInterval, formatTip, signed, teamLabel,
   teamName,
 } from "@/lib/format";
+import { adjustedRest, rawWinText, REST_LABEL } from "@/lib/rest";
 import { injuryText, topDrivers } from "@/lib/today";
 import type { Game, Prediction } from "@/lib/types";
 import { WinBar } from "./win-bar";
@@ -71,9 +72,18 @@ export function GameCard({ game, now }: { game: Game; now: string | null }) {
 function PredictionSummary({ game, prediction }: { game: Game; prediction: Prediction }) {
   const { home, away } = game;
   const { margin, total, injury_impact: injuries } = prediction;
+  const rest = adjustedRest(prediction);
   return (
     <>
-      <WinBar pHome={prediction.p_home_win} home={home} away={away} />
+      <div className="space-y-1.5">
+        <WinBar pHome={prediction.p_home_win} home={home} away={away} />
+        {rest && (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <Badge variant="secondary">{REST_LABEL}</Badge>
+            <span className="tabular-nums">{rawWinText(rest, teamLabel(home), teamLabel(away))}</span>
+          </div>
+        )}
+      </div>
       <div className="grid grid-cols-2 gap-4">
         <Stat label={`Margin (${teamLabel(home)})`} value={signed(margin.mu)}
           detail={`80%: ${formatInterval(margin, true)}`} />

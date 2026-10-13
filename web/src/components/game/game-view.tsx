@@ -10,6 +10,7 @@ import { DistributionChart } from "./distribution-chart";
 import { DriversSection } from "./drivers-section";
 import { InjuriesSection } from "./injuries-section";
 import { RatingsChart } from "./ratings-chart";
+import { RestSection } from "./rest-section";
 import { ScoreCard } from "./score-card";
 
 export function GameView({ game }: { game: GameDetail }) {
@@ -78,6 +79,8 @@ export function GameView({ game }: { game: GameDetail }) {
       <Section title="Injuries">
         <InjuriesSection game={game} />
       </Section>
+
+      <RestSection prediction={prediction} home={home} away={away} />
 
       <RatingsChart game={game} />
     </div>
