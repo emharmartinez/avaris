@@ -1,0 +1,6 @@
+.env
+.env.local
+.claude/
+
+CLAUDE.md
+.github/config.json
