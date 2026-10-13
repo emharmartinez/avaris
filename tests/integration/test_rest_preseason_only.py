@@ -3,14 +3,20 @@
 # ESPN snapshots, preseason box scores and rest_params, and a snapshot fetched after a
 # game's decision_ts never changes its rest values
 import math
+import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import duckdb
 import pandas as pd
 import pytest
 
+from avaris.config import Settings
+from avaris.db import connect
 from avaris.features.build import FeatureSet, build_features
+from avaris.pipeline.daily import run_daily
+from tests.fixtures.live import models_settings, train_before_d1
 from tests.fixtures.synthetic import (
     ATL,
     BOS,
@@ -23,6 +29,7 @@ GAME = "0012100001"  # 2021-22 preseason, ATL (home) v BOS; ATL's best player si
 TIP = datetime(2021, 10, 6, 0, 0)
 DECISION = TIP - timedelta(minutes=60)
 STAR = REST_ABSENT[ATL]
+D1_NOON = datetime(2021, 11, 26, 17, 0)  # the synthetic league's first unplayed day
 
 
 def build(path: Path) -> FeatureSet:
@@ -33,8 +40,10 @@ def build(path: Path) -> FeatureSet:
         con.close()
 
 
-def add_rest_data(path: Path) -> None:
-    con = duckdb.connect(str(path))
+def add_rest_data(path: Path, con: duckdb.DuckDBPyConnection | None = None) -> None:
+    # Preseason box scores, two ESPN snapshots around GAME's decision_ts and fitted k
+    own = con is None
+    con = con or duckdb.connect(str(path))
     try:
         add_preseason_boxes(con)
         add_espn_snapshot(con, DECISION - timedelta(hours=3), [(ATL, STAR, "Out")])
@@ -43,10 +52,11 @@ def add_rest_data(path: Path) -> None:
         con.execute(
             "insert into rest_params values (now(), 0.5, 0.4, 0.05, true, true, true, '{}')")
     finally:
-        con.close()
+        if own:
+            con.close()
 
 
-def rest_row(fs: FeatureSet, game_id: str) -> dict[str, object]:
+def rest_row(fs: FeatureSet, game_id: str) -> dict[str, Any]:
     match = fs.rest[fs.rest["game_id"] == game_id]
     assert len(match) == 1, game_id
     return {str(k): v for k, v in match.iloc[0].to_dict().items()}
@@ -143,3 +153,34 @@ def test_a_late_snapshot_is_detected(synthetic_db: Path, tmp_path: Path) -> None
     add_espn_snapshot(con, DECISION - timedelta(minutes=1), [(BOS, 2000, "Out")])
     con.close()
     assert rest_row(build(path), GAME)["away_lost_espn"] > 0  # type: ignore[operator]
+
+
+@pytest.fixture(scope="module")
+def trained(synthetic_db_template: Path, tmp_path_factory: pytest.TempPathFactory) -> Path:
+    root = tmp_path_factory.mktemp("rest_daily")
+    shutil.copy(synthetic_db_template, root / "league.duckdb")
+    train_before_d1(root / "league.duckdb", root / "artifacts")
+    return root
+
+
+def daily_predictions(root: Path, tmp_path: Path, name: str, rest_data: bool) -> pd.DataFrame:
+    work = tmp_path / name
+    shutil.copytree(root, work)
+    con = connect(work / "league.duckdb")
+    try:
+        if rest_data:
+            add_rest_data(work / "league.duckdb", con)
+            add_espn_snapshot(con, D1_NOON - timedelta(hours=1), [(ATL, STAR, "Out")])
+        settings = Settings(models=models_settings(work / "artifacts"))
+        run_daily(con, settings, now=D1_NOON + timedelta(hours=7), refresh=None)
+        return con.execute("select * from predictions order by game_id").df()
+    finally:
+        con.close()
+
+
+def test_non_preseason_predictions_are_byte_identical(trained: Path, tmp_path: Path) -> None:
+    plain = daily_predictions(trained, tmp_path, "plain", rest_data=False)
+    rest = daily_predictions(trained, tmp_path, "rest", rest_data=True)
+    assert len(plain) == 2 and set(plain["status"]) == {"final"}
+    pd.testing.assert_frame_equal(plain, rest)
+    assert plain["rest"].isna().all() and plain["raw_margin_mu"].isna().all()

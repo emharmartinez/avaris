@@ -18,8 +18,9 @@ from avaris.models.registry import Registry
 from avaris.pipeline.daily import DailySummary, is_stale, prediction_status, run_daily
 from avaris.pipeline.score import score_predictions
 from avaris.pipeline.train import train
+from tests.conftest import records_by
 from tests.fixtures.live import D1, D2, models_settings, train_before_d1
-from tests.fixtures.synthetic import ATL, BOS, INJURED_STAR
+from tests.fixtures.synthetic import ATL, BKN, BOS, INJURED_STAR, REST_ABSENT, add_espn_snapshot
 
 TIP_D1 = datetime(2021, 11, 27, 0, 0)  # naive UTC, 7 pm ET
 NOON_D1 = datetime(2021, 11, 26, 17, 0)  # noon ET
@@ -285,3 +286,58 @@ def test_any_refresh_error_is_a_warning(
     summary = run_daily(con, settings, now=NOON_D1, refresh=blocked)
     assert any("not a PDF" in w for w in summary.warnings)
     assert summary.provisional == 2
+
+
+def add_preseason_game_on_d1(con: duckdb.DuckDBPyConnection) -> str:
+    # A preseason ATL v BKN game on D1 with BKN's best player listed out by ESPN (ADR-022)
+    game_id = "0012100099"
+    upsert(con, "games", pd.DataFrame([{
+        "game_id": game_id, "season": "2021-22", "season_type": "preseason",
+        "game_date_et": D1, "tip_off_utc": TIP_D1, "home_team_id": ATL,
+        "away_team_id": BKN, "home_pts": None, "away_pts": None, "status": "scheduled",
+        "venue": "State Farm Arena", "venue_city": "Atlanta", "neutral_site": False,
+    }]))
+    add_espn_snapshot(con, NOON_D1 - timedelta(hours=1), [(BKN, REST_ABSENT[BKN], "Out")])
+    con.execute("insert into rest_params values (?, 0.5, 0.4, 0.05, true, true, true, '{}')",
+                [NOON_D1 - timedelta(days=1)])
+    return game_id
+
+
+def test_a_preseason_game_is_rest_adjusted(
+    env: tuple[duckdb.DuckDBPyConnection, Settings],
+) -> None:
+    con, settings = env
+    game_id = add_preseason_game_on_d1(con)
+    summary = daily(con, settings, NOON_D1)
+    assert summary.provisional == 3
+    pre = records_by(predictions(con), "game_id")[game_id]
+    rest = json.loads(pre["rest"])
+    assert rest["adjusted"] is True and rest["note"] is None
+    lost = rest["away"]["lost"]
+    assert lost > 0 and [p["player_id"] for p in rest["away"]["players"]] == [REST_ABSENT[BKN]]
+    assert rest["home"] == {"lost": 0.0, "players": []}
+    assert pre["margin_mu"] == pytest.approx(pre["raw_margin_mu"] + 0.5 * lost)
+    assert pre["total_mu"] == pytest.approx(pre["raw_total_mu"] - 0.4 * lost)
+    assert pre["p_home_win"] > pre["raw_p_home_win"]
+    # Regular-season rows carry no rest data: NULL, not NaN
+    nulls = con.execute(
+        "select count(*) from predictions where game_id <> ? and raw_p_home_win is null "
+        "and raw_margin_mu is null and raw_total_mu is null and rest is null", [game_id]
+    ).fetchone()
+    assert nulls == (2,)
+    # A rerun with the same ESPN list rewrites nothing
+    again = daily(con, settings, NOON_D1 + timedelta(hours=1))
+    assert again.provisional == 0 and again.unchanged == 3
+
+
+def test_a_preseason_game_without_a_snapshot_shows_the_model(
+    env: tuple[duckdb.DuckDBPyConnection, Settings],
+) -> None:
+    con, settings = env
+    game_id = add_preseason_game_on_d1(con)
+    con.execute("delete from espn_injury_fetches")
+    daily(con, settings, NOON_D1)
+    pre = records_by(predictions(con), "game_id")[game_id]
+    rest = json.loads(pre["rest"])
+    assert rest["adjusted"] is False and rest["note"] == "no ESPN snapshot before decision time"
+    assert pre["margin_mu"] == pre["raw_margin_mu"] and pre["p_home_win"] == pre["raw_p_home_win"]
