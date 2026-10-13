@@ -177,7 +177,7 @@ DuckDB tables: `games` (incl. `tip_off_utc`, `game_date_et`, `season_type`, `neu
 - **Final refit for live use:** after the holdout run, `avaris train --through` the end of 2025-26 (playoffs included) and promote it as the first production model. Hyperparameters are not retuned.
 - **Done when:** the report shows every metric with bootstrap confidence intervals against Elo and both naive baselines, calibration and interval coverage, for both the actual-availability and injury-report runs, plus the holdout. It states plainly where the model does not beat Elo. A production artifact trained through 2025-26 is in the registry.
 
-### Phase 5 — Daily pipeline + API (done, branch `phase-5-daily-pipeline-api`; see `docs/plans/phase-5-daily-pipeline-api.md`)
+### Phase 5 — Daily pipeline + API (done, PR #14; see `docs/plans/phase-5-daily-pipeline-api.md`)
 - `avaris daily`: refresh stats, schedule, rosters and injuries → retrain if the production model is stale → for every game today and any earlier game still missing a final prediction, write a provisional prediction before `decision_ts` or a final one after it. Idempotent: reruns change nothing unless new data arrived.
 - `avaris score`: results → per-game scores in `prediction_scores` for final predictions.
 - `avaris serve` runs `daily` once on startup; after that, `daily` runs from the UI Refresh button or the CLI.
