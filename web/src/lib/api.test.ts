@@ -39,6 +39,13 @@ describe("api client", () => {
     expect(init.body).toBe("{}");
     expect(new Headers(init.headers).get("content-type")).toBe("application/json");
   });
+  it("posts the stop request", async () => {
+    const fetchMock = mockFetch(202, { status: "stopping" });
+    expect(await api.stopServer()).toEqual({ status: "stopping" });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/server/stop");
+    expect(init.method).toBe("POST");
+  });
   it("joins FastAPI's validation messages", async () => {
     mockFetch(422, { detail: [{ loc: ["query", "date"], msg: "Input should be a valid date", type: "date_from_datetime_parsing" }] });
     const err = await api.predictions("nope").catch((e: unknown) => e);

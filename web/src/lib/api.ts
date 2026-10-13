@@ -68,6 +68,7 @@ export const api = {
   chartUrl: (name: string, chart: string) => apiUrl(`/api/backtests/${q(name)}/charts/${q(chart)}`),
   injuries: (date: string) => request<InjuriesOnDate>(`/api/injuries?date=${q(date)}`),
   job: (id: string) => request<Job>(`/api/jobs/${q(id)}`),
+  stopServer: () => request<{ status: string }>("/api/server/stop", { method: "POST" }),
   submitJob: (kind: JobKind, params: Record<string, unknown> = {}) =>
     request<Job>(`/api/jobs/${kind}`, {
       method: "POST",
