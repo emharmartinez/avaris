@@ -13,9 +13,10 @@ export class ApiError extends Error {
   }
 }
 
-// A request that never reached the server (fetch rejects with a TypeError)
-export const SERVER_DOWN =
-  "Server not running. Open Avaris from the Avaris Launcher, or run `uv run avaris serve`.";
+// A request that never reached the server: fetch rejects with a TypeError (server down, or
+// a CORS refusal when `next dev` talks to a server started without --dev)
+export const SERVER_DOWN = "Server not running or unreachable. Open Avaris from the Avaris "
+  + "Launcher, or run `uv run avaris serve` (`--dev` for `npm run dev`).";
 
 export function apiUrl(path: string): string {
   return `${API_BASE}${path}`;
