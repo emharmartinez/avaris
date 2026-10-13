@@ -89,7 +89,7 @@ uv run avaris serve          # open http://127.0.0.1:8000 in Chrome, then "Insta
 
 - **Pages:** Today (`/?date=`), Game (`/game/?id=`), Teams (`/teams/?id=`), Performance (`/performance/?season=`), Backtests (`/backtests/?name=`), Injuries (`/injuries/?date=`). The header's Refresh button runs `daily` as a server job and shows its progress.
 - `serve` serves `web/out` at `/` (`[server] web_dir`) next to the API; there is no Node server at runtime. A service worker caches the app shell, never `/api`.
-- **Performance drift:** live log loss and MAE per scope are compared with the 95% range of means of the same number of games resampled from a report-mode backtest (`[server] drift_reference`, default `evaluation_2021-22_2024-25`).
+- **Performance drift:** live log loss and MAE per scope are flagged when worse than the range of means of the same number of games resampled from a report-mode backtest (one-sided, about 1 false alarm in 20 per scope; `[server] drift_reference`, default `evaluation_2021-22_2024-25`).
 - **Dev:** `uv run avaris serve --dev` (CORS for loopback origins only) and, in `web/`, `NEXT_PUBLIC_API_BASE=http://localhost:8000 npm run dev`.
 
 ## Data

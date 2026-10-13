@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-12 ·
 - **Task:** Next.js static-export PWA in `web/` served by FastAPI: Today, Game, Teams, Performance, Backtests and Injuries pages, a Refresh button, a drift flag, Playwright E2E
-- **Status:** In progress
+- **Status:** Done (2026-10-12)
 - **Complexity**: `L`
 - **Estimate Points**: `8`
 
@@ -53,11 +53,11 @@
 | Dev CORS | `CORSMiddleware` with `allow_origin_regex` for loopback origins (`localhost`, `127.0.0.1`, `[::1]`, any port), methods GET/POST, header `content-type`, only when `server.dev_cors` is true (`avaris serve --dev`) | #13: dev only and loopback only, so it cannot reopen cross-site job posts |
 | Markdown | `react-markdown` + `remark-gfm`, no `rehype-raw` (raw HTML rendered as text) | #13 |
 | Charts in reports | `<img src="/api/backtests/{name}/charts/{chart}">` | served with `default-src 'none'`; an `<img>` never runs SVG script |
-| Drift flag | per scope (regular, preseason, postseason), the live mean log loss, `margin` MAE and `total` MAE over `n` scored games is compared with the 95% interval of `n`-game means resampled (2,000 draws, fixed seed) from the reference backtest's per-game errors (`model == "model"`, `availability == "report"`, same season types). Outside the interval = drift. Reference: `server.drift_reference`, default `evaluation_2021-22_2024-25` | the report's own CI is for a ~5,000-game mean and would flag any small live sample; the report-mode evaluation matches live availability and is not the holdout |
+| Drift flag | per scope (regular, preseason, postseason), the live mean log loss, `margin` MAE and `total` MAE over `n` scored games is compared with `n`-game means resampled (2,000 draws, fixed seed) from the reference backtest's per-game errors (`model == "model"`, `availability == "report"`, same season types). Worse than the `1 - 0.05/3` quantile = drift (one-sided, Bonferroni; ~5% false alarms per scope). Reference: `server.drift_reference`, default `evaluation_2021-22_2024-25` | the report's own CI is for a ~5,000-game mean and would flag any small live sample; the report-mode evaluation matches live availability and is not the holdout |
 | Today's date | `/api/health` gains `today` (ET date by the app clock) | the Injuries page and the frozen-clock E2E need the server's date |
 | Data fetching | TanStack Query, client components only; `NEXT_PUBLIC_API_BASE` (empty in prod) | static export rules |
 | UI kit | shadcn/ui (Card, Table, Badge, Tabs, Button, Select, Skeleton, Sidebar, Chart) on Tailwind v4; Recharts via the shadcn chart | build plan |
-| Service worker | hand-written `public/sw.js`: cache-first for `/_next/static/*` and icons, network-first with cache fallback for navigations, never touches `/api/*`; registered in production builds only | an app shell that opens offline, with data always live |
+| Service worker | hand-written `public/sw.js`: cache-first for `/_next/static/*` and icons, network-first with cache fallback for navigations (keyed by path), never touches `/api/*`; cache name stamped with the build id by `scripts/stamp-sw.mjs`; registered in production builds only | an app shell that opens offline, with data always live |
 | Icons | generated PNGs (192, 512, maskable 512) checked in | install criteria |
 | E2E server | `tests/fixtures/web_server.py`: builds the synthetic league, trains before D1, finalizes and scores D1, writes D2 provisionals, writes a small backtest report, then serves `create_app` (the same app as `avaris serve`) with a frozen clock and an offline `daily` runner via uvicorn on port 8765 | deviation from "against `avaris serve`": the fixture league is in 2021, so the clock must be frozen |
 | Test split | Vitest projects: `node` for `src/**/*.test.ts`, `jsdom` for `src/**/*.test.tsx`; msw for API mocks in component tests | CLAUDE.md |
@@ -82,7 +82,6 @@
 | File | Contents |
 | :--- | :------- |
 | `src/avaris/api/drift.py` | `reference_errors`, `drift` |
-| `src/avaris/api/static.py` | static mount helper |
 | `tests/unit/test_drift.py`, `tests/integration/test_api_web.py` | drift, static serving, CORS, health `today` |
 | `tests/fixtures/web_server.py` | E2E server |
 | `web/**` | the PWA, its tests, Playwright config and specs |
@@ -135,10 +134,10 @@
 
 ## 8. Acceptance Criteria
 
-- [ ] `npm run lint && npm run typecheck && npm run test && npm run build` and `npm run test:e2e` pass
-- [ ] `uv run ruff check && uv run pyright && uv run pytest` pass
-- [ ] Tests cover the CORS allow-list (loopback allowed, foreign origin refused, no CORS headers when off) and the markdown renderer (raw HTML shown as text) (#13)
-- [ ] The Performance page shows the drift flag
+- [x] `npm run lint && npm run typecheck && npm run test && npm run build` and `npm run test:e2e` pass
+- [x] `uv run ruff check && uv run pyright && uv run pytest` pass
+- [x] Tests cover the CORS allow-list (loopback allowed, foreign origin refused, no CORS headers when off) and the markdown renderer (raw HTML shown as text) (#13)
+- [x] The Performance page shows the drift flag
 - [ ] Every page renders with real data in Chrome from `avaris serve`
 - [ ] The app installs from Chrome and opens in its own window
 
@@ -146,14 +145,14 @@
 
 ## 9. Definition of Done
 
-- [ ] All gates green locally and in CI
-- [ ] Code review and security audit findings fixed or filed as issues
-- [ ] CHANGELOG, README, STATUS, ADR, CLAUDE.md and the build plan updated
+- [x] All gates green locally and in CI
+- [x] Code review and security audit findings fixed or filed as issues
+- [x] CHANGELOG, README, STATUS, ADR, CLAUDE.md and the build plan updated
 
 ## 10. Risks and Open Questions
 
 | Risk / question | Impact | Mitigation |
 | :-------------- | :----- | :--------- |
-| Service worker serves a stale shell after an update | old UI after a rebuild | cache name keyed by build; network-first navigations; `skipWaiting` + `clients.claim` |
+| Service worker serves a stale shell after an update | old UI after a rebuild | cache name stamped per build; network-first navigations; `skipWaiting` + `clients.claim` |
 | The `daily` job on Refresh runs 1-2 min with network | the UI looks stuck | poll the job, show its log line and a spinner, disable the button while it runs |
 | Synthetic fixture lacks some shapes (null injuries, unknown teams) | untested UI branches | component tests with msw cover them |
