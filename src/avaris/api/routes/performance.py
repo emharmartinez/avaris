@@ -2,7 +2,8 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
 
-from avaris.api.deps import AppClock, Cursor, rows
+from avaris.api.deps import AppClock, AppSettings, Cursor, rows
+from avaris.api.drift import drift_scopes, reference_errors, reference_path
 from avaris.seasons import et_date, season_for_date
 
 router = APIRouter(prefix="/api/performance", tags=["performance"])
@@ -27,7 +28,7 @@ where g.season = ? and g.season_type in {types}
 
 @router.get("")
 def performance(
-    cur: Cursor, clock: AppClock,
+    cur: Cursor, clock: AppClock, settings: AppSettings,
     season: Annotated[str | None, Query(pattern=r"^[0-9]{4}-[0-9]{2}$")] = None,
 ) -> dict[str, Any]:
     # Live scores of final predictions, season to date; headline scope is the regular season
@@ -38,4 +39,9 @@ def performance(
         select distinct g.season from prediction_scores s join games g using (game_id)
         order by 1 desc
     """)]
-    return {"season": season, "scopes": scopes, "seasons": seasons}
+    # Drift: live metrics against the reference backtest's range for the same number of games
+    name = settings.server.drift_reference
+    path = reference_path(settings.models.reports_dir, name)
+    ref = reference_errors(path) if path else None
+    drift = {"reference": name, "scopes": drift_scopes(ref, scopes)} if ref else None
+    return {"season": season, "scopes": scopes, "seasons": seasons, "drift": drift}

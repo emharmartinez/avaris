@@ -1,10 +1,21 @@
 # Status
 
-- **Phase:** Phase 5 done (daily pipeline + API) on branch `phase-5-daily-pipeline-api`, PR #14 open. Phase 4 merged (PR #10), Phase 3 merged (PR #8), Phase 2 merged (PR #5), Phase 1 merged (PR #2)
+- **Phase:** Phase 6 (desktop PWA) built and reviewed on branch `phase-6-desktop-pwa`; install check is manual. Phase 5 merged (PR #14), Phase 4 merged (PR #10), Phase 3 merged (PR #8), Phase 2 merged (PR #5), Phase 1 merged (PR #2)
 - **Pivot (2026-10-12):** Avaris is now an analytics model, not a betting model; The Odds API is dropped (ADR-014)
-- **Plan:** `docs/plans/avaris-nba-analytics-model-build-plan.md`; phase detail in `docs/plans/phase-3-features-models.md`, `docs/plans/phase-4-evaluation-analytics.md` and `docs/plans/phase-5-daily-pipeline-api.md`
-- **Next:** merge PR #14, then Phase 6 (desktop PWA)
+- **Plan:** `docs/plans/avaris-nba-analytics-model-build-plan.md`; phase detail in `docs/plans/phase-3-features-models.md`, `docs/plans/phase-4-evaluation-analytics.md`, `docs/plans/phase-5-daily-pipeline-api.md` and `docs/plans/phase-6-desktop-pwa.md`
+- **Next:** install the PWA from Chrome (manual check), merge PR #16
 - **Important!** The 2026-27 season starts in late October 2026. Live predictions need Phases 1-5 done, including the final refit through 2025-26.
+
+## Phase 6 results (2026-10-12)
+
+- **Done-when:** lint, typecheck, Vitest (97), build and Playwright E2E (13) pass. All six pages rendered with real data in Windows Chrome from `avaris serve` on 127.0.0.1:8000, with a clean console. Refresh ran a real `daily` (about 100 s) and updated the page. The app is installable (manifest, active service worker, `beforeinstallprompt` fired); **the install itself needs a manual click**
+- **#13:** loopback-only dev CORS, markdown without raw HTML, SVG charts via `<img>`, drift flag on Performance
+- **Reviews:**
+  - Code review: fixed stale-job adoption, the drift false-alarm rate (now one-sided Bonferroni, ADR-019), service-worker cache growth and versioning, errors replacing loaded data, ET times, and 422 messages; added tests for refresh invalidation and offline use
+  - Security audit: added anti-framing and nosniff headers, the host check now runs before CORS, an unreadable drift reference no longer breaks Performance, and the shadcn CLI moved to devDependencies (prod `npm audit`: 0)
+- **UI check fixes:** page-wide overflow on wide tables, repeated axis labels, a clipped chart label
+- **Gates:** ruff clean, pyright 0 errors, pytest all passed
+- **Follow-ups:** #15 (Injuries omits games without a prediction); `eslint-config-next` dev-only `braces` advisory accepted (no non-breaking fix)
 
 ## Phase 5 results (2026-10-12)
 

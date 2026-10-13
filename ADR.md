@@ -2,6 +2,21 @@
 
 One entry per binding decision. Newest first. Status is `accepted`, `superseded` or `proposed`.
 
+## ADR-019: The PWA is a static export served by the API; drift is judged against resampled n-game means
+
+- **Date:** 2026-10-12 · **Status:** accepted
+- **Decision:**
+  - `web/` is a Next.js 16 static export (`output: 'export'`, `trailingSlash: true`). `avaris serve` mounts `web/out` at `/` after the API routes; unknown `/api/*` paths are JSON 404s, unknown pages get `404.html`. Detail views use query params (`/game/?id=`), so no `generateStaticParams`. Fonts are system stacks, so builds never touch the network.
+  - CORS is off by default. `avaris serve --dev` allows only loopback origins (`localhost`, `127.0.0.1`, `[::1]`, any port; anchored regex), GET and POST, header `content-type`, for `next dev` on another port; any page on another loopback port can then read the API. Job posts keep the Phase 5 cross-site guard, and the host check runs before CORS.
+  - Every response carries `frame-ancestors 'none'`, `X-Frame-Options: DENY` and `nosniff`, so no page can frame the app and clickjack Refresh (headers come from FastAPI; a static export cannot set them).
+  - Backtest reports render with `react-markdown` + `remark-gfm` and no raw HTML; links other than http(s) and anchors are dropped. Charts load through `<img>` (served with `default-src 'none'`).
+  - A hand-written service worker caches the app shell: hashed `/_next/static` assets and icons cache-first, pages network-first (one entry per path) with a cached fallback, `/api` never cached. `npm run build` stamps the build id into its cache name, so a new build replaces the old cache. It registers in production builds only.
+  - **Drift:** per scope, the live mean log loss, `margin` MAE and `total` MAE over `n` scored games are flagged when worse than the `1 - 0.05/3` quantile of 2,000 means of `n` games resampled (fixed seed) from the reference backtest's per-game errors: kept model, `availability = report`, same season types. One-sided (better than the reference is not drift) with a Bonferroni split over the three metrics: about 5% false alarms per scope at one look; looking daily over a season still raises the odds of one false flag. Reference: `[server] drift_reference` (a report name), default `evaluation_2021-22_2024-25` (not the holdout); a missing or unreadable reference drops only the drift block.
+  - `/api/health` reports the app clock (`now`, `today`), so the UI's dates and countdowns follow the server.
+  - Playwright runs against `tests/fixtures/web_server.py`: the app `avaris serve` builds (`create_app`), on the synthetic league, with the clock frozen at 2021-11-27 17:00 UTC and `daily` forced offline. Deviation from "E2E against `avaris serve`": the fixture league's games are in 2021.
+- **Why:** one local process and no Node runtime; the browser can only reach the API from the app's own origin. A report's bootstrap CI describes a mean over ~5,000 games and would flag almost any 30-game live sample; resampling at the live `n` asks the right question.
+- **Consequences:** `npm run build` must run before `serve` shows the app (the API works without it). E2E does not cover the real clock or network refresh. The drift range ignores era shifts between the reference seasons and now.
+
 ## ADR-018: Live predictions are provisional until tip-off - 60 min, final once, and never from a model that saw the game
 
 - **Date:** 2026-10-12 · **Status:** accepted

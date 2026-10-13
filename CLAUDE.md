@@ -24,7 +24,7 @@ uv run avaris ...                              # Typer CLI (ingest, features, tu
 
 ```
 npm run lint && npm run typecheck && npm run test && npm run build
-npm run test:e2e                               # Playwright, against `avaris serve` on the fixture DB
+npm run test:e2e                               # builds, then Playwright against tests/fixtures/web_server.py (frozen clock, synthetic league)
 npx vitest run path/to/file.test.tsx           # single unit test
 ```
 

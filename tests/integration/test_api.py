@@ -1,3 +1,4 @@
+import math
 import shutil
 import threading
 from collections.abc import Iterator
@@ -6,11 +7,12 @@ from pathlib import Path
 from typing import Any
 
 import duckdb
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
 from avaris.api.main import create_app
-from avaris.config import Settings
+from avaris.config import ServerSettings, Settings
 from avaris.db import connect
 from avaris.pipeline.daily import run_daily
 from tests.fixtures.live import D1, D2, models_settings, train_before_d1
@@ -262,3 +264,62 @@ def test_teams_lists_nba_teams_only(
     con.execute("insert into team_ratings (team_id, game_id, as_of_ts, season, elo) "
                 "values (50015, 'x', '2021-11-27 10:00', '2021-22', 1500)")
     assert 50015 not in {t["team_id"] for t in get(client, "/api/teams")}
+
+
+def test_performance_drift_against_the_reference_backtest(
+    env: tuple[duckdb.DuckDBPyConnection, Settings]
+) -> None:
+    con, settings = env
+    reference = settings.models.reports_dir / "evaluation_2021-22_2024-25"
+    reference.mkdir(parents=True)
+    rows_ = [{"game_id": f"g{i}", "season": "2021-22", "season_type": "regular", "y": y,
+              "pred": p, "target": t, "model": "model", "availability": "report"}
+             for i in range(40)
+             for t, y, p in (("home_win", i % 2, 0.5), ("margin", 0.0, 2.0),
+                             ("total", 200.0, 260.0))]
+    pd.DataFrame(rows_).to_csv(reference / "predictions.csv.gz", index=False)
+    app = create_app(settings, con=con, daily_on_startup=False, clock=lambda: NOON_D2)
+    with TestClient(app, base_url="http://127.0.0.1:8000") as c:
+        body = get(c, "/api/performance")
+    drift = body["drift"]
+    assert drift["reference"] == "evaluation_2021-22_2024-25"
+    regular = drift["scopes"]["regular"]
+    assert regular["n"] == 2
+    assert regular["log_loss"]["lo"] == pytest.approx(math.log(2))
+    assert regular["margin_mae"]["lo"] == regular["margin_mae"]["hi"] == 2.0
+    assert regular["total_mae"]["drift"] is False  # far better than the reference is not drift
+    assert regular["log_loss"]["drift"] is (regular["log_loss"]["live"] > math.log(2))
+    assert drift["scopes"]["preseason"] is None
+
+
+def test_performance_drift_without_a_reference(client: TestClient) -> None:
+    assert get(client, "/api/performance")["drift"] is None
+
+
+@pytest.mark.parametrize("content", ["not,a,reference\n1,2,3\n", None])
+def test_performance_drift_with_an_unreadable_reference(
+    env: tuple[duckdb.DuckDBPyConnection, Settings], content: str | None
+) -> None:
+    con, settings = env
+    reference = settings.models.reports_dir / "evaluation_2021-22_2024-25"
+    reference.mkdir(parents=True)
+    path = reference / "predictions.csv.gz"
+    if content is None:
+        path.write_bytes(b"\x1f\x8b broken gzip")
+    else:
+        path.write_text(content)
+    app = create_app(settings, con=con, daily_on_startup=False, clock=lambda: NOON_D2)
+    with TestClient(app, base_url="http://127.0.0.1:8000") as c:
+        body = get(c, "/api/performance")
+    assert body["drift"] is None
+    assert body["scopes"]["regular"]["n"] == 2
+
+
+def test_performance_drift_reference_must_be_a_report_name(
+    env: tuple[duckdb.DuckDBPyConnection, Settings]
+) -> None:
+    con, settings = env
+    settings = settings.model_copy(update={"server": ServerSettings(drift_reference="../x")})
+    app = create_app(settings, con=con, daily_on_startup=False, clock=lambda: NOON_D2)
+    with TestClient(app, base_url="http://127.0.0.1:8000") as c:
+        assert get(c, "/api/performance")["drift"] is None

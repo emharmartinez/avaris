@@ -1,6 +1,6 @@
 # Avaris
 
-Personal, single-user, local-only NBA analytics model. It predicts each game's home win probability, margin and total (with 80% intervals), explains each prediction, and tracks team ratings and injury impact. It is evaluated with proper scoring rules against Elo and naive baselines.
+Personal, single-user, local-only NBA analytics model. It predicts each game's home win probability, margin and total (with 80% intervals), explains each prediction, and tracks team ratings and injury impact. It is evaluated with proper scoring rules against Elo and naive baselines. A desktop PWA shows it all.
 
 - **Plan:** `docs/plans/avaris-nba-analytics-model-build-plan.md`
 - **Status:** `STATUS.md` · **Decisions:** `ADR.md` · **Changes:** `CHANGELOG.md`
@@ -10,6 +10,7 @@ Personal, single-user, local-only NBA analytics model. It predicts each game's h
 ```
 uv sync
 uv run avaris db init
+cd web && npm ci && npm run build   # the PWA, served by `avaris serve`
 ```
 
 Configuration lives in `config.toml`. Any value can be overridden with an env var, e.g. `AVARIS_STATS__REFETCH_DAYS=3`.
@@ -79,6 +80,18 @@ uv run avaris serve --no-daily
 - **Endpoints:** `GET /api/health`, `/api/predictions/today`, `/api/predictions?date=`, `/api/games/{game_id}`, `/api/teams`, `/api/teams/{team_id}`, `/api/performance`, `/api/backtests`, `/api/injuries?date=`, `/api/jobs`, `/api/jobs/{job_id}`. Timestamps are UTC with a `Z`.
 - **Important!** `model.joblib` is checked against the `model_sha256` in `meta.json` before loading. An artifact written before the hash existed is sealed with `avaris train --promote RUN_ID --target <t>`.
 
+## Desktop app (PWA)
+
+```
+cd web && npm run build      # static export to web/out
+uv run avaris serve          # open http://127.0.0.1:8000 in Chrome, then "Install app"
+```
+
+- **Pages:** Today (`/?date=`), Game (`/game/?id=`), Teams (`/teams/?id=`), Performance (`/performance/?season=`), Backtests (`/backtests/?name=`), Injuries (`/injuries/?date=`). The header's Refresh button runs `daily` as a server job and shows its progress.
+- `serve` serves `web/out` at `/` (`[server] web_dir`) next to the API; there is no Node server at runtime. A service worker caches the app shell, never `/api`.
+- **Performance drift:** live log loss and MAE per scope are flagged when worse than the range of means of the same number of games resampled from a report-mode backtest (one-sided, about 1 false alarm in 20 per scope; `[server] drift_reference`, default `evaluation_2021-22_2024-25`).
+- **Dev:** `uv run avaris serve --dev` (CORS for loopback origins only) and, in `web/`, `NEXT_PUBLIC_API_BASE=http://localhost:8000 npm run dev`.
+
 ## Data
 
 DuckDB at `data/avaris.duckdb` (gitignored):
@@ -107,5 +120,15 @@ uv run pyright
 uv run pytest                 # unit, integration and e2e
 uv run pytest -m e2e          # CLI end-to-end only
 ```
+
+Web, from `web/` (npm needs `--cache "$TMPDIR/npm-cache"` in the sandbox):
+
+```
+npm run lint && npm run typecheck && npm run test && npm run build
+npm run test:e2e              # Playwright against tests/fixtures/web_server.py (frozen clock)
+```
+
+- Vitest runs `*.test.ts` in `node` and `*.test.tsx` (components) in `jsdom`; msw mocks the API.
+- `test:e2e` builds the export, then starts the API on the synthetic league with the clock frozen at 2021-11-27 17:00 UTC.
 
 Tests never hit the network: they use trimmed recorded responses in `tests/fixtures/stats/`, regenerated from the cache with `uv run python tests/fixtures/make_stats_fixtures.py`, and two recorded injury PDFs in `tests/fixtures/injuries/`.

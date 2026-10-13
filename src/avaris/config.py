@@ -80,6 +80,9 @@ class ServerSettings(BaseModel):
     host: str = "127.0.0.1"  # local-only
     port: int = 8000
     daily_on_startup: bool = True
+    dev_cors: bool = False  # `serve --dev`: CORS for loopback origins (next dev on :3000)
+    web_dir: Path = Path("web/out")  # the PWA's static export, served at /
+    drift_reference: str = "evaluation_2021-22_2024-25"  # report-mode backtest for drift
 
 
 class Settings(BaseSettings):

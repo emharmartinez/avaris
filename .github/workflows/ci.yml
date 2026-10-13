@@ -37,3 +37,37 @@ jobs:
       # Tests never touch the network: recorded responses in tests/fixtures/
       - name: Pytest (unit, integration, e2e)
         run: uv run pytest
+
+  web:
+    name: Web (lint, typecheck, vitest, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Unit (node) and component (jsdom) tests; msw mocks the API
+      - name: Vitest
+        run: npm run test
+
+      - name: Build (static export)
+        run: npm run build

@@ -3,7 +3,9 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import duckdb
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from avaris.api.deps import LOOPBACK_HOSTS, Cursor, Jobs, json_value
@@ -11,9 +13,19 @@ from avaris.api.routes import backtests, games, injuries, jobs, performance, pre
 from avaris.config import Settings
 from avaris.db import connect
 from avaris.pipeline.jobs import Clock, JobManager, JobRunner, default_runners, utc_now
+from avaris.seasons import et_date
 
 # Local-only: no traces, metrics or logs leave the process
 TELEMETRY_OFF: Any = {"tracing": False, "metrics": False, "logs": False, "auto_configure": False}
+# `next dev` on another loopback port; anchored so localhost.evil.example does not match
+LOOPBACK_ORIGIN = r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:[0-9]+)?$"
+# No page may frame the app (a framed Refresh button could be clickjacked); setdefault keeps
+# the charts' stricter CSP
+SECURITY_HEADERS = {
+    "Content-Security-Policy": "frame-ancestors 'none'",
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+}
 
 
 def create_app(
@@ -44,7 +56,20 @@ def create_app(
             connection.close()
 
     app = FastAPI(title="Avaris", lifespan=lifespan, telemetry=TELEMETRY_OFF)
-    # DNS rebinding: a remote page resolved to 127.0.0.1 still sends its own host name
+
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next: Any) -> Response:
+        response: Response = await call_next(request)
+        for name, value in SECURITY_HEADERS.items():
+            response.headers.setdefault(name, value)
+        return response
+
+    if settings.server.dev_cors:
+        # Dev only: job posts from loopback origins are already allowed (not_cross_site)
+        app.add_middleware(CORSMiddleware, allow_origin_regex=LOOPBACK_ORIGIN,
+                           allow_methods=["GET", "POST"], allow_headers=["content-type"])
+    # Added last, so it runs first (preflights included). DNS rebinding: a remote page
+    # resolved to 127.0.0.1 still sends its own host name
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=sorted(LOOPBACK_HOSTS))
     for module in (predictions, games, teams, performance, backtests, injuries, jobs):
         app.include_router(module.router)
@@ -54,6 +79,17 @@ def create_app(
         row = cur.execute("select max(version) from schema_version").fetchone()
         current = jobs.current
         job = {k: json_value(v) for k, v in current.public().items()} if current else None
-        return {"status": "ok", "schema_version": row[0] if row else None, "job": job}
+        now = app.state.clock()
+        return {"status": "ok", "schema_version": row[0] if row else None,
+                "now": json_value(now), "today": et_date(now).isoformat(), "job": job}
 
+    @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+                   include_in_schema=False)
+    def unknown_api(path: str) -> None:
+        # Before the static mount, so an API typo is a JSON 404 rather than the 404 page
+        raise HTTPException(404, f"no endpoint /api/{path}")
+
+    if settings.server.web_dir.is_dir():
+        # The PWA's static export (trailingSlash: /game/ is game/index.html; 404.html)
+        app.mount("/", StaticFiles(directory=settings.server.web_dir, html=True), name="web")
     return app

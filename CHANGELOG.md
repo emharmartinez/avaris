@@ -9,6 +9,12 @@
 - **Phase 2, odds removal (ADR-014):** The Odds API client, `CreditGuard`, snapshot slot planner, odds backfill, `avaris odds` CLI group, odds and guard settings, and de-vig (`betting/`). Migration 4 drops `odds_events`, `odds_snapshots` and `api_usage`
 
 ### Added
+- **Phase 6, desktop PWA (ADR-019)**
+  - `web/`: Next.js 16 static export with shadcn/ui, TanStack Query and Recharts: Today (provisional or final, countdown to final, win probability, margin and total with 80% intervals, injury impact, top drivers), Game (distribution charts, all drivers, injury reports, rating trends, score), Teams, Performance (season to date, drift flag), Backtests (markdown without raw HTML, SVG charts), Injuries; a Refresh button that runs `daily` and shows its progress
+  - PWA: manifest, icons, service worker caching the app shell (never `/api`)
+  - `avaris serve` serves `web/out` at `/`; unknown `/api/*` paths are JSON 404s; `serve --dev` allows CORS from loopback origins only (#13)
+  - `/api/performance` gains `drift` (live metrics vs the reference backtest's resampled n-game range); `/api/health` gains `now` and `today`
+  - Tests: Vitest (node for logic, jsdom for components, msw), Playwright E2E for every page and the Refresh flow on a frozen-clock fixture server; CI web job (lint, typecheck, Vitest, build)
 - **Phase 5, daily pipeline + API**
   - `avaris daily [--offline]`: source refresh, features, provisional and final predictions with drivers and injury impact, catch-up of missed games, retrain when stale, scoring; idempotent (ADR-018)
   - `avaris score`: `prediction_scores` per final prediction (log loss, Brier, errors, 80% interval hits, PIT)
