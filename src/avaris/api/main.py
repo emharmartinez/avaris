@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.types import Scope
 
 from avaris.api.deps import LOOPBACK_HOSTS, Cursor, Jobs, json_value
 from avaris.api.routes import backtests, games, injuries, jobs, performance, predictions, teams
@@ -19,6 +20,21 @@ from avaris.seasons import et_date
 TELEMETRY_OFF: Any = {"tracing": False, "metrics": False, "logs": False, "auto_configure": False}
 # `next dev` on another loopback port; anchored so localhost.evil.example does not match
 LOOPBACK_ORIGIN = r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:[0-9]+)?$"
+# Pages revalidate on every load: a page cached from an older build asks for chunks the
+# rebuild deleted. Build assets under _next/static/ have hashed names, so never change
+PAGE_CACHE = "no-cache"
+ASSET_CACHE = "public, max-age=31536000, immutable"
+
+
+class WebFiles(StaticFiles):
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        response = await super().get_response(path, scope)
+        # A missing chunk's 404 page must not be cached for a year
+        immutable = path.startswith("_next/static/") and response.status_code in (200, 304)
+        response.headers["Cache-Control"] = ASSET_CACHE if immutable else PAGE_CACHE
+        return response
+
+
 # No page may frame the app (a framed Refresh button could be clickjacked); setdefault keeps
 # the charts' stricter CSP
 SECURITY_HEADERS = {
@@ -91,5 +107,5 @@ def create_app(
 
     if settings.server.web_dir.is_dir():
         # The PWA's static export (trailingSlash: /game/ is game/index.html; 404.html)
-        app.mount("/", StaticFiles(directory=settings.server.web_dir, html=True), name="web")
+        app.mount("/", WebFiles(directory=settings.server.web_dir, html=True), name="web")
     return app

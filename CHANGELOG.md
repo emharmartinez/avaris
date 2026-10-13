@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixed
+- The app could hang after a rebuild: pages had no `Cache-Control`, so Chrome reused an old page whose scripts the rebuild deleted. Pages are now `no-cache`, hashed `_next/static/` assets `immutable`, and the service worker revalidates pages
+
 ### Added
 - `scripts/avaris-launch.ps1`: Windows launcher that starts `avaris serve` in WSL when needed, then opens the installed PWA; `-Install` adds a Start menu shortcut, `-Stop` stops the server
 - The PWA says "Server not running" instead of a fetch error when the API is unreachable

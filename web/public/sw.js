@@ -22,7 +22,8 @@ self.addEventListener("activate", (event) => {
 async function networkFirst(request) {
   const cache = await caches.open(CACHE);
   try {
-    const response = await fetch(request);
+    // Revalidate past the HTTP cache: a stale page asks for chunks a rebuild deleted
+    const response = await fetch(request, { cache: "no-cache" });
     // One entry per page: /game/?id=... is cached as /game/
     if (response.ok && !response.redirected) {
       cache.put(new URL(request.url).pathname, response.clone());

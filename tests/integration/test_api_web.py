@@ -20,6 +20,8 @@ def make_web(root: Path) -> Path:
     (web / "game" / "index.html").write_text("<html>game</html>")
     (web / "404.html").write_text("<html>not found</html>")
     (web / "sw.js").write_text("self.addEventListener('fetch', () => {})")
+    (web / "_next" / "static" / "chunks").mkdir(parents=True)
+    (web / "_next" / "static" / "chunks" / "a1b2.js").write_text("// chunk")
     return web
 
 
@@ -62,6 +64,15 @@ def test_serves_the_static_export(web_client: TestClient) -> None:
     assert missing.status_code == 404 and missing.text == "<html>not found</html>"
     assert web_client.get("/sw.js").status_code == 200
     assert web_client.get("/api/health").json()["status"] == "ok"
+
+
+def test_pages_revalidate_and_hashed_assets_are_immutable(web_client: TestClient) -> None:
+    # A heuristically cached page from an older build asks for chunks that no longer exist
+    for path in ("/", "/game/?id=0022100001", "/sw.js", "/nope/", "/_next/static/chunks/gone.js"):
+        assert web_client.get(path).headers["cache-control"] == "no-cache", path
+    chunk = web_client.get("/_next/static/chunks/a1b2.js")
+    assert chunk.headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert "cache-control" not in web_client.get("/api/health").headers
 
 
 def test_unknown_api_paths_are_json_404s(web_client: TestClient) -> None:
