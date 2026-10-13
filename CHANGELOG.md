@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Changed
+- The PWA is dark only: shadcn dark theme on `<html>`, `color-scheme: dark`, dark manifest splash and title bar, and a reversed gray chart ramp so every series stays visible on dark cards
+
 ### Security
 - `model.joblib` is verified against `model_sha256` in `meta.json` before loading; unhashed artifacts are sealed by a manual promote (#6)
 
