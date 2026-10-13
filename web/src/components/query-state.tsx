@@ -9,17 +9,7 @@ export function QueryState<T>({ query, children, label = "data" }: {
   children: (data: T) => React.ReactNode;
   label?: string;
 }) {
-  if (query.error && query.data !== undefined) {
-    return (
-      <>
-        <p role="alert" className="mb-3 text-sm text-destructive">
-          Could not refresh {label}: {query.error.message}
-        </p>
-        {children(query.data)}
-      </>
-    );
-  }
-  if (query.error) {
+  if (query.error && query.data === undefined) {
     return (
       <Alert variant="destructive">
         <AlertCircle />
@@ -36,7 +26,18 @@ export function QueryState<T>({ query, children, label = "data" }: {
       </div>
     );
   }
-  return <>{children(query.data)}</>;
+  // One shape with or without the alert, so a failing refetch never remounts the children
+  // (and wipes their state)
+  return (
+    <>
+      {query.error ? (
+        <p role="alert" className="mb-3 text-sm text-destructive">
+          Could not refresh {label}: {query.error.message}
+        </p>
+      ) : null}
+      {children(query.data)}
+    </>
+  );
 }
 
 export function PageHeader({ title, description, children }: {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalCurve, normalPdf } from "./distribution";
+import { normalCdf, normalCurve, normalPdf } from "./distribution";
 
 describe("normal distribution", () => {
   it("has the standard normal density at the mean", () => {
@@ -14,5 +14,13 @@ describe("normal distribution", () => {
     expect(curve[30]).toMatchObject({ x: 0 });
     expect(curve[30].band).toBeCloseTo(curve[30].density);
     expect(curve[0].band).toBeNull();
+  });
+  it("has the standard normal CDF, symmetric about the mean", () => {
+    expect(normalCdf(0, 0, 1)).toBeCloseTo(0.5, 7);
+    expect(normalCdf(1.959964, 0, 1)).toBeCloseTo(0.975, 6);
+    expect(normalCdf(-1, 0, 1)).toBeCloseTo(0.158655, 6);
+    expect(normalCdf(12, 10, 2)).toBeCloseTo(0.841345, 6);
+    expect(normalCdf(-3, 0, 1) + normalCdf(3, 0, 1)).toBeCloseTo(1, 7);
+    expect(normalCdf(-40, 0, 1)).toBeGreaterThanOrEqual(0);
   });
 });
