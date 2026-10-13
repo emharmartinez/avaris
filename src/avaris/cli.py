@@ -14,6 +14,7 @@ from avaris.config import DEFAULT_CONFIG_PATH, ModelsSettings, Settings, load_se
 from avaris.db import connect
 from avaris.features.build import build_features, feature_hash, write_features
 from avaris.ingest.injuries import ingest_injuries
+from avaris.ingest.preseason_logs import FIRST_PRESEASON_LOG_SEASON, ingest_preseason_logs
 from avaris.ingest.runner import ingest_stats
 from avaris.ingest.status import check_injuries, check_report, injury_report, season_report
 from avaris.models.dataset import with_targets
@@ -146,6 +147,29 @@ def ingest_injuries_command(
         f"Done: {summary.reports} reports, {summary.entries} entries, "
         f"{summary.unmatched_players} unmatched player rows, {client.requests_made} requests"
     )
+
+
+@ingest_app.command("preseason-logs")
+def ingest_preseason_logs_command(
+    ctx: typer.Context,
+    from_season: Annotated[
+        str, typer.Option("--from", help="First season, e.g. 2014-15.")
+    ] = FIRST_PRESEASON_LOG_SEASON,
+    to_season: Annotated[
+        str | None, typer.Option("--to", help="Last season (default: the evaluation window's).")
+    ] = None,
+) -> None:
+    # Preseason player box scores from stats.nba.com, for `avaris rest-fit` only (ADR-022)
+    settings: Settings = ctx.obj
+    seasons = season_range(from_season, to_season or settings.models.eval_last_season)
+    client = make_stats_client(settings)
+    con = connect(settings.paths.db_path)
+    try:
+        rows = ingest_preseason_logs(con, client, seasons, today=today_et(), progress=typer.echo)
+    finally:
+        client.close()
+        con.close()
+    typer.echo(f"Done: {rows} preseason player-games, {client.requests_made} requests")
 
 
 @ingest_app.command("status")

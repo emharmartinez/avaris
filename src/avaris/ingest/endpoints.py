@@ -2,6 +2,8 @@ from datetime import date
 
 # stats.nba.com SeasonType values pulled per season; IST is only used for the Cup final ("006")
 LOG_SEASON_TYPES = ("Regular Season", "Playoffs", "PlayIn", "IST")
+# Preseason player logs go to their own table, never player_games (ADR-022)
+PRESEASON_LOG_TYPE = "Pre Season"
 FIRST_PLAY_IN_SEASON = "2019-20"  # the 2020 bubble had one play-in game
 FIRST_CUP_SEASON = "2023-24"
 
