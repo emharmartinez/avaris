@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "NEXT_TELEMETRY_DISABLED=1 next build && node scripts/stamp-sw.mjs",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "npm run build && playwright test"
   },
