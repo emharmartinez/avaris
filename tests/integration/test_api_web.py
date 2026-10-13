@@ -51,6 +51,7 @@ def plain_client(tmp_path: Path) -> Iterator[TestClient]:
 def test_health_reports_today_by_the_app_clock(plain_client: TestClient) -> None:
     body = plain_client.get("/api/health").json()
     assert body["today"] == "2021-11-26"
+    assert body["now"] == "2021-11-27T03:30:00Z"
 
 
 def test_serves_the_static_export(web_client: TestClient) -> None:

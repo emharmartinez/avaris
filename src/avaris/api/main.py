@@ -63,8 +63,9 @@ def create_app(
         row = cur.execute("select max(version) from schema_version").fetchone()
         current = jobs.current
         job = {k: json_value(v) for k, v in current.public().items()} if current else None
+        now = app.state.clock()
         return {"status": "ok", "schema_version": row[0] if row else None,
-                "today": et_date(app.state.clock()).isoformat(), "job": job}
+                "now": json_value(now), "today": et_date(now).isoformat(), "job": job}
 
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
                    include_in_schema=False)
