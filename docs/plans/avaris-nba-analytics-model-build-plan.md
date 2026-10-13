@@ -184,7 +184,7 @@ DuckDB tables: `games` (incl. `tip_off_utc`, `game_date_et`, `season_type`, `neu
 - FastAPI read endpoints for predictions (today and by date), a game's detail (prediction, drivers, injuries, team ratings), teams, performance, backtests and injuries; `POST /api/jobs/{daily,score,train}` with `job_id`, status endpoint and the single-job lock. The single-writer connection model described above.
 - **Done when:** API tests pass (FastAPI TestClient), the pipeline E2E test passes (train → daily before and after `decision_ts` → score on fixtures with a frozen clock), and on a game day `avaris daily` then `GET /api/predictions/today` returns that day's games with `p_home_win`, margin and total μ with 80% intervals, top drivers and `status`.
 
-### Phase 6 — Desktop PWA
+### Phase 6 — Desktop PWA (done, see `docs/plans/phase-6-desktop-pwa.md`)
 - Next.js App Router + TS + Tailwind v4, `output: 'export'` so it builds to static files in `web/out` (no Node server at runtime).
   - Static export rules: client-side data fetching (TanStack Query against `/api`), no server actions or route handlers, no dynamic segments without `generateStaticParams` (use query params for detail views, e.g. `/game?id=...`).
   - In dev, `next dev` (port 3000) calls FastAPI at `localhost:8000` via `NEXT_PUBLIC_API_BASE`, with CORS allowed for `localhost:3000` (dev only). In prod the base is empty (same origin).
