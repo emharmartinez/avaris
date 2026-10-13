@@ -42,6 +42,8 @@ jobs:
     name: Web (lint, typecheck, vitest, build)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
     defaults:
       run:
         working-directory: web
