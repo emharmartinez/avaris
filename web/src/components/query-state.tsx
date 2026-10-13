@@ -3,12 +3,22 @@ import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Loading skeleton, error alert, or the data
+// Loading skeleton, error alert, or the data; a failed background refetch keeps the data
 export function QueryState<T>({ query, children, label = "data" }: {
   query: Pick<UseQueryResult<T>, "data" | "error" | "isPending">;
   children: (data: T) => React.ReactNode;
   label?: string;
 }) {
+  if (query.error && query.data !== undefined) {
+    return (
+      <>
+        <p role="alert" className="mb-3 text-sm text-destructive">
+          Could not refresh {label}: {query.error.message}
+        </p>
+        {children(query.data)}
+      </>
+    );
+  }
   if (query.error) {
     return (
       <Alert variant="destructive">

@@ -97,7 +97,8 @@ function DriftCard({ drift }: { drift: Performance["drift"] }) {
         <CardHeader>
           <CardTitle id="drift-title">Drift</CardTitle>
           <CardDescription>
-            Live mean against the 95% range of n-game means resampled from the reference backtest
+            Drift when a live mean is worse than the range of n-game means resampled from the
+            reference backtest (one-sided, about 1 false alarm in 20 per scope)
             {drift && <> (<code className="text-xs">{drift.reference}</code>)</>}.
           </CardDescription>
         </CardHeader>
@@ -111,7 +112,7 @@ function DriftCard({ drift }: { drift: Performance["drift"] }) {
                   <TableHead>Metric</TableHead>
                   <TableHead className="text-right">Games</TableHead>
                   <TableHead className="text-right">Live</TableHead>
-                  <TableHead className="text-right">95% range</TableHead>
+                  <TableHead className="text-right">Reference range</TableHead>
                   <TableHead>Flag</TableHead>
                 </TableRow>
               </TableHeader>

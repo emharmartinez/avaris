@@ -5,11 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig,
 } from "@/components/ui/chart";
-import { teamLabel } from "@/lib/format";
+import { ET, teamLabel } from "@/lib/format";
 import { mergeRatings } from "@/lib/game";
 import type { GameDetail } from "@/lib/types";
 
-const shortDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+const shortDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: ET });
 const tickDate = (ts: string) => shortDate.format(new Date(ts));
 
 // Elo and net rating of both teams up to this game, as of each rating snapshot

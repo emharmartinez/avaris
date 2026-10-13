@@ -5,6 +5,7 @@ import {
   formatDriver,
   formatInterval,
   formatMetric,
+  formatTimestamp,
   formatTip,
   pct,
   seasonTypeLabel,
@@ -58,9 +59,14 @@ describe("labels", () => {
 });
 
 describe("time", () => {
-  it("formats tip-off in the given time zone", () => {
-    expect(formatTip("2021-11-28T00:00:00Z", "America/New_York")).toBe("7:00 PM");
+  it("formats tip-off in Eastern Time, like the game dates", () => {
+    expect(formatTip("2021-11-28T00:00:00Z")).toBe("7:00 PM ET");
+    expect(formatTip("2021-11-28T03:30:00Z")).toBe("10:30 PM ET");
     expect(formatTip(null)).toBe("TBD");
+  });
+  it("formats timestamps in Eastern Time", () => {
+    expect(formatTimestamp("2021-11-27T16:00:00Z")).toBe("Nov 27, 11:00 AM ET");
+    expect(formatTimestamp(null)).toBe("–");
   });
   it("counts down to tip-off minus 60 minutes on the server clock", () => {
     const tip = "2021-11-28T00:00:00Z";

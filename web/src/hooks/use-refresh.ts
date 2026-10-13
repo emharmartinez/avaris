@@ -14,8 +14,9 @@ export function useRefresh() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // The server's running job wins (startup daily, the CLI, or ours); else the last job we ran
   const running = health.data?.job?.status === "running" ? health.data.job.job_id : null;
-  const activeId = jobId ?? running;
+  const activeId = running ?? jobId;
 
   const job = useQuery({
     queryKey: ["job", activeId],

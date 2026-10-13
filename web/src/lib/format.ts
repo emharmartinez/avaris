@@ -3,6 +3,8 @@ import type { DriverSet, Interval, SeasonType, Team } from "./types";
 const DASH = "–";
 const MINUS = "−";
 const FINAL_BEFORE_TIP_MS = 60 * 60 * 1000; // predictions turn final at tip-off - 60 min
+// Game dates are ET calendar dates, so times are shown in ET too
+export const ET = "America/New_York";
 
 export function pct(p: number | null | undefined, digits = 0): string {
   return p == null ? DASH : `${(p * 100).toFixed(digits)}%`;
@@ -63,10 +65,11 @@ export function formatDriver(value: number, scale: DriverSet["scale"]): string {
   return scale === "log_odds" ? signed(value, 2) : `${signed(value)} pts`;
 }
 
-export function formatTip(iso: string | null, timeZone?: string): string {
+export function formatTip(iso: string | null): string {
   if (!iso) return "TBD";
-  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone })
+  const time = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: ET })
     .format(new Date(iso));
+  return `${time} ET`;
 }
 
 export function formatDate(day: string): string {
@@ -76,11 +79,12 @@ export function formatDate(day: string): string {
   }).format(new Date(`${day}T00:00:00Z`));
 }
 
-export function formatTimestamp(iso: string | null, timeZone?: string): string {
+export function formatTimestamp(iso: string | null): string {
   if (!iso) return DASH;
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone,
+  const time = new Intl.DateTimeFormat("en-US", {
+    month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: ET,
   }).format(new Date(iso));
+  return `${time} ET`;
 }
 
 export function shiftDate(day: string, days: number): string {

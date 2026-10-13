@@ -8,16 +8,19 @@ import type { GameDetail, InjuredPlayer, InjuryEntry, InjuryImpactFull, Team } f
 // The players behind each side's strength lost, and the decision report the prediction used
 export function InjuriesSection({ game }: { game: GameDetail }) {
   const { prediction } = game;
-  if (!prediction?.report_ts) {
+  // Without a prediction the API still returns the report entries of the game's features
+  if (!prediction?.report_ts && game.injury_report.length === 0) {
     return <p className="text-sm text-muted-foreground">No injury report used (preseason or no report)</p>;
   }
   const report = groupReport(game.injury_report, game.home.team_id, game.away.team_id);
   return (
     <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">Report as of {formatTimestamp(prediction.report_ts)}</p>
+      {prediction?.report_ts && (
+        <p className="text-sm text-muted-foreground">Report as of {formatTimestamp(prediction.report_ts)}</p>
+      )}
       <div className="grid gap-4 lg:grid-cols-2">
-        <TeamInjuries team={game.away} impact={prediction.injuries.away} entries={report.away} />
-        <TeamInjuries team={game.home} impact={prediction.injuries.home} entries={report.home} />
+        <TeamInjuries team={game.away} impact={prediction?.injuries.away ?? null} entries={report.away} />
+        <TeamInjuries team={game.home} impact={prediction?.injuries.home ?? null} entries={report.home} />
       </div>
     </div>
   );

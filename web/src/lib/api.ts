@@ -17,12 +17,26 @@ export function apiUrl(path: string): string {
   return `${API_BASE}${path}`;
 }
 
+interface ValidationError {
+  loc?: unknown[];
+  msg?: string;
+}
+
+function errorDetail(detail: unknown): string | null {
+  // A string, or FastAPI's validation list: "date: Input should be a valid date"
+  if (typeof detail === "string") return detail;
+  if (!Array.isArray(detail)) return null;
+  return (detail as ValidationError[])
+    .map((d) => [d.loc?.at(-1), d.msg].filter((part) => part != null).join(": "))
+    .join("; ") || null;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(apiUrl(path), init);
   if (!response.ok) {
     const body = await response.json().catch(() => null) as { detail?: unknown } | null;
-    const detail = typeof body?.detail === "string" ? body.detail : response.statusText;
-    throw new ApiError(response.status, detail || `HTTP ${response.status}`);
+    throw new ApiError(response.status, errorDetail(body?.detail) || response.statusText
+      || `HTTP ${response.status}`);
   }
   return response.json() as Promise<T>;
 }

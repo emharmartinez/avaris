@@ -135,6 +135,9 @@ describe("GameLoader", () => {
     serve(detail({ prediction: null }));
     renderWithQuery(<GameLoader id="0022100047" />);
     expect(await screen.findByText("No prediction yet")).toBeInTheDocument();
+    // The report entries of the game's features still show
+    const home = screen.getByRole("region", { name: "DEN injuries" });
+    expect(within(home).getByText("Jamal Murray")).toBeInTheDocument();
   });
 
   it("shows an error for an unknown game", async () => {

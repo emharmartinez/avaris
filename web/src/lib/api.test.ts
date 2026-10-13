@@ -39,6 +39,12 @@ describe("api client", () => {
     expect(init.body).toBe("{}");
     expect(new Headers(init.headers).get("content-type")).toBe("application/json");
   });
+  it("joins FastAPI's validation messages", async () => {
+    mockFetch(422, { detail: [{ loc: ["query", "date"], msg: "Input should be a valid date", type: "date_from_datetime_parsing" }] });
+    const err = await api.predictions("nope").catch((e: unknown) => e);
+    expect((err as ApiError).message).toBe("date: Input should be a valid date");
+  });
+
   it("raises ApiError with the server's detail", async () => {
     mockFetch(409, { detail: "job daily j1 is running" });
     const err = await api.submitJob("daily").catch((e: unknown) => e);
