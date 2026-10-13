@@ -11,13 +11,15 @@ export const metadata: Metadata = {
   applicationName: "Avaris",
 };
 
+// Dark only: the background is oklch(0.145 0 0), about #0a0a0a
 export const viewport: Viewport = {
-  themeColor: "#0f172a",
+  themeColor: "#0a0a0a",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className="dark h-full antialiased">
       <body className="min-h-full">
         <Providers>
           <SidebarProvider>

@@ -15,6 +15,26 @@ test("serves an installable app shell", async ({ page, request }) => {
   expect(scope).toBe(new URL("/", page.url()).href);
 });
 
+test("renders in dark mode, with a dark splash and title bar", async ({ page, request }) => {
+  const manifest = await (await request.get("/manifest.webmanifest")).json();
+  expect(manifest).toMatchObject({ background_color: "#0a0a0a", theme_color: "#0a0a0a" });
+
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#0a0a0a");
+  const style = await page.evaluate(() => {
+    // The built CSS may express colors as lab() or hex, so paint the background to read RGB
+    const ctx = document.createElement("canvas").getContext("2d")!;
+    ctx.fillStyle = getComputedStyle(document.body).backgroundColor;
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    return { scheme: getComputedStyle(document.documentElement).colorScheme, rgb: [r, g, b] };
+  });
+  expect(style.scheme).toBe("dark");
+  // oklch(0.145 0 0), the shadcn dark background, is about #0a0a0a
+  for (const c of style.rgb) expect(c).toBeLessThan(20);
+});
+
 test("unknown API paths are JSON 404s, unknown pages the 404 page", async ({ request }) => {
   const api = await request.get("/api/nope");
   expect(api.status()).toBe(404);
