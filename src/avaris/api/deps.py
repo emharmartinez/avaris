@@ -2,13 +2,28 @@ import math
 from collections.abc import Iterator, Sequence
 from datetime import date, datetime
 from typing import Annotated, Any
+from urllib.parse import urlparse
 
 import duckdb
-from fastapi import Depends, Request
+from fastapi import Depends, Header, HTTPException, Request
 
 from avaris.config import Settings
 from avaris.ingest.teams import load_teams
 from avaris.pipeline.jobs import Clock, JobManager
+
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "[::1]"})
+
+
+def not_cross_site(
+    origin: Annotated[str | None, Header()] = None,
+    sec_fetch_site: Annotated[str | None, Header()] = None,
+) -> None:
+    # Jobs change state: refuse requests a browser sends from another site (an empty POST
+    # needs no CORS preflight). The CLI and curl send neither header
+    host = urlparse(origin).hostname if origin else None
+    loopback = host in LOOPBACK_HOSTS or host == "::1"
+    if sec_fetch_site == "cross-site" or (origin is not None and not loopback):
+        raise HTTPException(403, "cross-site job submission refused")
 
 
 def _cursor(request: Request) -> Iterator[duckdb.DuckDBPyConnection]:

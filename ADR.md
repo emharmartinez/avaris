@@ -12,7 +12,8 @@ One entry per binding decision. Newest first. Status is `accepted`, `superseded`
   - Retrain when a target has no production model, or its newest run (production or held candidate) has `through` `retrain_every_days` or more before today. A held candidate is a warning; predictions keep using production.
   - A failed source refresh (network) is a warning; `daily` continues on stored data.
   - `avaris serve` owns the one read-write DuckDB connection; requests and jobs use cursors. Jobs run one at a time in a background thread (`409` when busy) and are recorded in `jobs`; jobs left running by a stopped server are marked failed at startup. CLI `daily`, `score` and `train` post a job when the database is locked.
-  - Model artifacts are pickles: `model_sha256` in `meta.json` is verified before `joblib.load` (#6); an unhashed artifact is refused until a manual promote seals it.
+  - Model artifacts are pickles: `model_sha256` in `meta.json` is verified before `joblib.load` (#6); an unhashed artifact is refused until a manual promote seals it. It catches corrupt, partial or swapped files; it is not tamper-proof, since anything that can write `model.joblib` can rewrite `meta.json`.
+  - The API binds to 127.0.0.1 with no authentication (single user). It accepts only loopback `Host` headers (DNS rebinding) and refuses job posts a browser sends from another site (`Origin` or `Sec-Fetch-Site`).
 - **Why:** a final prediction must be reproducible and honest: frozen at the decision time, from a model that had not seen the result. One current row per game keeps reruns idempotent. DuckDB allows one writer process.
 - **Consequences:** an injury report for the decision slot that lands after a game was finalized is ignored for that game (the stored `report_ts` shows what was used). Games of finished seasons are never predicted live; the backtest covers them. A long job holds the lock; the UI shows its status.
 

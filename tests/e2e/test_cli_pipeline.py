@@ -61,7 +61,7 @@ def test_train_daily_before_and_after_decision_ts_then_score(
         # The done-when: today's games with probability, mu and 80% intervals, drivers, status
         con = duckdb.connect(str(synthetic_db))
         api = create_app(load_settings(config), con=con, daily_on_startup=False)
-        with TestClient(api) as client:
+        with TestClient(api, base_url="http://127.0.0.1:8000") as client:
             games = client.get("/api/predictions/today").json()["games"]
         con.close()
         assert len(games) == 2

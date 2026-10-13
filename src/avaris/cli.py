@@ -460,11 +460,16 @@ def serve_command(
     # The local API; holds the one read-write DuckDB connection
     import uvicorn
 
+    from avaris.api.deps import LOOPBACK_HOSTS
     from avaris.api.main import create_app
 
     settings: Settings = ctx.obj
+    bind = host or settings.server.host
+    if bind not in LOOPBACK_HOSTS and bind != "::1":
+        typer.echo(f"WARNING: binding to {bind}; the API has no authentication and anyone "
+                   "who can reach this address can run jobs")
     api = create_app(settings, daily_on_startup=settings.server.daily_on_startup and daily)
-    uvicorn.run(api, host=host or settings.server.host, port=port or settings.server.port)
+    uvicorn.run(api, host=bind, port=port or settings.server.port)
 
 
 @app.command("train")
@@ -482,7 +487,7 @@ def train_command(
     settings: Settings = ctx.obj
     registry = Registry(settings.models.models_dir)
     if promote:
-        targets = _targets(target) if target else (registry.find_run(promote),)
+        targets = _targets(target) if target else tuple(registry.find_targets(promote))
         for t in targets:
             registry.promote(t, promote, feature_hash())
             typer.echo(f"{t}: promoted {promote}")

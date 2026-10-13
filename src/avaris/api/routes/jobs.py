@@ -1,10 +1,10 @@
 from datetime import date
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Body, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 
-from avaris.api.deps import Jobs, json_value
+from avaris.api.deps import Jobs, json_value, not_cross_site
 from avaris.pipeline.jobs import JobBusy
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -21,7 +21,7 @@ def _public(job: dict[str, Any]) -> dict[str, Any]:
     return {k: json_value(v) for k, v in job.items()}
 
 
-@router.post("/{kind}", status_code=202)
+@router.post("/{kind}", status_code=202, dependencies=[Depends(not_cross_site)])
 def submit(
     jobs: Jobs, kind: Literal["daily", "score", "train"],
     params: Annotated[JobParams | None, Body()] = None,

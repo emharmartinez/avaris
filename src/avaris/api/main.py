@@ -4,8 +4,9 @@ from typing import Any
 
 import duckdb
 from fastapi import FastAPI
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from avaris.api.deps import Cursor, Jobs, json_value
+from avaris.api.deps import LOOPBACK_HOSTS, Cursor, Jobs, json_value
 from avaris.api.routes import backtests, games, injuries, jobs, performance, predictions, teams
 from avaris.config import Settings
 from avaris.db import connect
@@ -43,6 +44,8 @@ def create_app(
             connection.close()
 
     app = FastAPI(title="Avaris", lifespan=lifespan, telemetry=TELEMETRY_OFF)
+    # DNS rebinding: a remote page resolved to 127.0.0.1 still sends its own host name
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=sorted(LOOPBACK_HOSTS))
     for module in (predictions, games, teams, performance, backtests, injuries, jobs):
         app.include_router(module.router)
 

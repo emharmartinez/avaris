@@ -57,7 +57,7 @@ def env(live_db: tuple[Path, Path], tmp_path: Path) -> Iterator[tuple[duckdb.Duc
 def client(env: tuple[duckdb.DuckDBPyConnection, Settings]) -> Iterator[TestClient]:
     con, settings = env
     app = create_app(settings, con=con, daily_on_startup=False, clock=lambda: NOON_D2)
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1:8000") as c:
         yield c
 
 
@@ -181,7 +181,7 @@ def test_jobs_run_and_report_status(
     app = create_app(settings, con=con, daily_on_startup=False, clock=lambda: NOON_D2,
                      runners={"daily": slow, "score": lambda *_: "0 scored",
                               "train": lambda *_: "trained"})
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://127.0.0.1:8000") as client:
         accepted = client.post("/api/jobs/daily", json={"offline": True})
         assert accepted.status_code == 202
         job_id = accepted.json()["job_id"]
@@ -211,7 +211,34 @@ def test_serve_runs_daily_on_startup(env: tuple[duckdb.DuckDBPyConnection, Setti
 
     app = create_app(settings, con=con, daily_on_startup=True, clock=lambda: NOON_D2,
                      runners={"daily": daily})
-    with TestClient(app):
+    with TestClient(app, base_url="http://127.0.0.1:8000"):
         job = app.state.jobs.current or app.state.jobs.recent(1)[0]
         app.state.jobs.wait(job["job_id"] if isinstance(job, dict) else job.job_id)
     assert calls == [{}]
+
+
+@pytest.mark.parametrize("headers", [
+    {"Origin": "https://evil.example"},
+    {"Sec-Fetch-Site": "cross-site"},
+])
+def test_cross_site_job_submission_is_refused(
+    client: TestClient, headers: dict[str, str]
+) -> None:
+    response = client.post("/api/jobs/score", headers=headers)
+    assert response.status_code == 403
+    assert client.get("/api/jobs").json() == []
+
+
+def test_same_site_job_submission_is_accepted(client: TestClient) -> None:
+    response = client.post("/api/jobs/score", headers={"Origin": "http://localhost:3000",
+                                                       "Sec-Fetch-Site": "same-site"})
+    assert response.status_code == 202
+    job = client.app.state.jobs.wait(response.json()["job_id"])  # type: ignore[attr-defined]
+    assert job["status"] == "succeeded"
+
+
+def test_foreign_host_header_is_refused(client: TestClient) -> None:
+    # DNS rebinding: a remote page resolved to 127.0.0.1 still sends its own host name
+    assert client.get("/api/health", headers={"Host": "attacker.example"}).status_code == 400
+    assert client.get("/api/health", headers={"Host": "127.0.0.1:8000"}).status_code == 200
+    assert client.get("/api/health", headers={"Host": "localhost:8000"}).status_code == 200

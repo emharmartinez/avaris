@@ -71,6 +71,13 @@ class Registry:
     def candidates(self, target: str) -> list[str]:
         return list(self._entry(self._load(), target)["candidates"])
 
+    def find_targets(self, run_id: str) -> list[str]:
+        # Every target a run wrote (train writes one run ID for all of them)
+        found = [t for t in sorted(TARGETS) if (self.run_dir(t, run_id) / META_FILE).exists()]
+        if not found:
+            raise FileNotFoundError(f"no artifact {run_id} in {self.models_dir}")
+        return found
+
     def find_run(self, run_id: str) -> str:
         for target in sorted(TARGETS):
             if (self.run_dir(target, run_id) / META_FILE).exists():
@@ -103,8 +110,8 @@ class Registry:
         else:
             # A manual promote vouches for an artifact written before hashes were recorded
             meta["model_sha256"] = file_sha256(self.run_dir(target, run_id) / MODEL_FILE)
-            meta_path = self.run_dir(target, run_id) / META_FILE
-            meta_path.write_text(json.dumps(meta, indent=2) + "\n")
+            _write_atomic(self.run_dir(target, run_id) / META_FILE,
+                          json.dumps(meta, indent=2) + "\n")
         state = self._load()
         _set_production(self._entry(state, target), run_id, "manual_promote")
         self._save(state)
@@ -125,7 +132,7 @@ class Registry:
         if expected is None:
             raise ArtifactIntegrityError(
                 f"{target} artifact {run_id} has no model_sha256; if you trust it, seal it "
-                f"with `avaris train --promote {run_id}`"
+                f"with `avaris train --promote {run_id} --target {target}`"
             )
         actual = file_sha256(self.run_dir(target, run_id) / MODEL_FILE)
         if actual != expected:
@@ -142,10 +149,14 @@ class Registry:
 
     def _save(self, state: dict[str, Entry]) -> None:
         self.models_dir.mkdir(parents=True, exist_ok=True)
-        # Temp file in the same directory so os.replace stays atomic
-        tmp_path = self.path.with_name(f"{REGISTRY_FILE}.tmp")
-        tmp_path.write_text(json.dumps(state, indent=2))
-        os.replace(tmp_path, self.path)
+        _write_atomic(self.path, json.dumps(state, indent=2))
+
+
+def _write_atomic(path: Path, text: str) -> None:
+    # Temp file in the same directory so os.replace stays atomic
+    tmp_path = path.with_name(f"{path.name}.tmp")
+    tmp_path.write_text(text)
+    os.replace(tmp_path, path)
 
 
 def _failed_rules(

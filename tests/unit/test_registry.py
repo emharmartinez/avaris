@@ -181,6 +181,13 @@ def test_registry_survives_reload(reg: Registry) -> None:
     assert not list(reg.models_dir.glob("*.tmp"))
 
 
+def test_find_targets_lists_every_target_of_a_run(reg: Registry) -> None:
+    write_artifact(reg.models_dir, "r1", target="total")
+    assert reg.find_targets("r1") == ["home_win", "total"]
+    with pytest.raises(FileNotFoundError):
+        reg.find_targets("nope")
+
+
 def test_find_run(reg: Registry) -> None:
     write_artifact(reg.models_dir, "t1", target="total")
     assert reg.find_run("t1") == "total"
@@ -230,7 +237,7 @@ def test_load_production_refuses_an_unsealed_model(reg: Registry) -> None:
     meta = json.loads(path.read_text())
     del meta["model_sha256"]
     path.write_text(json.dumps(meta))
-    with pytest.raises(ArtifactIntegrityError, match="--promote r1"):
+    with pytest.raises(ArtifactIntegrityError, match="--promote r1 --target home_win"):
         reg.load_production("home_win", HASH)
 
 
