@@ -1,10 +1,20 @@
 # Status
 
-- **Phase:** Phase 5 in progress (daily pipeline + API) on branch `phase-5-daily-pipeline-api`. Phase 4 merged (PR #10), Phase 3 merged (PR #8), Phase 2 merged (PR #5), Phase 1 merged (PR #2)
+- **Phase:** Phase 5 done (daily pipeline + API) on branch `phase-5-daily-pipeline-api`, not pushed. Phase 4 merged (PR #10), Phase 3 merged (PR #8), Phase 2 merged (PR #5), Phase 1 merged (PR #2)
 - **Pivot (2026-10-12):** Avaris is now an analytics model, not a betting model; The Odds API is dropped (ADR-014)
 - **Plan:** `docs/plans/avaris-nba-analytics-model-build-plan.md`; phase detail in `docs/plans/phase-3-features-models.md`, `docs/plans/phase-4-evaluation-analytics.md` and `docs/plans/phase-5-daily-pipeline-api.md`
-- **Next:** finish Phase 5, then Phase 6 (desktop PWA)
+- **Next:** push and open the Phase 5 PR, then Phase 6 (desktop PWA)
 - **Important!** The 2026-27 season starts in late October 2026. Live predictions need Phases 1-5 done, including the final refit through 2025-26.
+
+## Phase 5 results (2026-10-12)
+
+- **Done-when: passes.** API tests (TestClient) and the pipeline E2E (train → daily before and after `decision_ts` → score, frozen clock) pass. On the real DB on 2026-10-12, `avaris daily` then `GET /api/predictions/today` returned the day's 5 preseason games with `p_home_win`, margin and total μ with 80% intervals, top drivers and `status` (4 final, 1 provisional)
+- **First real run:** refreshed the 2026-27 schedule and rosters; finalized 40 preseason games from the Phase 4 model (trained through 2026-09-01), then retrained through 2026-10-12 (run `20261012T235751Z-3d32`, promoted for all targets); 37 games scored. A rerun wrote nothing
+- **Live preseason so far:** log loss 0.798, `margin` MAE 12.5 on 37 games; one game against a non-NBA club is badly mispredicted (#11)
+- **#6:** `model_sha256` verified before loading; the Phase 4 production run was sealed with `avaris train --promote`
+- **Reviews:** code review and security audit findings fixed with tests (cross-site job posts, DNS rebinding, refresh errors, current team ratings, held-candidate warning, per-game counts); concurrent reads during a feature rewrite checked (290 reads, no errors)
+- **Gates:** ruff clean, pyright 0 errors, pytest 351 passed (e2e included)
+- **Follow-ups:** #11 (non-NBA preseason opponents), #12 (report float formatting), #13 (Phase 6 security carry-forwards)
 
 ## Phase 4 results (2026-10-12)
 

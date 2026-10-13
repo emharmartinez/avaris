@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-12 ·
 - **Task:** `avaris daily` (refresh, retrain when stale, provisional and final predictions with drivers and injury impact), `avaris score`, FastAPI read endpoints, background jobs with a single-job lock, `avaris serve`
-- **Status:** In progress
+- **Status:** Done (2026-10-12)
 - **Complexity**: `L`
 - **Estimate Points**: `8`
 
@@ -88,7 +88,7 @@
 
 ## 6. Implementation Plan
 
-1. #6: `model_sha256` in `meta.json`, verified before `joblib.load` (done).
+1. #6: `model_sha256` in `meta.json`, verified before `joblib.load`.
 2. Migration 7 (TDD).
 3. `pipeline/daily.py`: due games, status, model rule, prediction rows with drivers and injuries, idempotent writes, staleness, refresh (TDD).
 4. `pipeline/score.py` (TDD); CLI `daily` and `score`.
@@ -112,16 +112,16 @@
 
 ## 8. Acceptance Criteria
 
-- [ ] API tests pass (TestClient)
-- [ ] Pipeline E2E passes: train → daily before and after `decision_ts` → score, frozen clock
-- [ ] On a game day, `avaris daily` then `GET /api/predictions/today` returns that day's games with `p_home_win`, margin and total μ with 80% intervals, top drivers and `status`
+- [x] API tests pass (TestClient)
+- [x] Pipeline E2E passes: train → daily before and after `decision_ts` → score, frozen clock
+- [x] On a game day, `avaris daily` then `GET /api/predictions/today` returns that day's games with `p_home_win`, margin and total μ with 80% intervals, top drivers and `status`
 
 ---
 
 ## 9. Definition of Done
 
-- [ ] Gates green: ruff, pyright, pytest (e2e included)
-- [ ] Docs updated; `git status` clean
+- [x] Gates green: ruff, pyright, pytest (e2e included)
+- [x] Docs updated; `git status` clean
 
 ## 10. Risks and Open Questions
 
