@@ -15,6 +15,7 @@ from avaris.config import Settings
 from avaris.db import upsert
 from avaris.features.build import FeatureSet, build_features, feature_hash, write_features
 from avaris.features.decision_time import DECISION_LEAD
+from avaris.ingest.espn import EspnClient, ingest_espn
 from avaris.ingest.injuries import InjuryClient, ingest_injuries
 from avaris.ingest.runner import ingest_stats
 from avaris.ingest.stats_client import RawCache, StatsClient, Throttle
@@ -80,8 +81,32 @@ def make_injury_client(settings: Settings) -> InjuryClient:
     )
 
 
+def make_espn_client(settings: Settings) -> EspnClient:
+    cfg = settings.espn
+    return EspnClient(
+        settings.paths.cache_dir, Throttle(cfg.min_interval_s), timeout_s=cfg.timeout_s,
+        max_attempts=cfg.max_attempts,
+    )
+
+
+def refresh_espn(
+    con: duckdb.DuckDBPyConnection, settings: Settings, now: datetime, progress: Progress
+) -> None:
+    # Preseason rest list (ADR-022); a failure leaves the model prediction standing
+    if not settings.espn.enabled:
+        return
+    client = make_espn_client(settings)
+    try:
+        ingest_espn(con, client, now, settings.espn.out_window_hours, progress=progress)
+    except Exception as exc:
+        progress(f"WARNING ESPN injuries failed, no rest adjustment: {type(exc).__name__}: {exc}")
+    finally:
+        client.close()
+
+
 def source_refresher(settings: Settings) -> Refresher:
-    # This season's schedule, game logs, rosters and injury reports
+    # This season's schedule, game logs, rosters, injury reports and, when a preseason
+    # game is due, the ESPN injury list
     def refresh(con: duckdb.DuckDBPyConnection, now: datetime, progress: Progress) -> None:
         today = et_date(now)
         season = season_for_date(today)
@@ -97,6 +122,7 @@ def source_refresher(settings: Settings) -> Refresher:
                             step_back_hours=settings.injuries.step_back_hours, progress=progress)
         finally:
             injuries.close()
+        refresh_espn(con, settings, now, progress)
 
     return refresh
 

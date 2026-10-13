@@ -1,0 +1,220 @@
+{
+ "timestamp": "2026-10-13T23:25:41Z",
+ "status": "success",
+ "season": {
+  "year": 2027,
+  "type": 1,
+  "name": "Preseason",
+  "displayName": "2026-27"
+ },
+ "injuries": [
+  {
+   "id": "12",
+   "displayName": "LA Clippers",
+   "injuries": [
+    {
+     "id": "533234",
+     "status": "Out",
+     "date": "2026-10-05T22:21Z",
+     "shortComment": "Strus has been diagnosed with a partially torn plantar fascia in his right foot and he will be re-evaluated in four weeks, Ohm Youngmisuk of ESPN.com reports.",
+     "longComment": "Plantar fascia injuries can be tricky to recover from, with the only remedy typically being prolonged rest, so don't be surprised if Strus' absence extends well beyond this initial four-week window. With Strus now set to miss at least the first few weeks of the season, and Bradley Beal (knee) uncertain for opening night, Keaton Wagler could be thrust into the first unit sooner than expected.",
+     "athlete": {
+      "firstName": "Max",
+      "lastName": "Strus",
+      "displayName": "Max Strus",
+      "shortName": "M. Strus"
+     },
+     "type": {
+      "id": "4",
+      "name": "INJURY_STATUS_OUT",
+      "description": "out",
+      "abbreviation": "O"
+     }
+    }
+   ]
+  },
+  {
+   "id": "18",
+   "displayName": "New York Knicks",
+   "injuries": [
+    {
+     "id": "534185",
+     "status": "Day-To-Day",
+     "date": "2026-10-13T02:47Z",
+     "shortComment": "Towns ended with 11 points (3-6 FG, 1-4 3Pt, 4-4 FT), four assists, two rebounds and one steal over 22 minutes in Monday's 122-104 preseason loss to Minnesota. He won't play Tuesday against Toronto for rest purposes, Stefan Bondy of The New York Post reports.",
+     "longComment": "Towns was solid, if unspectacular, as New York fell to 0-3 in preseason play. The standout center has played in each of the first three contests but will take a seat for the second half of the back-to-back set Tuesday at Toronto. Towns' next chance to suit up will come Thursday at home against the Raptors.",
+     "athlete": {
+      "firstName": "Karl-Anthony",
+      "lastName": "Towns",
+      "displayName": "Karl-Anthony Towns",
+      "shortName": "K. Towns"
+     },
+     "type": {
+      "id": "6",
+      "name": "INJURY_STATUS_DAYTODAY",
+      "description": "day-to-day",
+      "abbreviation": "DD"
+     }
+    },
+    {
+     "id": "534184",
+     "status": "Day-To-Day",
+     "date": "2026-10-13T02:47Z",
+     "shortComment": "Bridges finished with nine points (3-6 FG, 1-2 3Pt, 2-2 FT), two rebounds and two assists over 22 minutes in Monday's 122-104 preseason loss to the Timberwolves.",
+     "longComment": "According to Stefan Bondy of The New York Post, Mike Brown said that he will hold out his regular starters for Tuesday's game in Toronto for rest purposes. With Bridges and the rest of the first unit unavailable, Jordan Clarkson might see a large uptick in usage.",
+     "athlete": {
+      "firstName": "Mikal",
+      "lastName": "Bridges",
+      "displayName": "Mikal Bridges",
+      "shortName": "M. Bridges"
+     },
+     "type": {
+      "id": "6",
+      "name": "INJURY_STATUS_DAYTODAY",
+      "description": "day-to-day",
+      "abbreviation": "DD"
+     }
+    },
+    {
+     "id": "-57922",
+     "status": "Day-To-Day",
+     "date": "2026-10-13T02:40Z",
+     "shortComment": "Hart recorded two points (1-2 FG, 0-1 3Pt), three rebounds, three assists and one steal over 22 minutes in Monday's 122-104 preseason loss to the Timberwolves.",
+     "longComment": "Per Stefan Bondy of The New York Post, Hart will sit out Tuesday's exhibition for rest, as it is the second night of a back-to-back set during the preseason. Hart's absence should open up minutes for Landry Shamet and Jordan Clarkson.",
+     "athlete": {
+      "firstName": "Josh",
+      "lastName": "Hart",
+      "displayName": "Josh Hart",
+      "shortName": "J. Hart"
+     },
+     "type": {
+      "id": "6",
+      "name": "INJURY_STATUS_DAYTODAY",
+      "description": "day-to-day",
+      "abbreviation": "DD"
+     }
+    },
+    {
+     "id": "534183",
+     "status": "Day-To-Day",
+     "date": "2026-10-13T02:40Z",
+     "shortComment": "Anunoby totaled 15 points (4-8 FG, 1-3 3Pt, 6-6 FT), three steals, two rebounds and one assist over 22 minutes in Monday's 122-104 preseason loss to Minnesota. He won't play Tuesday against Toronto for rest purposes, Stefan Bondy of The New York Post reports.",
+     "longComment": "Anunoby put forth a solid scoring effort, fueled by perfection at the charity stripe, while also tallying a team-high three steals in the loss. The veteran wing has scored in double figures in each of his three preseason appearances, but he'll be inactive for the second half of the back-to-back set Tuesday at Toronto. Anunoby's next chance to suit up will come Thursday, also against the Raptors.",
+     "athlete": {
+      "firstName": "OG",
+      "lastName": "Anunoby",
+      "displayName": "OG Anunoby",
+      "shortName": "O. Anunoby"
+     },
+     "type": {
+      "id": "6",
+      "name": "INJURY_STATUS_DAYTODAY",
+      "description": "day-to-day",
+      "abbreviation": "DD"
+     }
+    },
+    {
+     "id": "-57920",
+     "status": "Day-To-Day",
+     "date": "2026-10-13T02:20Z",
+     "shortComment": "Brunson (rest) won't suit up for Tuesday's preseason game in Toronto, Stefan Bondy of The New York Post reports.",
+     "longComment": "It's the second night of a back-to-back set in the preseason, so the Knicks will sit out their entire starting unit. Expect more minutes for Miles McBride and Tyler Kolek.",
+     "athlete": {
+      "firstName": "Jalen",
+      "lastName": "Brunson",
+      "displayName": "Jalen Brunson",
+      "shortName": "J. Brunson"
+     },
+     "type": {
+      "id": "6",
+      "name": "INJURY_STATUS_DAYTODAY",
+      "description": "day-to-day",
+      "abbreviation": "DD"
+     }
+    }
+   ]
+  },
+  {
+   "id": "28",
+   "displayName": "Toronto Raptors",
+   "injuries": [
+    {
+     "id": "534289",
+     "status": "Day-To-Day",
+     "date": "2026-10-13T22:56Z",
+     "shortComment": "Jemison (undisclosed) has been ruled out for Tuesday's preseason meeting with the Knicks, Vivek Jacob of the Raptors' official site reports.",
+     "longComment": "Jemison will be held out of Tuesday's contest for undisclosed reasons. His second-to-last chance to play again this preseason will come in Thursday's rematch against New York.",
+     "athlete": {
+      "firstName": "Trey",
+      "lastName": "Jemison III",
+      "displayName": "Trey Jemison III",
+      "shortName": "T. Jemison III"
+     },
+     "type": {
+      "id": "6",
+      "name": "INJURY_STATUS_DAYTODAY",
+      "description": "day-to-day",
+      "abbreviation": "DD"
+     }
+    },
+    {
+     "id": "534287",
+     "status": "Day-To-Day",
+     "date": "2026-10-13T22:54Z",
+     "shortComment": "Battle (undisclosed) has been ruled out for Tuesday's preseason matchup with the Knicks, Vivek Jacob of the Raptors' official site reports.",
+     "longComment": "It's unclear exactly why Battle isn't playing Tuesday, though it's worth noting he previously dealt with a lower-back issue this preseason. His penultimate chance to play before the regular season will come Thursday against New York.",
+     "athlete": {
+      "firstName": "Jamison",
+      "lastName": "Battle",
+      "displayName": "Jamison Battle",
+      "shortName": "J. Battle"
+     },
+     "type": {
+      "id": "6",
+      "name": "INJURY_STATUS_DAYTODAY",
+      "description": "day-to-day",
+      "abbreviation": "DD"
+     }
+    },
+    {
+     "id": "534263",
+     "status": "Day-To-Day",
+     "date": "2026-10-13T21:35Z",
+     "shortComment": "Bittle (foot) is still in a walking boot, but he has a follow-up appointment Wednesday and could ditch the boot if all goes well, Blake Murphy of Sportsnet.ca reports.",
+     "longComment": "Bittle can presumably be ruled out for the remainder of the preseason as he works his way back to full health. The big man was spotted in a walking boot in early September and remains without a clear timetable for a return to game action.",
+     "athlete": {
+      "firstName": "Nate",
+      "lastName": "Bittle",
+      "displayName": "Nate Bittle",
+      "shortName": "N. Bittle"
+     },
+     "type": {
+      "id": "6",
+      "name": "INJURY_STATUS_DAYTODAY",
+      "description": "day-to-day",
+      "abbreviation": "DD"
+     }
+    },
+    {
+     "id": "534124",
+     "status": "Day-To-Day",
+     "date": "2026-10-12T20:12Z",
+     "shortComment": "The Raptors waived Hepburn (hamstring) on Monday, per Ryan Wolstat of the Toronto Sun.",
+     "longComment": "Jamarion Sharp is taking Hepburn's spot on the roster. Hepburn, previously a two-way player for Toronto, is looking to recover from a hamstring injury and find a home elsewhere this season.",
+     "athlete": {
+      "firstName": "Chucky",
+      "lastName": "Hepburn",
+      "displayName": "Chucky Hepburn",
+      "shortName": "C. Hepburn"
+     },
+     "type": {
+      "id": "6",
+      "name": "INJURY_STATUS_DAYTODAY",
+      "description": "day-to-day",
+      "abbreviation": "DD"
+     }
+    }
+   ]
+  }
+ ]
+}

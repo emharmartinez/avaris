@@ -13,6 +13,7 @@ import typer
 from avaris.config import DEFAULT_CONFIG_PATH, ModelsSettings, Settings, load_settings
 from avaris.db import connect
 from avaris.features.build import build_features, feature_hash, write_features
+from avaris.ingest.espn import ingest_espn
 from avaris.ingest.injuries import ingest_injuries
 from avaris.ingest.preseason_logs import FIRST_PRESEASON_LOG_SEASON, ingest_preseason_logs
 from avaris.ingest.runner import ingest_stats
@@ -20,7 +21,7 @@ from avaris.ingest.status import check_injuries, check_report, injury_report, se
 from avaris.models.dataset import with_targets
 from avaris.models.ladder import TARGETS
 from avaris.models.registry import Registry
-from avaris.pipeline.daily import make_injury_client, make_stats_client
+from avaris.pipeline.daily import make_espn_client, make_injury_client, make_stats_client
 from avaris.seasons import (
     season_for_date,
     season_label,
@@ -147,6 +148,23 @@ def ingest_injuries_command(
         f"Done: {summary.reports} reports, {summary.entries} entries, "
         f"{summary.unmatched_players} unmatched player rows, {client.requests_made} requests"
     )
+
+
+@ingest_app.command("espn")
+def ingest_espn_command(ctx: typer.Context) -> None:
+    # ESPN's current injury list, only when a preseason game is due (ADR-022)
+    settings: Settings = ctx.obj
+    client = make_espn_client(settings)
+    con = connect(settings.paths.db_path)
+    try:
+        summary = ingest_espn(con, client, datetime.now(UTC).replace(tzinfo=None),
+                              settings.espn.out_window_hours, progress=typer.echo)
+    finally:
+        client.close()
+        con.close()
+    if not summary.fetched:
+        typer.echo(f"No preseason game due within {settings.espn.out_window_hours:g} h: "
+                   "nothing fetched")
 
 
 @ingest_app.command("preseason-logs")
