@@ -2,6 +2,13 @@
 
 One entry per binding decision. Newest first. Status is `accepted`, `superseded` or `proposed`.
 
+## ADR-021: The server stops itself when the app is closed, or from the app's Stop button
+
+- **Date:** 2026-10-13 · **Status:** accepted
+- **Decision:** `avaris serve` stops after `[server] idle_shutdown_min` (default 5, `0` = never; `serve --idle-min`) without any request. The open app polls `/api/health` every 60 s, also when minimized (`refetchIntervalInBackground`), so only a closed app goes quiet. A running job counts as activity and restarts the countdown. `POST /api/server/stop` (the header's power button, after an inline confirm) stops it at once; it is refused while a job runs (`409`), cross-site (`403`, the job guard) and when the app was not started by `serve` (`503`). Both set uvicorn's `should_exit`, so in-flight responses finish and the lifespan shutdown runs. The launcher's `-Stop` kills the pid in `data/serve.pid` only while it is still an `avaris serve`, since a self-stopped server leaves the file behind.
+- **Why:** user decision: closing the app should not leave the server running.
+- **Consequences:** a server started by hand from a terminal also stops when idle; pass `--idle-min 0` to keep it. If Chrome freezes a long-hidden app window, polling stops and the server may stop under it; the page then says the server is down and the launcher starts it again.
+
 ## ADR-020: An edge calculator compares odds the user types in with the model, in the browser only
 
 - **Date:** 2026-10-13 · **Status:** accepted · narrows ADR-014
