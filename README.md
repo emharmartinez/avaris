@@ -77,7 +77,7 @@ uv run avaris serve --no-daily
 - A game is predicted only by a model whose training cutoff (`through`) is on or before its date. Missed games are finalized with the current model before a stale model is retrained (older than `retrain_every_days`).
 - Each prediction stores drivers (family contributions per target) and injury impact (strength lost per side and the players behind it) as JSON.
 - **Single writer:** `serve` holds the read-write DuckDB connection. While it runs, `avaris daily`, `score` and `train` run as server jobs (`POST /api/jobs/{daily,score,train}`, one at a time, `409` when busy).
-- **Endpoints:** `GET /api/health`, `/api/predictions/today`, `/api/predictions?date=`, `/api/games/{game_id}`, `/api/teams`, `/api/teams/{team_id}`, `/api/performance`, `/api/backtests`, `/api/injuries?date=`, `/api/jobs`, `/api/jobs/{job_id}`. Timestamps are UTC with a `Z`.
+- **Endpoints:** `GET /api/health`, `/api/predictions/today`, `/api/predictions?date=`, `/api/games/{game_id}`, `/api/teams`, `/api/teams/{team_id}`, `/api/performance`, `/api/backtests`, `/api/injuries?date=`, `/api/jobs`, `/api/jobs/{job_id}`; `POST /api/server/stop` (the Stop server button). Timestamps are UTC with a `Z`.
 - **Important!** `model.joblib` is checked against the `model_sha256` in `meta.json` before loading. An artifact written before the hash existed is sealed with `avaris train --promote RUN_ID --target <t>`.
 
 ## Desktop app (PWA)
@@ -87,7 +87,7 @@ cd web && npm run build      # static export to web/out
 uv run avaris serve          # open http://127.0.0.1:8000 in Chrome, then "Install app"
 ```
 
-- **Pages:** Today (`/?date=`), Game (`/game/?id=`), Teams (`/teams/?id=`), Performance (`/performance/?season=`), Backtests (`/backtests/?name=`), Injuries (`/injuries/?date=`), Edge (`/edge/?date=&game=`: odds you type in against the model's probability, margin and total; nothing is fetched or stored, ADR-020). The header's Refresh button runs `daily` as a server job and shows its progress.
+- **Pages:** Today (`/?date=`), Game (`/game/?id=`), Teams (`/teams/?id=`), Performance (`/performance/?season=`), Backtests (`/backtests/?name=`), Injuries (`/injuries/?date=`), Edge (`/edge/?date=&game=`: odds you type in against the model's probability, margin and total; nothing is fetched or stored, ADR-020). The header's Refresh button runs `daily` as a server job and shows its progress; the power button next to it stops the server after a confirm (refused while a job runs).
 - `serve` serves `web/out` at `/` (`[server] web_dir`) next to the API; there is no Node server at runtime. A service worker caches the app shell, never `/api`.
 - **Performance drift:** live log loss and MAE per scope are flagged when worse than the range of means of the same number of games resampled from a report-mode backtest (one-sided, about 1 false alarm in 20 per scope; `[server] drift_reference`, default `evaluation_2021-22_2024-25`).
 - **Launcher (Windows + WSL):** `scripts/avaris-launch.ps1` starts `avaris serve` in WSL when it is not answering, then opens the installed app. Run once from PowerShell to add "Avaris Launcher" to the Start menu, then pin it from there:
@@ -96,7 +96,7 @@ uv run avaris serve          # open http://127.0.0.1:8000 in Chrome, then "Insta
 powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu\home\<you>\avaris\scripts\avaris-launch.ps1 -Install
 ```
 
-  The server keeps running after the app closes; `-Stop` stops a server the launcher started. `data/serve.log` holds the latest run. When the server is down, pages say so instead of a fetch error.
+  The server stops itself once the app has been closed for `[server] idle_shutdown_min` (default 5; the open app, minimized included, polls `/api/health` every minute; never while a job runs; `0` or `serve --idle-min 0` turns it off). The app's Stop server button stops it at once, and `-Stop` stops a server the launcher started. `data/serve.log` holds the latest run. When the server is down, pages say so instead of a fetch error.
 - **Dev:** `uv run avaris serve --dev` (CORS for loopback origins only) and, in `web/`, `NEXT_PUBLIC_API_BASE=http://localhost:8000 npm run dev`.
 
 ## Data

@@ -89,14 +89,30 @@ def test_a_failing_status_poll_exits_1(config: Path, server: respx.MockRouter) -
     assert result.exception is None or isinstance(result.exception, SystemExit)
 
 
+def fake_uvicorn(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    # `serve` builds a uvicorn.Server; record its config instead of serving
+    import uvicorn
+
+    served: dict[str, Any] = {}
+
+    class FakeServer:
+        def __init__(self, config: dict[str, Any]) -> None:
+            served.update(config)
+            self.should_exit = False
+
+        def run(self) -> None:
+            served["server"] = self
+
+    monkeypatch.setattr(uvicorn, "Config", lambda app, **kw: {"api": app, **kw})
+    monkeypatch.setattr(uvicorn, "Server", FakeServer)
+    return served
+
+
 @pytest.mark.parametrize(("args", "cors"), [(["--dev"], True), ([], False)])
 def test_serve_dev_turns_on_loopback_cors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, args: list[str], cors: bool
 ) -> None:
-    import uvicorn
-
-    served: dict[str, Any] = {}
-    monkeypatch.setattr(uvicorn, "run", lambda api, **kw: served.update(api=api, **kw))
+    served = fake_uvicorn(monkeypatch)
     path = tmp_path / "config.toml"
     path.write_text(f'[paths]\ndb_path = "{tmp_path / "a.duckdb"}"\n')
     result = runner.invoke(app, ["--config", str(path), "serve", "--no-daily", *args])
@@ -109,12 +125,33 @@ def test_serve_dev_turns_on_loopback_cors(
 def test_serve_warns_when_the_web_export_is_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import uvicorn
-
-    monkeypatch.setattr(uvicorn, "run", lambda api, **kw: None)
+    fake_uvicorn(monkeypatch)
     path = tmp_path / "config.toml"
     path.write_text(f'[paths]\ndb_path = "{tmp_path / "a.duckdb"}"\n'
                     f'[server]\nweb_dir = "{tmp_path / "out"}"\n')
     result = runner.invoke(app, ["--config", str(path), "serve", "--no-daily"])
     assert result.exit_code == 0, result.output
     assert "npm run build" in result.output
+
+
+def test_serve_wires_the_stop_callback_and_idle_minutes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import avaris.api.main as api_main
+
+    served = fake_uvicorn(monkeypatch)
+    built: dict[str, Any] = {}
+    real_create_app = api_main.create_app
+
+    def create_app(settings: Any, **kwargs: Any) -> Any:
+        built.update(settings=settings, **kwargs)
+        return real_create_app(settings, **kwargs)
+
+    monkeypatch.setattr(api_main, "create_app", create_app)
+    path = tmp_path / "config.toml"
+    path.write_text(f'[paths]\ndb_path = "{tmp_path / "a.duckdb"}"\n')
+    result = runner.invoke(app, ["--config", str(path), "serve", "--no-daily", "--idle-min", "2"])
+    assert result.exit_code == 0, result.output
+    assert built["settings"].server.idle_shutdown_min == 2
+    built["shutdown"]()  # the Stop button or idle shutdown
+    assert served["server"].should_exit is True

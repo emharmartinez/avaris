@@ -68,3 +68,14 @@ test("the service worker opens pages offline but never caches the API", async ({
   await expect(page.getByText(/Server not running/).first()).toBeVisible();
   await context.setOffline(false);
 });
+
+test("the Stop server button asks first and reports the server's answer", async ({ page }) => {
+  // The fixture server has no uvicorn to stop, so it answers 503 instead of exiting
+  await page.goto("/");
+  await page.getByRole("button", { name: "Stop server" }).click();
+  await expect(page.getByText("Stop the server?")).toBeVisible();
+  await page.getByRole("button", { name: "Stop", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "cannot be stopped from the app" }))
+    .toBeVisible();
+  await expect(page.getByRole("button", { name: "Refresh", exact: true })).toBeVisible();
+});

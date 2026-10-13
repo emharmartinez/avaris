@@ -3,6 +3,8 @@
 #   powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu\home\<you>\avaris\scripts\avaris-launch.ps1
 #   ... -Install  adds "Avaris Launcher" to the Start menu (pin it to the taskbar from there)
 #   ... -Stop     stops a server this launcher started
+# The server also stops itself once the app has been closed for [server] idle_shutdown_min
+# (config.toml, default 5), and from the app's Stop server button
 # The distro and repo default to where this script lives; data/serve.log holds the latest
 # server run
 param(
@@ -58,8 +60,8 @@ if ($Install) {
 }
 
 if ($Stop) {
-  # Only a server this launcher started has a pid file
-  Invoke-Wsl 'if test -f data/serve.pid; then kill $(cat data/serve.pid); rm -f data/serve.pid; else echo No launcher-started server: data/serve.pid is missing; exit 1; fi'
+  # Only a server this launcher started has a pid file (scripts/stop-serve.sh)
+  Invoke-Wsl 'bash scripts/stop-serve.sh'
   exit $LASTEXITCODE
 }
 

@@ -5,8 +5,13 @@ import { api } from "@/lib/api";
 
 // One hook per endpoint; query keys start with the endpoint name so a refresh can
 // invalidate everything but the job it is polling
+// Also while minimized: the poll is what tells the server the app is still open (idle
+// shutdown, [server] idle_shutdown_min)
 export const useHealth = () =>
-  useQuery({ queryKey: ["health"], queryFn: api.health, refetchInterval: 60_000 });
+  useQuery({
+    queryKey: ["health"], queryFn: api.health, refetchInterval: 60_000,
+    refetchIntervalInBackground: true,
+  });
 
 export const useGames = (date: string | null) =>
   useQuery({

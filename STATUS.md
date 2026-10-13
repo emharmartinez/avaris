@@ -3,7 +3,7 @@
 - **Phase:** all six phases built. Phase 6 merged (PR #16); install check is manual. Phase 5 merged (PR #14), Phase 4 merged (PR #10), Phase 3 merged (PR #8), Phase 2 merged (PR #5), Phase 1 merged (PR #2)
 - **Pivot (2026-10-12):** Avaris is now an analytics model, not a betting model; The Odds API is dropped (ADR-014)
 - **Plan:** `docs/plans/avaris-nba-analytics-model-build-plan.md`; phase detail in `docs/plans/phase-3-features-models.md`, `docs/plans/phase-4-evaluation-analytics.md`, `docs/plans/phase-5-daily-pipeline-api.md` and `docs/plans/phase-6-desktop-pwa.md`
-- **2026-10-13:** Edge tab added (ADR-020): typed odds vs the model, in the browser only
+- **2026-10-13:** Edge tab added (ADR-020): typed odds vs the model, in the browser only. The server stops itself when the app is closed, or from the app's Stop server button (ADR-021)
 - **Next:** pin "Avaris Launcher" (Start menu) to start the server with the app; the app is dark only since 2026-10-13
 - **Important!** The 2026-27 season starts in late October 2026. Live predictions need Phases 1-5 done, including the final refit through 2025-26.
 

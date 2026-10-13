@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Providers } from "@/components/providers";
 import { RefreshButton } from "@/components/refresh-button";
+import { StopServerButton } from "@/components/stop-server-button";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import "./globals.css";
 
@@ -28,7 +29,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <SidebarInset className="min-w-0">
               <header className="flex h-14 items-center justify-between gap-4 border-b px-4">
                 <SidebarTrigger />
-                <RefreshButton />
+                <div className="flex min-w-0 items-center gap-2">
+                  <RefreshButton />
+                  <StopServerButton />
+                </div>
               </header>
               <main className="flex-1 p-6">{children}</main>
             </SidebarInset>
