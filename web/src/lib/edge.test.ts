@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { normalCdf } from "./distribution";
 import {
-  evaluateMarket, formatOdds, lineOutcomes, moneylineMarket, parseLine, parseOdds, spreadMarket,
-  totalMarket,
+  evaluateMarket, formatOdds, lineOutcomes, moneylineMarket, parseLine, parseOdds, parseTotal,
+  spreadMarket, totalMarket,
 } from "./edge";
 
 const N = { mu: 0, sigma: 10 };
@@ -43,6 +43,11 @@ describe("odds", () => {
     expect(parseLine("pk")).toBe(0);
     expect(parseLine("")).toBeNull();
     expect(parseLine("abc")).toBeNull();
+  });
+
+  it("parses a total line: positive, no pick'em", () => {
+    expect(parseTotal("224.5")).toBe(224.5);
+    for (const raw of ["pk", "-5", "0", ""]) expect(parseTotal(raw), raw).toBeNull();
   });
 });
 
@@ -108,6 +113,14 @@ describe("markets", () => {
     expect(m.sides[1].ev).toBeCloseTo(0.45 * 0.8 - 0.45, 9);
   });
 
+  it("has no fair price when the model is certain", () => {
+    const m = evaluateMarket([
+      { outcome: { win: 1, push: 0, lose: 0 }, odds: null },
+      { outcome: { win: 0, push: 0, lose: 1 }, odds: null },
+    ]);
+    expect(m.sides.map((s) => s.fairOdds)).toEqual([null, null]);
+  });
+
   it("moneyline uses the calibrated win probability, away side first", () => {
     const [away, home] = moneylineMarket(0.8);
     expect(home).toMatchObject({ win: 0.8, push: 0 });
@@ -119,9 +132,32 @@ describe("markets", () => {
   it("spread: the home line is negative when home is favored; margin is home minus away", () => {
     const margin = { mu: 4, sigma: 12 };
     const [away, home] = spreadMarket(margin, -3.5);
-    expect(home.win).toBeCloseTo(1 - normalCdf(3.5, 4, 12), 9); // home wins by 4+
-    expect(away.win).toBeCloseTo(normalCdf(3.5, 4, 12), 9);
-    expect(spreadMarket(margin, 2.5)[1].win).toBeCloseTo(1 - normalCdf(-2.5, 4, 12), 9);
+    const p0 = normalCdf(0.5, 4, 12) - normalCdf(-0.5, 4, 12); // a tie, which cannot happen
+    expect(home.win).toBeCloseTo((1 - normalCdf(3.5, 4, 12)) / (1 - p0), 9); // home wins by 4+
+    expect(away.win).toBeCloseTo((normalCdf(3.5, 4, 12) - p0) / (1 - p0), 9);
+    expect(spreadMarket(margin, 2.5)[1].win)
+      .toBeCloseTo((1 - normalCdf(-2.5, 4, 12) - p0) / (1 - p0), 9);
+  });
+
+  it("spread: a game cannot end tied, so -0.5, pk and +0.5 are the same bet", () => {
+    const margin = { mu: 9.41, sigma: 14.85 };
+    const pk = spreadMarket(margin, 0)[1];
+    expect(spreadMarket(margin, -0.5)[1].win).toBeCloseTo(pk.win, 9);
+    expect(spreadMarket(margin, 0.5)[1].win).toBeCloseTo(pk.win, 9);
+    // margin > 0 excluding the impossible 0 band
+    const p0 = normalCdf(0.5, 9.41, 14.85) - normalCdf(-0.5, 9.41, 14.85);
+    expect(pk.win).toBeCloseTo((1 - normalCdf(0.5, 9.41, 14.85)) / (1 - p0), 9);
+  });
+
+  it("spread: a whole-number line pushes for both sides and drops the tie band", () => {
+    const margin = { mu: 4, sigma: 12 };
+    const [away, home] = spreadMarket(margin, -3);
+    const p0 = normalCdf(0.5, 4, 12) - normalCdf(-0.5, 4, 12);
+    expect(home.push).toBeCloseTo((normalCdf(3.5, 4, 12) - normalCdf(2.5, 4, 12)) / (1 - p0), 9);
+    expect(away.push).toBeCloseTo(home.push, 9);
+    expect(home.win).toBeCloseTo((1 - normalCdf(3.5, 4, 12)) / (1 - p0), 9);
+    expect(away.win).toBeCloseTo((normalCdf(2.5, 4, 12) - p0) / (1 - p0), 9);
+    expect(home.win + home.push + home.lose).toBeCloseTo(1, 9);
   });
 
   it("spread: a pick'em never pushes, since NBA games cannot tie", () => {

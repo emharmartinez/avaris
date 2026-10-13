@@ -60,6 +60,7 @@ describe("EdgeView", () => {
     expect(screen.getByLabelText("ATL moneyline")).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByText(/one price: implied probability includes the vig/i)).toBeInTheDocument();
     expect(cells(row(ml, "DEN"))[2]).toBe("52.4%");
+    expect(screen.getByLabelText("ATL moneyline")).toHaveAccessibleDescription(/not a valid american price/i);
   });
 
   it("switching to decimal converts the typed odds", async () => {
@@ -74,6 +75,45 @@ describe("EdgeView", () => {
     expect(cells(row(ml, "DEN"))[5]).toBe("1.20");
   });
 
+  it("toggling the format back and forth keeps the exact typed price", async () => {
+    const user = userEvent.setup();
+    serve({ date: "2021-11-27", games: [game()] });
+    renderWithQuery(<EdgeView date={null} gameId={null} onGameChange={vi.fn()} />);
+    const fields = { "ATL moneyline": "-600", "DEN moneyline": "-150" };
+    for (const [label, value] of Object.entries(fields)) {
+      await user.type(await screen.findByLabelText(label), value);
+    }
+    const ml = screen.getByRole("table", { name: "Moneyline" });
+    const before = cells(row(ml, "DEN"));
+    await user.click(screen.getByRole("button", { name: "Decimal" }));
+    expect(screen.getByLabelText("DEN moneyline")).toHaveValue("1.67");
+    expect(cells(row(ml, "DEN"))).toEqual([...before.slice(0, 5), "1.20"]); // same edge and EV
+    await user.click(screen.getByRole("button", { name: "American" }));
+    expect(screen.getByLabelText("ATL moneyline")).toHaveValue("-600");
+    expect(screen.getByLabelText("DEN moneyline")).toHaveValue("-150");
+    expect(cells(row(ml, "DEN"))).toEqual(before);
+  });
+
+  it("a new game clears the odds but keeps the format", async () => {
+    const user = userEvent.setup();
+    serve({ date: "2021-11-27", games: [game(), second] });
+    const { rerender } = renderWithQuery(
+      <EdgeView date={null} gameId="0022100047" onGameChange={vi.fn()} />);
+    await user.type(await screen.findByLabelText("DEN moneyline"), "2.5");
+    await user.click(screen.getByRole("button", { name: "Decimal" }));
+    rerender(<EdgeView date={null} gameId="0022100049" onGameChange={vi.fn()} />);
+    expect(await screen.findByLabelText("BOS moneyline")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Decimal" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("replaces a game id that is not on the date with the first game", async () => {
+    const onGameChange = vi.fn();
+    serve({ date: "2021-11-27", games: [game(), second] });
+    renderWithQuery(<EdgeView date={null} gameId="0099999999" onGameChange={onGameChange} />);
+    expect(await screen.findByRole("combobox", { name: "Game" })).toHaveTextContent("ATL @ DEN");
+    expect(onGameChange).toHaveBeenCalledWith("0022100047");
+  });
+
   it("prices the spread from the home line and the total from its line", async () => {
     const user = userEvent.setup();
     serve({ date: "2021-11-27", games: [game()] });
@@ -83,9 +123,9 @@ describe("EdgeView", () => {
     expect(within(spread).queryByRole("table")).toBeNull();
     await user.type(within(spread).getByLabelText("DEN line"), "-3.5");
     const st = within(spread).getByRole("table", { name: "Spread" });
-    // margin N(9.41, 14.85): DEN covers -3.5 when it wins by 4+
-    expect(cells(row(st, "DEN −3.5"))[1]).toBe("65.5%");
-    expect(cells(row(st, "ATL \\+3.5"))[1]).toBe("34.5%");
+    // margin N(9.41, 14.85) without the tie band: DEN covers -3.5 when it wins by 4+
+    expect(cells(row(st, "DEN −3.5"))[1]).toBe("66.9%");
+    expect(cells(row(st, "ATL \\+3.5"))[1]).toBe("33.1%");
 
     const total = screen.getByRole("region", { name: "Total" });
     await user.type(within(total).getByLabelText("Total line"), "224");

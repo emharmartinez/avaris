@@ -33,6 +33,11 @@ export function parseLine(raw: string): number | null {
   return toNumber(raw);
 }
 
+export function parseTotal(raw: string): number | null {
+  const x = toNumber(raw);
+  return x != null && x > 0 ? x : null;
+}
+
 export interface Outcome {
   win: number;
   push: number;
@@ -64,14 +69,18 @@ export function moneylineMarket(pHomeWin: number): Pair<Outcome> {
 }
 
 export function spreadMarket(margin: Normal, homeLine: number): Pair<Outcome> {
-  // margin = home - away; home covers homeLine when margin + homeLine > 0
-  const home = lineOutcomes(margin, -homeLine, "over");
-  if (homeLine === 0) {
-    // A pick'em pushes only on a tie, which an NBA game cannot end in
-    const decided = home.win + home.lose;
-    const win = home.win / decided;
-    return [{ win: 1 - win, push: 0, lose: win }, { win, push: 0, lose: 1 - win }];
-  }
+  // margin = home - away; home covers homeLine when margin + homeLine > 0. An NBA game cannot
+  // end tied, so the margin = 0 band is dropped from whichever outcome holds it and the rest
+  // rescaled: -0.5, pk and +0.5 are then the same bet, and a pick'em never pushes
+  const raw = lineOutcomes(margin, -homeLine, "over");
+  const tie = normalCdf(0.5, margin.mu, margin.sigma) - normalCdf(-0.5, margin.mu, margin.sigma);
+  const held: keyof Outcome = homeLine > 0 ? "win" : homeLine < 0 ? "lose" : "push";
+  const scale = 1 - tie;
+  const home = {
+    win: (raw.win - (held === "win" ? tie : 0)) / scale,
+    push: Math.max(0, raw.push - (held === "push" ? tie : 0)) / scale,
+    lose: (raw.lose - (held === "lose" ? tie : 0)) / scale,
+  };
   return [{ win: home.lose, push: home.push, lose: home.win }, home];
 }
 
@@ -113,7 +122,8 @@ export function evaluateMarket(sides: Pair<Side>): MarketResult {
       implied,
       edge: implied == null ? null : model - implied,
       ev: odds == null ? null : outcome.win * (odds - 1) - outcome.lose,
-      fairOdds: model > 0 ? 1 / model : null,
+      // A certain model has no finite price on one side and a meaningless one on the other
+      fairOdds: model > 1e-9 && model < 1 - 1e-9 ? 1 / model : null,
     };
   });
   return { sides: [results[0], results[1]], devigged, vig: book == null ? null : book - 1 };

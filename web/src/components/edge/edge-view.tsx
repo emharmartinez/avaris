@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { PageHeader, QueryState } from "@/components/query-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useGames } from "@/hooks/use-api";
 import {
-  evaluateMarket, formatOdds, moneylineMarket, parseLine, parseOdds, spreadMarket, totalMarket,
+  evaluateMarket, formatOdds, moneylineMarket, parseLine, parseOdds, parseTotal, spreadMarket,
+  totalMarket,
   type MarketResult, type OddsFormat, type Outcome, type Pair,
 } from "@/lib/edge";
 import { formatDate, formatTip, pct, shiftDate, signed, teamLabel } from "@/lib/format";
@@ -29,6 +30,8 @@ export function EdgeView({ date, gameId, onGameChange }: {
 }) {
   const query = useGames(date);
   const day = date ?? query.data?.date ?? null;
+  // The odds format outlives a change of game or date; the typed odds do not
+  const [format, setFormat] = useState<OddsFormat>("american");
   return (
     <div className="space-y-6">
       <PageHeader title="Edge" description={day ? formatDate(day) : undefined}>
@@ -47,24 +50,34 @@ export function EdgeView({ date, gameId, onGameChange }: {
         )}
       </PageHeader>
       <QueryState query={query} label="predictions">
-        {(data) => <GamePicker data={data} gameId={gameId} onGameChange={onGameChange} />}
+        {(data) => (
+          <GamePicker
+            data={data} gameId={gameId} onGameChange={onGameChange}
+            format={format} onFormatChange={setFormat}
+          />
+        )}
       </QueryState>
     </div>
   );
 }
 
-function GamePicker({ data, gameId, onGameChange }: {
+function GamePicker({ data, gameId, onGameChange, format, onFormatChange }: {
   data: GamesOnDate;
   gameId: string | null;
   onGameChange: (id: string) => void;
+  format: OddsFormat;
+  onFormatChange: (f: OddsFormat) => void;
 }) {
-  // Odds format outlives a change of game; the typed odds do not
-  const [format, setFormat] = useState<OddsFormat>("american");
   const games = data.games.filter((g): g is PredictedGame => g.prediction != null);
-  if (games.length === 0) {
+  const game = games.find((g) => g.game_id === gameId) ?? games[0];
+  // A ?game= that is not on this date: point the URL at the game actually shown
+  const stale = gameId != null && game != null && game.game_id !== gameId;
+  useEffect(() => {
+    if (stale) onGameChange(game.game_id);
+  }, [stale, game, onGameChange]);
+  if (game == null) {
     return <p className="text-sm text-muted-foreground">No predicted games on this date.</p>;
   }
-  const game = games.find((g) => g.game_id === gameId) ?? games[0];
   return (
     <div className="space-y-4">
       <Select value={game.game_id} onValueChange={onGameChange}>
@@ -79,16 +92,22 @@ function GamePicker({ data, gameId, onGameChange }: {
           ))}
         </SelectContent>
       </Select>
-      <Calculator key={game.game_id} game={game} format={format} onFormatChange={setFormat} />
+      <Calculator key={game.game_id} game={game} format={format} onFormatChange={onFormatChange} />
     </div>
   );
 }
 
 const ODDS_FIELDS = ["mlAway", "mlHome", "spAway", "spHome", "over", "under"] as const;
 type OddsField = (typeof ODDS_FIELDS)[number];
-type OddsInputs = Record<OddsField, string>;
+// What is in the input, plus the exact decimal price while the text is a converted one, so
+// switching format back and forth never rounds what was typed
+interface OddsInput {
+  text: string;
+  exact?: number;
+}
+type OddsInputs = Record<OddsField, OddsInput>;
 
-const EMPTY: OddsInputs = { mlAway: "", mlHome: "", spAway: "", spHome: "", over: "", under: "" };
+const EMPTY = Object.fromEntries(ODDS_FIELDS.map((f) => [f, { text: "" }])) as OddsInputs;
 
 // Typed into an input, so the plain hyphen rather than the display minus
 const inputOdds = (decimal: number, format: OddsFormat) =>
@@ -105,21 +124,21 @@ function Calculator({ game, format, onFormatChange }: {
   const p = game.prediction;
   const away = teamLabel(game.away);
   const home = teamLabel(game.home);
-  const price = (field: OddsField) => parseOdds(odds[field], format);
-  const set = (field: OddsField) => (value: string) => setOdds((o) => ({ ...o, [field]: value }));
+  const price = (field: OddsField) => odds[field].exact ?? parseOdds(odds[field].text, format);
+  const set = (field: OddsField) => (text: string) => setOdds((o) => ({ ...o, [field]: { text } }));
 
   const switchFormat = (next: OddsFormat) => {
     if (next === format) return;
-    // Keep what was typed: convert each valid price, leave the rest as is
+    // Convert each valid price and keep its exact value; leave the rest as typed
     setOdds((o) => Object.fromEntries(ODDS_FIELDS.map((f) => {
-      const d = parseOdds(o[f], format);
-      return [f, d == null ? o[f] : inputOdds(d, next)];
+      const d = o[f].exact ?? parseOdds(o[f].text, format);
+      return [f, d == null ? o[f] : { text: inputOdds(d, next), exact: d }];
     })) as OddsInputs);
     onFormatChange(next);
   };
 
   const spread = parseLine(spreadLine);
-  const total = parseLine(totalLine);
+  const total = parseTotal(totalLine);
   const evaluate = (outcomes: Pair<Outcome>, fields: Pair<OddsField>) => evaluateMarket([
     { outcome: outcomes[0], odds: price(fields[0]) },
     { outcome: outcomes[1], odds: price(fields[1]) },
@@ -149,8 +168,8 @@ function Calculator({ game, format, onFormatChange }: {
         title="Moneyline"
         description={`Model: ${home} ${pct(p.p_home_win, 1)} to win`}
         inputs={<>
-          <OddsInput label={`${away} moneyline`} value={odds.mlAway} onChange={set("mlAway")} format={format} />
-          <OddsInput label={`${home} moneyline`} value={odds.mlHome} onChange={set("mlHome")} format={format} />
+          <OddsInput label={`${away} moneyline`} value={odds.mlAway.text} onChange={set("mlAway")} format={format} />
+          <OddsInput label={`${home} moneyline`} value={odds.mlHome.text} onChange={set("mlHome")} format={format} />
         </>}
         result={evaluate(moneylineMarket(p.p_home_win), ["mlAway", "mlHome"])}
         labels={[away, home]}
@@ -163,10 +182,11 @@ function Calculator({ game, format, onFormatChange }: {
         inputs={<>
           <TextInput
             label={`${home} line`} value={spreadLine} onChange={setSpreadLine}
-            invalid={spreadLine !== "" && spread == null} placeholder="-3.5"
+            error={spreadLine !== "" && spread == null ? "Not a valid line, e.g. -3.5 or pk." : null}
+            placeholder="-3.5"
           />
-          <OddsInput label={`${away} spread odds`} value={odds.spAway} onChange={set("spAway")} format={format} />
-          <OddsInput label={`${home} spread odds`} value={odds.spHome} onChange={set("spHome")} format={format} />
+          <OddsInput label={`${away} spread odds`} value={odds.spAway.text} onChange={set("spAway")} format={format} />
+          <OddsInput label={`${home} spread odds`} value={odds.spHome.text} onChange={set("spHome")} format={format} />
         </>}
         result={spread == null ? null : evaluate(spreadMarket(p.margin, spread), ["spAway", "spHome"])}
         labels={spread == null ? null : [`${away} ${formatLine(-spread)}`, `${home} ${formatLine(spread)}`]}
@@ -180,10 +200,11 @@ function Calculator({ game, format, onFormatChange }: {
         inputs={<>
           <TextInput
             label="Total line" value={totalLine} onChange={setTotalLine}
-            invalid={totalLine !== "" && total == null} placeholder="224.5"
+            error={totalLine !== "" && total == null ? "Not a valid total, e.g. 224.5." : null}
+            placeholder="224.5"
           />
-          <OddsInput label="Over odds" value={odds.over} onChange={set("over")} format={format} />
-          <OddsInput label="Under odds" value={odds.under} onChange={set("under")} format={format} />
+          <OddsInput label="Over odds" value={odds.over.text} onChange={set("over")} format={format} />
+          <OddsInput label="Under odds" value={odds.under.text} onChange={set("under")} format={format} />
         </>}
         result={total == null ? null : evaluate(totalMarket(p.total, total), ["over", "under"])}
         labels={total == null ? null : [`Over ${formatTotal(total)}`, `Under ${formatTotal(total)}`]}
@@ -293,17 +314,21 @@ function OddsInput({ label, value, onChange, format }: {
   return (
     <TextInput
       label={label} value={value} onChange={onChange}
-      invalid={value !== "" && parseOdds(value, format) == null}
+      error={value !== "" && parseOdds(value, format) == null
+        ? (format === "american"
+          ? "Not a valid American price: -100 or below, or +100 or above."
+          : "Not a valid decimal price: above 1.")
+        : null}
       placeholder={format === "american" ? "-110" : "1.91"}
     />
   );
 }
 
-function TextInput({ label, value, onChange, invalid, placeholder }: {
+function TextInput({ label, value, onChange, error, placeholder }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
-  invalid: boolean;
+  error: string | null;
   placeholder: string;
 }) {
   const id = useId();
@@ -312,8 +337,10 @@ function TextInput({ label, value, onChange, invalid, placeholder }: {
       <label htmlFor={id} className="text-xs font-medium text-muted-foreground">{label}</label>
       <Input
         id={id} value={value} placeholder={placeholder} autoComplete="off" spellCheck={false}
-        aria-invalid={invalid || undefined} onChange={(e) => onChange(e.target.value)}
+        aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : undefined}
+        onChange={(e) => onChange(e.target.value)}
       />
+      {error && <p id={`${id}-error`} className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
