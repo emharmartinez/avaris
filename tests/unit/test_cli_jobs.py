@@ -78,3 +78,12 @@ def test_locked_db_and_no_server_exits_1(config: Path, server: respx.MockRouter)
     result = runner.invoke(app, ["--config", str(config), "daily"])
     assert result.exit_code == 1
     assert "no Avaris server answers" in result.output
+
+
+def test_a_failing_status_poll_exits_1(config: Path, server: respx.MockRouter) -> None:
+    server.post("/api/jobs/score").mock(return_value=httpx.Response(202, json=job("running", [])))
+    server.get("/api/jobs/j1").mock(return_value=httpx.Response(500, text="oops"))
+    result = runner.invoke(app, ["--config", str(config), "score"])
+    assert result.exit_code == 1
+    assert "500" in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)

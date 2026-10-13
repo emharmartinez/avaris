@@ -1,7 +1,7 @@
 import shutil
 import threading
 from collections.abc import Iterator
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -13,9 +13,9 @@ from avaris.api.main import create_app
 from avaris.config import Settings
 from avaris.db import connect
 from avaris.pipeline.daily import run_daily
-from avaris.pipeline.score import score_predictions
 from tests.fixtures.live import D1, D2, models_settings, train_before_d1
-from tests.fixtures.synthetic import ATL, BOS
+from tests.fixtures.synthetic import ATL, BOS, INJURED_STAR
+from tests.integration.test_daily import add_report
 
 NOON_D2 = datetime(2021, 11, 27, 17, 0)  # D1 games final (catch-up), D2 provisional
 
@@ -30,10 +30,11 @@ def live_db(
     train_before_d1(db, root / "artifacts")
     settings = Settings(models=models_settings(root / "artifacts"))
     con = connect(db)
-    run_daily(con, settings, now=NOON_D2, refresh=None)
+    add_report(con, NOON_D2 - timedelta(hours=1), D2, INJURED_STAR, BOS)
     con.execute("update games set home_pts = 110, away_pts = 100, status = 'final' "
                 "where game_date_et = ?", [D1])
-    score_predictions(con, NOON_D2)
+    summary = run_daily(con, settings, now=NOON_D2, refresh=None)  # D1 finals, then scored
+    assert summary.scored == 2
     con.close()
     report = root / "artifacts" / "reports" / "evaluation_2020-21_2024-25"
     report.mkdir(parents=True)
@@ -108,7 +109,10 @@ def test_game_detail(client: TestClient) -> None:
     assert set(drivers["margin"]["families"]) >= {"elo", "form", "availability"}
     assert body["prediction"]["injuries"]["home"]["full_strength"] > 0
     assert body["score"]["margin"] == 10
-    assert isinstance(body["injury_report"], list)
+    assert body["injury_report"] == []  # D1 had no report
+    d2 = get(client, f"/api/predictions?date={D2.isoformat()}")["games"]
+    entries = [get(client, f"/api/games/{g['game_id']}")["injury_report"] for g in d2]
+    assert sorted(len(e) for e in entries) == [0, 1]
     for side in ("home", "away"):
         trend = body["ratings"][side]
         assert trend and trend[-1]["as_of_ts"] <= body["prediction"]["decision_ts"]
@@ -123,12 +127,16 @@ def test_game_detail_unknown(client: TestClient) -> None:
 def test_teams(client: TestClient) -> None:
     teams = get(client, "/api/teams")
     assert {t["team_id"] for t in teams} == {ATL, BOS, 1610612751, 1610612743}
-    assert all(t["as_of_ts"] <= "2021-11-27T17:00:00Z" for t in teams)
     assert teams == sorted(teams, key=lambda t: -t["elo"])
     history = get(client, f"/api/teams/{ATL}")
     assert history["team"]["abbreviation"] == "ATL"
     assert history["season"] == "2021-22"
-    assert len(history["ratings"]) > 10
+    ratings = history["ratings"]
+    assert len(ratings) > 10
+    # Current ratings include D1's result (ATL's D2 pre-game state), not the D1 pre-game state
+    atl = next(t for t in teams if t["team_id"] == ATL)
+    assert atl["as_of_ts"] == "2021-11-27T16:00:00Z"
+    assert atl["elo"] == ratings[-1]["elo"] != ratings[-2]["elo"]
     assert client.get("/api/teams/1").status_code == 404
 
 
@@ -160,11 +168,13 @@ def test_backtests(client: TestClient) -> None:
 
 
 def test_injuries(client: TestClient) -> None:
-    body = get(client, f"/api/injuries?date={D1.isoformat()}")
+    body = get(client, f"/api/injuries?date={D2.isoformat()}")
     assert len(body["games"]) == 2
+    entries = [e for g in body["games"] for e in g["entries"]]
+    assert [(e["player_id"], e["status"]) for e in entries] == [(INJURED_STAR, "out")]
     for g in body["games"]:
         assert set(g["impact"]) == {"home", "away"}
-        assert isinstance(g["entries"], list)
+        assert g["report_ts"] == "2021-11-27T16:00:00Z"
 
 
 def test_jobs_run_and_report_status(

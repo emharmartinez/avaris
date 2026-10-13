@@ -83,8 +83,9 @@ class JobManager:
         if kind not in self.runners:
             raise ValueError(f"unknown job kind {kind!r}")
         if not self._lock.acquire(blocking=False):
-            running = self._current
-            raise JobBusy(running.job_id if running else "?", running.kind if running else "?")
+            running = self._current  # None while a finished job releases the lock
+            raise JobBusy(running.job_id if running else "finishing",
+                          running.kind if running else "?")
         try:
             job = Job(uuid.uuid4().hex[:12], kind, params, self.clock())
             with self.con.cursor() as cur:
@@ -106,17 +107,19 @@ class JobManager:
 
     def _run(self, job: Job) -> None:
         def progress(line: str) -> None:
-            job.log.append(line)
+            job.log.extend(line.splitlines() or [""])
             del job.log[:-LOG_LINES]
 
         try:
             with self.con.cursor() as cur:
                 job.message = self.runners[job.kind](cur, job.params, progress)
             job.status = "succeeded"
-        except Exception as exc:
+        except BaseException as exc:
             job.status = "failed"
             job.message = f"{type(exc).__name__}: {exc}"
             progress(traceback.format_exc().rstrip())
+            if not isinstance(exc, Exception):
+                raise
         finally:
             job.finished_at = self.clock()
             try:

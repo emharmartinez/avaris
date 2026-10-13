@@ -1,5 +1,5 @@
 import math
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from datetime import date, datetime
 from typing import Annotated, Any
 from urllib.parse import urlparse
@@ -65,9 +65,9 @@ def json_value(value: Any) -> Any:
 
 
 def rows(
-    cur: duckdb.DuckDBPyConnection, sql: str, params: Sequence[Any] = ()
+    cur: duckdb.DuckDBPyConnection, sql: str, params: Sequence[Any] | Mapping[str, Any] = ()
 ) -> list[dict[str, Any]]:
-    result = cur.execute(sql, list(params))
+    result = cur.execute(sql, params if isinstance(params, Mapping) else list(params))
     names = [d[0] for d in result.description or []]
     return [
         {name: json_value(v) for name, v in zip(names, values, strict=True)}

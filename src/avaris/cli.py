@@ -418,13 +418,18 @@ def _server_job(
                    f"{job['job_id']}")
         seen = 0
         while True:
-            job = httpx.get(f"{base}/api/jobs/{job['job_id']}", timeout=10).json()
+            poll = httpx.get(f"{base}/api/jobs/{job['job_id']}", timeout=10)
+            poll.raise_for_status()
+            job = poll.json()
             for line in job["log"][seen:]:
                 typer.echo(line)
             seen = len(job["log"])
             if job["status"] != "running":
                 break
             time.sleep(POLL_S)
+    except httpx.HTTPStatusError as exc:
+        typer.echo(f"The Avaris server at {base} failed: {exc}")
+        raise typer.Exit(1) from exc
     except httpx.HTTPError as exc:
         typer.echo(f"Database is locked by another process ({locked}) and no Avaris server "
                    f"answers at {base} ({exc})")
@@ -466,8 +471,8 @@ def serve_command(
     settings: Settings = ctx.obj
     bind = host or settings.server.host
     if bind not in LOOPBACK_HOSTS and bind != "::1":
-        typer.echo(f"WARNING: binding to {bind}; the API has no authentication and anyone "
-                   "who can reach this address can run jobs")
+        typer.echo(f"WARNING: binding to {bind}: the API has no authentication, and it "
+                   "answers only requests addressed to 127.0.0.1 or localhost")
     api = create_app(settings, daily_on_startup=settings.server.daily_on_startup and daily)
     uvicorn.run(api, host=bind, port=port or settings.server.port)
 

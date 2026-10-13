@@ -239,3 +239,49 @@ def test_a_failed_refresh_is_a_warning(
     assert any("no network" in w for w in summary.warnings)
     assert summary.provisional == 2
 
+
+
+def test_a_same_day_retrain_repredicts_todays_games(
+    env: tuple[duckdb.DuckDBPyConnection, Settings],
+) -> None:
+    con, settings = env
+    settings.models.retrain_every_days = 1
+    noon_d2 = datetime(2021, 11, 27, 17, 0)
+    # D1's results arrived, so the retrain through D2 has more rows and is promoted
+    con.execute("update games set home_pts = 110, away_pts = 100, status = 'final' "
+                "where game_date_et = ?", [D1])
+    summary = daily(con, settings, noon_d2)
+    assert summary.retrained
+    preds = predictions(con)
+    d1 = preds[preds["game_date_et"].dt.date == D1]
+    d2 = preds[preds["game_date_et"].dt.date == D2]
+    assert set(d1["status"]) == {"final"} and (d1["margin_run"] == "r1").all()
+    assert set(d2["status"]) == {"provisional"} and (d2["margin_run"] != "r1").all()
+    # Counts are per game, not per pass
+    assert summary.final == 2 and summary.provisional == 2 and summary.unchanged == 0
+
+
+def test_a_held_candidate_warns_on_every_run(
+    env: tuple[duckdb.DuckDBPyConnection, Settings],
+) -> None:
+    con, settings = env
+    later = datetime(2021, 12, 6, 17, 0)
+    daily(con, settings, later)  # retrains: same rows, so the runs are held as candidates
+    registry = Registry(settings.models.models_dir)
+    assert registry.production("margin") == "r1" and registry.candidates("margin")
+    again = daily(con, settings, later + timedelta(hours=1))
+    assert not again.retrained
+    assert any("held candidate" in w and "r1" in w for w in again.warnings)
+
+
+def test_any_refresh_error_is_a_warning(
+    env: tuple[duckdb.DuckDBPyConnection, Settings],
+) -> None:
+    con, settings = env
+
+    def blocked(*_args: object) -> None:
+        raise ValueError("Injury-Report.pdf: response is not a PDF")
+
+    summary = run_daily(con, settings, now=NOON_D1, refresh=blocked)
+    assert any("not a PDF" in w for w in summary.warnings)
+    assert summary.provisional == 2

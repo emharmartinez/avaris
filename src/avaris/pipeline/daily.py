@@ -6,7 +6,6 @@ from datetime import date, datetime
 from typing import Any
 
 import duckdb
-import httpx
 import numpy as np
 import pandas as pd
 
@@ -46,11 +45,23 @@ COMPARED = [
 class DailySummary:
     refreshed: bool = False
     retrained: list[str] = field(default_factory=list)  # one line per target
-    provisional: int = 0  # rows written
-    final: int = 0
-    unchanged: int = 0
+    written: dict[str, str] = field(default_factory=dict)  # game -> status written
+    seen: set[str] = field(default_factory=set)  # games considered, written or not
     scored: int = 0
     warnings: list[str] = field(default_factory=list)
+
+    # Per game, across both predict passes
+    @property
+    def provisional(self) -> int:
+        return sum(s == "provisional" for s in self.written.values())
+
+    @property
+    def final(self) -> int:
+        return sum(s == "final" for s in self.written.values())
+
+    @property
+    def unchanged(self) -> int:
+        return len(self.seen - set(self.written))
 
 
 def make_stats_client(settings: Settings) -> StatsClient:
@@ -107,6 +118,22 @@ def is_stale(registry: Registry, today: date, every_days: int) -> bool:
         if (today - newest).days >= every_days:
             return True
     return False
+
+
+def held_candidates(registry: Registry, today: date, every_days: int) -> list[str]:
+    # Targets whose production run is stale while a newer held candidate stops the retrain
+    lines = []
+    for target in TARGETS:
+        production = registry.production(target)
+        candidates = registry.candidates(target)
+        if production is None or not candidates:
+            continue
+        through = date.fromisoformat(registry.read_meta(target, production)["through"])
+        if (today - through).days >= every_days:
+            lines.append(f"{target}: production {production} is trained through {through}; "
+                         f"held candidate {candidates[-1]} needs `avaris train --promote` "
+                         "or a fix before the next retrain")
+    return lines
 
 
 def load_models(registry: Registry) -> Models:
@@ -236,15 +263,13 @@ def write_predictions(
     existing = {str(r["game_id"]): r for r in stored.to_dict("records")}
     keep = []
     for i, row in enumerate(new.to_dict("records")):
-        old = existing.get(str(row["game_id"]))
+        game_id = str(row["game_id"])
+        summary.seen.add(game_id)
+        old = existing.get(game_id)
         if old is not None and (old["status"] == "final" or _fingerprint(old) == _fingerprint(row)):
-            summary.unchanged += 1
             continue
         keep.append(i)
-        if row["status"] == "final":
-            summary.final += 1
-        else:
-            summary.provisional += 1
+        summary.written[game_id] = str(row["status"])
     upsert(con, "predictions", new.iloc[keep])
 
 
@@ -272,15 +297,17 @@ def run_daily(
 ) -> DailySummary:
     # Refresh → features → predict with the current models (catch-up finals come from a
     # model that never saw them) → retrain when stale → predict again → score.
-    # Idempotent: a rerun with no new data writes nothing
+    # Idempotent: a rerun with no new data writes no prediction or score rows
     summary = DailySummary()
     today = et_date(now)
     if refresh is not None:
         try:
             refresh(con, now, progress)
             summary.refreshed = True
-        except (httpx.HTTPError, OSError) as exc:
-            summary.warnings.append(f"refresh failed, using stored data: {exc}")
+        except Exception as exc:
+            # Best effort (network, a blocked or malformed response): predict on stored data
+            summary.warnings.append(f"refresh failed, using stored data: "
+                                    f"{type(exc).__name__}: {exc}")
             progress(summary.warnings[-1])
     fs = build_features(con)
     write_features(con, fs)
@@ -300,6 +327,10 @@ def run_daily(
                 summary.warnings.append(line)
             progress(line)
         predict_due(con, fs, load_models(registry), now, summary)
+    else:
+        for line in held_candidates(registry, today, settings.models.retrain_every_days):
+            summary.warnings.append(line)
+            progress(line)
     summary.scored = score_predictions(con, now)
     progress(
         f"predictions: {summary.provisional} provisional, {summary.final} final written, "
