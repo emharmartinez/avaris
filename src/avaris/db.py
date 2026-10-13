@@ -211,6 +211,45 @@ MIGRATIONS: list[str] = [
     alter table features add column home_pace_std double;
     alter table features add column away_pace_std double;
     """,
+    # Phase 5: live predictions (one row per game; a final row is never replaced), their
+    # scores after the game, and background jobs
+    """
+    create table predictions (
+        game_id varchar primary key,
+        status varchar not null check (status in ('provisional', 'final')),
+        decision_ts timestamp not null,
+        report_ts timestamp,
+        predicted_at timestamp not null,
+        feature_hash varchar not null,
+        home_win_run varchar not null,
+        margin_run varchar not null,
+        total_run varchar not null,
+        p_home_win double not null,
+        margin_mu double not null, margin_sigma double not null,
+        total_mu double not null, total_sigma double not null,
+        drivers varchar not null,  -- JSON: per target, base, families and top families
+        injuries varchar not null  -- JSON: per side, strength lost and the players behind it
+    );
+    create table prediction_scores (
+        game_id varchar primary key,
+        scored_at timestamp not null,
+        home_win double not null, margin double not null, total double not null,
+        log_loss double not null, brier double not null, correct boolean not null,
+        margin_error double not null, total_error double not null,  -- outcome - mu
+        margin_in_80 boolean not null, total_in_80 boolean not null,
+        margin_pit double not null, total_pit double not null
+    );
+    create table jobs (
+        job_id varchar primary key,
+        kind varchar not null check (kind in ('daily', 'score', 'train')),
+        status varchar not null check (status in ('running', 'succeeded', 'failed')),
+        params varchar,  -- JSON
+        created_at timestamp not null,
+        finished_at timestamp,
+        message varchar,
+        log varchar
+    );
+    """,
 ]
 
 

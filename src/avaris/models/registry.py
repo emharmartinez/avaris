@@ -1,3 +1,4 @@
+import hashlib
 import json
 import math
 import os
@@ -26,6 +27,18 @@ class FeatureHashMismatch(Exception):
 
 class NoProductionModel(Exception):
     pass
+
+
+class ArtifactIntegrityError(Exception):
+    pass
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 @dataclass(frozen=True)
@@ -58,6 +71,13 @@ class Registry:
     def candidates(self, target: str) -> list[str]:
         return list(self._entry(self._load(), target)["candidates"])
 
+    def find_targets(self, run_id: str) -> list[str]:
+        # Every target a run wrote (train writes one run ID for all of them)
+        found = [t for t in sorted(TARGETS) if (self.run_dir(t, run_id) / META_FILE).exists()]
+        if not found:
+            raise FileNotFoundError(f"no artifact {run_id} in {self.models_dir}")
+        return found
+
     def find_run(self, run_id: str) -> str:
         for target in sorted(TARGETS):
             if (self.run_dir(target, run_id) / META_FILE).exists():
@@ -85,6 +105,13 @@ class Registry:
     def promote(self, target: str, run_id: str, current_hash: str) -> None:
         meta = self.read_meta(target, run_id)
         _check_hash(meta, current_hash)
+        if "model_sha256" in meta:
+            self._check_model(target, run_id, meta)
+        else:
+            # A manual promote vouches for an artifact written before hashes were recorded
+            meta["model_sha256"] = file_sha256(self.run_dir(target, run_id) / MODEL_FILE)
+            _write_atomic(self.run_dir(target, run_id) / META_FILE,
+                          json.dumps(meta, indent=2) + "\n")
         state = self._load()
         _set_production(self._entry(state, target), run_id, "manual_promote")
         self._save(state)
@@ -94,9 +121,25 @@ class Registry:
         if run_id is None:
             raise NoProductionModel(f"no production {target} model; run avaris train")
         meta = self.read_meta(target, run_id)
-        # Refuse before loading: a stale feature set would silently mispredict
+        # Refuse before loading: a stale feature set would silently mispredict, and
+        # model.joblib is a pickle, so only the bytes written at train time are loaded
         _check_hash(meta, current_hash)
+        self._check_model(target, run_id, meta)
         return joblib.load(self.run_dir(target, run_id) / MODEL_FILE), meta
+
+    def _check_model(self, target: str, run_id: str, meta: dict[str, Any]) -> None:
+        expected = meta.get("model_sha256")
+        if expected is None:
+            raise ArtifactIntegrityError(
+                f"{target} artifact {run_id} has no model_sha256; if you trust it, seal it "
+                f"with `avaris train --promote {run_id} --target {target}`"
+            )
+        actual = file_sha256(self.run_dir(target, run_id) / MODEL_FILE)
+        if actual != expected:
+            raise ArtifactIntegrityError(
+                f"{target} artifact {run_id}: model.joblib sha256 {actual[:12]} does not match "
+                f"meta.json {str(expected)[:12]}; refusing to load it"
+            )
 
     def _load(self) -> dict[str, Entry]:
         return json.loads(self.path.read_text()) if self.path.exists() else {}
@@ -106,10 +149,14 @@ class Registry:
 
     def _save(self, state: dict[str, Entry]) -> None:
         self.models_dir.mkdir(parents=True, exist_ok=True)
-        # Temp file in the same directory so os.replace stays atomic
-        tmp_path = self.path.with_name(f"{REGISTRY_FILE}.tmp")
-        tmp_path.write_text(json.dumps(state, indent=2))
-        os.replace(tmp_path, self.path)
+        _write_atomic(self.path, json.dumps(state, indent=2))
+
+
+def _write_atomic(path: Path, text: str) -> None:
+    # Temp file in the same directory so os.replace stays atomic
+    tmp_path = path.with_name(f"{path.name}.tmp")
+    tmp_path.write_text(text)
+    os.replace(tmp_path, path)
 
 
 def _failed_rules(

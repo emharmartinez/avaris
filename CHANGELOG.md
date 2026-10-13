@@ -2,10 +2,20 @@
 
 ## Unreleased
 
+### Security
+- `model.joblib` is verified against `model_sha256` in `meta.json` before loading; unhashed artifacts are sealed by a manual promote (#6)
+
 ### Removed
 - **Phase 2, odds removal (ADR-014):** The Odds API client, `CreditGuard`, snapshot slot planner, odds backfill, `avaris odds` CLI group, odds and guard settings, and de-vig (`betting/`). Migration 4 drops `odds_events`, `odds_snapshots` and `api_usage`
 
 ### Added
+- **Phase 5, daily pipeline + API**
+  - `avaris daily [--offline]`: source refresh, features, provisional and final predictions with drivers and injury impact, catch-up of missed games, retrain when stale, scoring; idempotent (ADR-018)
+  - `avaris score`: `prediction_scores` per final prediction (log loss, Brier, errors, 80% interval hits, PIT)
+  - `avaris serve`: FastAPI on `127.0.0.1:8000` with read endpoints (predictions, game detail, teams, performance, backtests, injuries) and `POST /api/jobs/{daily,score,train}` with a single-job lock; runs `daily` on startup
+  - CLI `daily`, `score` and `train` run as server jobs while `serve` holds the database
+  - Migration 7: `predictions`, `prediction_scores`, `jobs`; `[server]` settings
+  - Dependencies: FastAPI, uvicorn
 - **Phase 4, evaluation + analytics**
   - `avaris evaluate [--from] [--to] [--availability actual|report] [--holdout]`: weekly walk-forward of the kept rungs against Elo, `naive_home` and `naive_net`, with paired bootstrap CIs, ECE, reliability diagrams, PIT histograms (SVG), metrics per season and scope, and drivers per family (ADR-017)
   - Holdout guard: `evaluate --holdout` scores a finished holdout season once in both availability modes and records `docs/reports/holdout_used.json`; `backtest`, `tune` and `evaluate` refuse windows reaching it

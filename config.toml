@@ -83,3 +83,8 @@ subsample = 0.6989
 colsample_bytree = 0.4259
 reg_lambda = 0.005447
 subsample_freq = 1
+
+[server]
+host = "127.0.0.1"       # local-only
+port = 8000
+daily_on_startup = true  # `avaris serve` runs `avaris daily` once when it starts

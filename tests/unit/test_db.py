@@ -10,6 +10,7 @@ PHASE_1_TABLES = {"games", "team_games", "player_games", "rosters"}
 PHASE_2_TABLES = {"injury_report_files", "injury_reports"}
 DROPPED_TABLES = {"api_usage", "odds_events", "odds_snapshots"}  # migration 4
 PHASE_3_TABLES = {"features", "team_ratings"}
+PHASE_5_TABLES = {"predictions", "prediction_scores", "jobs"}
 
 
 def tables(con: duckdb.DuckDBPyConnection) -> set[str]:
@@ -21,7 +22,7 @@ def test_connect_creates_file_and_schema(tmp_path: Path) -> None:
     db_path = tmp_path / "nested" / "avaris.duckdb"
     con = connect(db_path)
     assert db_path.exists()
-    assert tables(con) >= PHASE_1_TABLES | PHASE_2_TABLES | PHASE_3_TABLES
+    assert tables(con) >= PHASE_1_TABLES | PHASE_2_TABLES | PHASE_3_TABLES | PHASE_5_TABLES
     assert not tables(con) & DROPPED_TABLES
     version = con.execute("select max(version) from schema_version").fetchone()
     assert version is not None
@@ -107,3 +108,38 @@ def test_migration_6_adds_season_to_date_columns_to_a_populated_version_5_db(
     con = connect(db_path)
     row = con.execute("select game_id, home_ortg_std, away_pace_std from features").fetchone()
     assert row == ("g", None, None)
+
+
+def test_prediction_status_and_job_values_are_checked(tmp_path: Path) -> None:
+    con = connect(tmp_path / "a.duckdb")
+    with pytest.raises(duckdb.ConstraintException):
+        con.execute(
+            "insert into predictions (game_id, status, decision_ts, predicted_at, feature_hash, "
+            "home_win_run, margin_run, total_run, p_home_win, margin_mu, margin_sigma, "
+            "total_mu, total_sigma, drivers, injuries) values ('g', 'draft', now(), now(), "
+            "'h', 'r', 'r', 'r', 0.5, 1, 10, 220, 15, '{}', '{}')"
+        )
+    with pytest.raises(duckdb.ConstraintException):
+        con.execute(
+            "insert into jobs (job_id, kind, status, created_at) values ('j', 'ingest', "
+            "'running', now())"
+        )
+
+
+def test_migration_7_upgrades_a_populated_version_6_db(tmp_path: Path) -> None:
+    db_path = tmp_path / "a.duckdb"
+    con = duckdb.connect(str(db_path))
+    con.execute("create table schema_version (version integer primary key)")
+    for version, ddl in enumerate(MIGRATIONS[:6], start=1):
+        con.execute(ddl)
+        con.execute("insert into schema_version values (?)", [version])
+    con.execute(
+        "insert into games (game_id, season, season_type, game_date_et, home_team_id, "
+        "away_team_id, status, neutral_site) values ('g', '2026-27', 'regular', "
+        "'2026-10-21', 1, 2, 'scheduled', false)"
+    )
+    con.close()
+    con = connect(db_path)
+    assert tables(con) >= PHASE_5_TABLES
+    assert con.execute("select count(*) from games").fetchone() == (1,)
+    assert con.execute("select max(version) from schema_version").fetchone() == (7,)
