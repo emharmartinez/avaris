@@ -428,6 +428,28 @@ def evaluate_command(
     typer.echo(f"Wrote {out / 'report.md'}")
 
 
+@app.command("rest-fit")
+def rest_fit_command(ctx: typer.Context) -> None:
+    # Preseason rest coefficients (ADR-022): fitted on the tuning window with who actually
+    # sat out, each switched on only if it beats the raw model on the evaluation window
+    from avaris.preseason.fit import fit_rest
+
+    settings: Settings = ctx.obj
+    con = connect(settings.paths.db_path)
+    try:
+        fit = fit_rest(con, settings)
+    finally:
+        con.close()
+    report = fit.report
+    typer.echo(f"Fit {report['fit_seasons'][0]} to {report['fit_seasons'][-1]}: "
+               f"{report['n_fit']} preseason games; gate {report['gate_seasons'][0]} to "
+               f"{report['gate_seasons'][-1]}: {report['n_gate']} games")
+    for target, gate in report["gate"].items():
+        typer.echo(f"{target}: k = {report['k'][target]:.4f}, {gate['metric']} raw "
+                   f"{gate['raw']:.4f} vs adjusted {gate['adjusted']:.4f}: "
+                   + ("enabled" if gate["enabled"] else "disabled"))
+
+
 def _run_job(settings: Settings, kind: str, params: dict[str, object]) -> None:
     # In-process on a read-write connection; when a server holds the database (one
     # writer), the job runs there instead
