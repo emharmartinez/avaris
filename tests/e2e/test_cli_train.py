@@ -62,3 +62,17 @@ def test_tune_and_backtest(config: Path, tmp_path: Path) -> None:
     assert "Kept rungs" in out
     report = tmp_path / "artifacts" / "reports" / "walkforward_2021-22_2021-22_season.md"
     assert "## margin" in report.read_text()
+
+
+@pytest.mark.e2e
+def test_preseason_win_check_writes_the_report(config: Path, tmp_path: Path) -> None:
+    # The synthetic league's first season has no earlier one to calibrate on
+    config.write_text(config.read_text().replace('tune_first_season = "2020-21"',
+                                                 'tune_first_season = "2021-22"'))
+    out = invoke(config, "preseason-win-check")
+    report = tmp_path / "artifacts" / "reports" / "preseason_win_check_2021-22_2021-22"
+    assert f"Wrote {report / 'report.md'}" in out
+    md = (report / "report.md").read_text()
+    assert "preseason games, 2021-22 to 2021-22" in md and "margin" in md
+    assert (report / "reliability_preseason_home_win.svg").exists()
+    assert (report / "predictions.csv.gz").exists()

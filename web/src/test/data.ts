@@ -39,6 +39,7 @@ export const game = (extra: Partial<Game> = {}): Game => ({
       margin: [{ family: "form", value: 3.08 }],
       total: [{ family: "league", value: -4.7 }],
     },
+    driver_scale: { home_win: "log_odds", margin: "points", total: "points" },
     injury_impact: {
       home: { full_strength: 100.5, lost: 0, lost_share: 0 },
       away: { full_strength: 88.1, lost: 12.3, lost_share: 0.1397 },
@@ -100,6 +101,9 @@ export const preseasonGame = (r: Rest | null = rest()): Game => {
       total: r?.adjusted
         ? { mu: 214.6, sigma: 20.1, lo: 188.84, hi: 240.36 }
         : { mu: 221.0, sigma: 20.1, lo: 195.24, hi: 246.76 },
+      // ADR-023: the preseason win probability is read off the margin, so are its drivers
+      top_drivers: { ...base.prediction!.top_drivers, home_win: base.prediction!.top_drivers.margin },
+      driver_scale: { home_win: "points", margin: "points", total: "points" },
       injury_impact: { home: null, away: null },
       rest: r,
     },

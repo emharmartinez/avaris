@@ -8,6 +8,7 @@ from avaris.backtest.metrics import brier, coverage, log_loss, mae, rmse, score
 from avaris.models.calibration import IsotonicCalibrator
 from avaris.models.distributions import bucket, fit_sigma, interval, prob_above
 from avaris.models.ladder import TARGETS, make_rung
+from avaris.models.predictor import win_probability
 
 # Metrics
 
@@ -63,6 +64,19 @@ def test_interval_and_probability_above() -> None:
 
 
 # Calibration
+
+
+def test_preseason_win_probability_is_read_off_the_margin_normal() -> None:
+    # ADR-023: preseason p_home_win = P(margin > 0) under N(mu, sigma); the classifier's
+    # probability everywhere else
+    types = pd.Series(["preseason", "regular", "preseason", "playoffs"])
+    p = np.array([0.8, 0.7, 0.3, 0.6])
+    mu = np.array([0.0, 5.0, -15.0, 5.0])
+    sigma = np.array([15.0, 12.0, 15.0, 12.0])
+    out = win_probability(types, p, mu, sigma)
+    assert out[0] == pytest.approx(0.5)
+    assert out[2] == pytest.approx(0.158655, abs=1e-6)  # one sigma below zero
+    assert (out[1], out[3]) == (0.7, 0.6)
 
 
 def test_isotonic_calibrator_is_monotone_and_bounded() -> None:

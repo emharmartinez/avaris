@@ -2,9 +2,34 @@
 
 One entry per binding decision. Newest first. Status is `accepted`, `superseded` or `proposed`.
 
+## ADR-023: Preseason win probability is read off the margin model
+
+- **Date:** 2026-10-14 · **Status:** accepted · amends ADR-022 (the win's `k_win` shift) and ADR-016 (the preseason `home_win` output is no longer the classifier's)
+- **Decision:**
+  - Preseason games only: `p_home_win = P(margin > 0)` under the kept `margin` rung's N(μ, σ), σ from the preseason bucket (`models/predictor.py::win_probability`, applied in `daily`). Regular season, play-in and playoffs keep the `home_win` classifier.
+  - When the ESPN rest adjustment moves the margin (ADR-022), the win is read off the adjusted margin; `raw_p_home_win` is the one from the model's margin. `k_win` is retired: `rest-fit` no longer fits it and stores `0`; `use_win` now records that the win moves with the margin (`= use_margin`); columns kept, no migration. Its `home_win` gate row only reports what following the margin does; the win has no gate of its own, so the win and the margin always agree. The rest block keeps `k.win = 0` and adds `win_from_margin`.
+  - Preseason win drivers are the margin drivers (scale `points`). The API adds `driver_scale` per target, and the card labels them "home win, from margin, points".
+  - `avaris preseason-win-check` writes the comparison on the tuning window only (`docs/reports/preseason-win-check-2015-16-to-2019-20.md`).
+- **Why (#20):** the classifier is logistic, so `is_preseason` can only shift its intercept; it is as confident in preseason as in the regular season. The margin LightGBM learns how much less preseason features say. Walk-forward on the tuning window, one refit per season, 366 preseason games (2015-16 to 2018-19; 2019-20 is missing, #25):
+
+  | Candidate | Log loss | Brier | ECE |
+  | :-- | --: | --: | --: |
+  | Classifier (status quo) | 0.6671 | 0.2376 | 0.048 |
+  | Margin-derived | 0.6475 | 0.2301 | 0.042 |
+
+  - Paired log loss difference -0.0196, 95% CI [-0.0390, -0.0001]; better in all four seasons. The regular season keeps the classifier (Phase 3 weekly walk-forward, 5,979 games: 0.6099 vs 0.6128 from the margin).
+  - Rejected, on the Phase 3 weekly walk-forward predictions: per-bucket (preseason) Platt scaling of the classifier, forward-chained by season within the window, scored 0.6623 on 2016-17 to 2018-19 against 0.6437 for the raw classifier and 0.6318 from the margin. Reading the margin as integer bands with no 0 band (as the Edge tab does) scored the same as plain Φ(μ/σ) (0.64725 vs 0.64727).
+  - Following the rest-adjusted margin, with the ADR-022 fit's k = 0.108: tuning window 0.6851 -> 0.6650 log loss (331 games with box scores); 2020-21 to 2024-25 0.6937 -> 0.6857 (313 games, a check only, not used to choose).
+- **Consequences:**
+  - Already-final preseason predictions keep the classifier's probability (ADR-018), so live 2026-27 preseason log loss mixes both rules.
+  - The win and the margin on a preseason card now agree on who is favored.
+  - Phase 4 reports and the drift reference still score preseason `home_win` with the classifier (#26).
+  - `apply_rest` ignores the stored `k_win` and `use_win`: the win follows the margin whenever the margin is adjusted, so older fits need no rerun. A rerun of `avaris rest-fit` (server stopped) only makes the stored row read the new way.
+  - New preseason rows no longer store the classifier's probability (#26 covers scoring it).
+
 ## ADR-022: Preseason predictions are rest-adjusted from ESPN's injury list
 
-- **Date:** 2026-10-13 · **Status:** accepted · amends ADR-004 ("predicted at full strength") and narrows ADR-002
+- **Date:** 2026-10-13 · **Status:** accepted, win rule amended by ADR-023 · amends ADR-004 ("predicted at full strength") and narrows ADR-002
 - **Decision:**
   - Preseason games only (`season_type = 'preseason'`, both teams NBA). The model gets no new inputs and is not retrained; a rule after the model shifts its outputs: `margin -= k_margin * (home_lost - away_lost)`, `total -= k_total * (home_lost + away_lost)`, `logit(p_home_win) -= k_win * (home_lost - away_lost)`. σ is unchanged, so the 80% interval moves with μ.
   - `lost` is the value (`rate x minutes`, last season's rate) of the players ESPN lists out in the latest snapshot fetched in `[tip - 36 h, decision_ts]`. Out = status `Out`, or a future-tense note ("won't play", "won't suit up", "ruled out", "will rest", "will miss", "is out") posted within 36 h before tip-off whose named weekdays include the game's.

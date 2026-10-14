@@ -8,9 +8,10 @@ import {
   countdownToFinal, driverLabel, formatDriver, formatInterval, formatTip, signed, teamLabel,
   teamName,
 } from "@/lib/format";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { adjustedRest, rawText, REST_LABEL, restOutText } from "@/lib/rest";
 import { injuryText, topDrivers } from "@/lib/today";
-import type { Game, Prediction } from "@/lib/types";
+import type { Game, Prediction, RestSide } from "@/lib/types";
 import { WinBar } from "./win-bar";
 
 export function gameHref(id: string): string {
@@ -73,6 +74,7 @@ function PredictionSummary({ game, prediction }: { game: Game; prediction: Predi
   const { home, away } = game;
   const { margin, total, injury_impact: injuries } = prediction;
   const rest = adjustedRest(prediction);
+  const winScale = prediction.driver_scale?.home_win ?? "log_odds";
   return (
     <>
       <div className="space-y-1.5">
@@ -94,17 +96,21 @@ function PredictionSummary({ game, prediction }: { game: Game; prediction: Predi
         {([["away", away], ["home", home]] as const).map(([side, team]) => (
           <div key={side}>
             <div className="text-xs text-muted-foreground">Injuries {teamLabel(team)}</div>
-            <div>{prediction.rest ? restOutText(prediction.rest[side]) : injuryText(injuries[side])}</div>
+            {prediction.rest
+              ? <RestOut side={prediction.rest[side]} />
+              : <div>{injuryText(injuries[side])}</div>}
           </div>
         ))}
       </div>
       <div>
-        <div className="mb-1 text-xs text-muted-foreground">Top drivers (home win, log-odds)</div>
+        <div className="mb-1 text-xs text-muted-foreground">
+          {winScale === "log_odds" ? "Top drivers (home win, log-odds)" : "Top drivers (home win, from margin, points)"}
+        </div>
         <ul className="space-y-0.5 text-sm">
           {topDrivers(prediction.top_drivers.home_win).map((d) => (
             <li key={d.family} className="flex justify-between">
               <span>{driverLabel(d.family)}</span>
-              <span className="tabular-nums">{formatDriver(d.value, "log_odds")}</span>
+              <span className="tabular-nums">{formatDriver(d.value, winScale)}</span>
             </li>
           ))}
         </ul>
@@ -120,5 +126,27 @@ function Stat({ label, value, detail }: { label: string; value: string; detail: 
       <div className="text-xl font-semibold tabular-nums">{value}</div>
       <div className="text-xs text-muted-foreground tabular-nums">{detail}</div>
     </div>
+  );
+}
+
+// Preseason: ESPN's out list, every player on hover or focus
+function RestOut({ side }: { side: RestSide }) {
+  const text = restOutText(side);
+  if (side.players.length === 0) return <div>{text}</div>;
+  return (
+    <Tooltip>
+      <TooltipTrigger className="text-left underline decoration-dotted underline-offset-4">
+        {text}
+      </TooltipTrigger>
+      <TooltipContent>
+        <ul className="space-y-0.5 tabular-nums">
+          {[...side.players].sort((a, b) => b.value - a.value).map((p, i) => (
+            <li key={`${p.player_id ?? p.name}-${i}`}>
+              {p.name} <span className="opacity-70">{p.status} · {p.value.toFixed(1)}</span>
+            </li>
+          ))}
+        </ul>
+      </TooltipContent>
+    </Tooltip>
   );
 }

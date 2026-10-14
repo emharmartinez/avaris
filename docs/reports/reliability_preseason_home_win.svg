@@ -1,0 +1,41 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='440' height='380' viewBox='0 0 440 380' role='img' aria-label='Reliability, home_win, preseason'>
+<title>Reliability, home_win, preseason</title>
+<rect width='440' height='380' fill='#fcfcfb'/>
+<text x='56' y='22' font-family='system-ui, sans-serif' font-size='14' font-weight='600' fill='#0b0b0b'>Reliability, home_win, preseason</text>
+<line x1='56' x2='420' y1='332.0' y2='332.0' stroke='#e4e3df' stroke-width='1'/>
+<text x='48' y='336.0' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>0.0</text>
+<line x1='56' x2='420' y1='278.4' y2='278.4' stroke='#e4e3df' stroke-width='1'/>
+<text x='48' y='282.4' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>0.2</text>
+<line x1='56' x2='420' y1='224.8' y2='224.8' stroke='#e4e3df' stroke-width='1'/>
+<text x='48' y='228.8' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>0.4</text>
+<line x1='56' x2='420' y1='171.2' y2='171.2' stroke='#e4e3df' stroke-width='1'/>
+<text x='48' y='175.2' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>0.6</text>
+<line x1='56' x2='420' y1='117.6' y2='117.6' stroke='#e4e3df' stroke-width='1'/>
+<text x='48' y='121.6' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>0.8</text>
+<line x1='56' x2='420' y1='64.0' y2='64.0' stroke='#e4e3df' stroke-width='1'/>
+<text x='48' y='68.0' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='end'>1.0</text>
+<text x='56.0' y='350' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>0.0</text>
+<text x='128.8' y='350' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>0.2</text>
+<text x='201.6' y='350' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>0.4</text>
+<text x='274.4' y='350' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>0.6</text>
+<text x='347.2' y='350' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>0.8</text>
+<text x='420.0' y='350' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>1.0</text>
+<text x='238.0' y='370' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle'>Predicted home win probability</text>
+<text x='14' y='198.0' font-family='system-ui, sans-serif' font-size='12' fill='#52514e' text-anchor='middle' transform='rotate(-90 14 198.0)'>Observed home win rate</text>
+<line x1='56' y1='332' x2='420' y2='64' stroke='#9a9993' stroke-width='1.5' stroke-dasharray='4 4'/>
+<polyline points='121.0,242.7 179.5,198.0 243.2,198.9 308.7,151.1 362.7,137.1' fill='none' stroke='#2a78d6' stroke-width='2' stroke-linejoin='round'/>
+<circle cx='121.0' cy='242.7' r='4' fill='#2a78d6' stroke='#fcfcfb' stroke-width='2'><title>classifier: predicted 0.179, observed 0.333, 3 games</title></circle>
+<circle cx='179.5' cy='198.0' r='4' fill='#2a78d6' stroke='#fcfcfb' stroke-width='2'><title>classifier: predicted 0.339, observed 0.500, 52 games</title></circle>
+<circle cx='243.2' cy='198.9' r='4' fill='#2a78d6' stroke='#fcfcfb' stroke-width='2'><title>classifier: predicted 0.514, observed 0.497, 143 games</title></circle>
+<circle cx='308.7' cy='151.1' r='4' fill='#2a78d6' stroke='#fcfcfb' stroke-width='2'><title>classifier: predicted 0.694, observed 0.675, 157 games</title></circle>
+<circle cx='362.7' cy='137.1' r='4' fill='#2a78d6' stroke='#fcfcfb' stroke-width='2'><title>classifier: predicted 0.843, observed 0.727, 11 games</title></circle>
+<polyline points='185.5,204.4 252.3,193.3 289.8,157.9 372.2,64.0' fill='none' stroke='#eb6834' stroke-width='2' stroke-linejoin='round'/>
+<circle cx='185.5' cy='204.4' r='4' fill='#eb6834' stroke='#fcfcfb' stroke-width='2'><title>margin: predicted 0.356, observed 0.476, 21 games</title></circle>
+<circle cx='252.3' cy='193.3' r='4' fill='#eb6834' stroke='#fcfcfb' stroke-width='2'><title>margin: predicted 0.539, observed 0.518, 226 games</title></circle>
+<circle cx='289.8' cy='157.9' r='4' fill='#eb6834' stroke='#fcfcfb' stroke-width='2'><title>margin: predicted 0.642, observed 0.649, 97 games</title></circle>
+<circle cx='372.2' cy='64.0' r='4' fill='#eb6834' stroke='#fcfcfb' stroke-width='2'><title>margin: predicted 0.869, observed 1.000, 22 games</title></circle>
+<rect x='56' y='36' width='10' height='10' rx='2' fill='#2a78d6'/>
+<text x='70' y='45' font-family='system-ui, sans-serif' font-size='12' fill='#0b0b0b'>classifier</text>
+<rect x='150' y='36' width='10' height='10' rx='2' fill='#eb6834'/>
+<text x='164' y='45' font-family='system-ui, sans-serif' font-size='12' fill='#0b0b0b'>margin</text>
+</svg>

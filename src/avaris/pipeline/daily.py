@@ -21,7 +21,7 @@ from avaris.ingest.runner import ingest_stats
 from avaris.ingest.stats_client import RawCache, StatsClient, Throttle
 from avaris.models.dataset import inputs, with_targets
 from avaris.models.ladder import TARGETS
-from avaris.models.predictor import GamePredictor
+from avaris.models.predictor import WIN_FROM_MARGIN, GamePredictor, win_probability
 from avaris.models.registry import Registry
 from avaris.pipeline.score import score_predictions
 from avaris.pipeline.train import train
@@ -226,6 +226,10 @@ def _drivers(models: Models, rows: pd.DataFrame) -> list[dict[str, Any]]:
                 "scale": DRIVER_SCALE[target], "base": float(drivers.base[i]),
                 "families": fam.to_dict(), "top": top_drivers(fam, TOP_DRIVERS),
             }
+    # A win probability read off the margin is explained by the margin drivers (ADR-023)
+    for i, season_type in enumerate(rows["season_type"]):
+        if season_type in WIN_FROM_MARGIN:
+            out[i]["home_win"] = dict(out[i]["margin"])
     return out
 
 
@@ -254,10 +258,11 @@ def _apply_rest(
     rest = {str(r["game_id"]): {str(k): v for k, v in r.items()}
             for r in fs.rest.to_dict("records")}
     adjusted = [
-        apply_rest({"season_type": t, "p_home_win": p, "margin_mu": m, "total_mu": tot},
-                   rest.get(str(g)), params)
-        for g, t, p, m, tot in zip(out["game_id"], rows["season_type"], out["p_home_win"],
-                                   out["margin_mu"], out["total_mu"], strict=True)
+        apply_rest({"season_type": t, "p_home_win": p, "margin_mu": m, "margin_sigma": sd,
+                    "total_mu": tot}, rest.get(str(g)), params)
+        for g, t, p, m, sd, tot in zip(out["game_id"], rows["season_type"], out["p_home_win"],
+                                       out["margin_mu"], out["margin_sigma"], out["total_mu"],
+                                       strict=True)
     ]
     for col in ("p_home_win", "margin_mu", "total_mu"):
         out[col] = [a[col] for a in adjusted]
@@ -290,6 +295,10 @@ def prediction_rows(
         else:
             out[f"{target}_mu"] = pred["pred"].to_numpy()
             out[f"{target}_sigma"] = pred["sigma"].to_numpy()
+    out["p_home_win"] = win_probability(
+        rows["season_type"], out["p_home_win"].to_numpy(), out["margin_mu"].to_numpy(),
+        out["margin_sigma"].to_numpy(),
+    )
     out["drivers"] = [_json(d) for d in _drivers(models, rows)]
     out["injuries"] = [_json(i) for i in _injuries(fs, rows, names)]
     _apply_rest(fs, rows, out, rest_params)
