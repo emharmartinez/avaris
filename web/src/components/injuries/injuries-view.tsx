@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useHealth, useInjuries } from "@/hooks/use-api";
 import { formatDate, formatTimestamp, shiftDate, teamLabel } from "@/lib/format";
 import { groupEntries, impactText, playerName } from "@/lib/injuries";
-import type { InjuriesOnDate, InjuryGame, InjuryImpactFull, Team } from "@/lib/types";
+import { restLostText } from "@/lib/rest";
+import type { InjuriesOnDate, InjuryGame, InjuryImpactFull, RestList, RestSide, Team } from "@/lib/types";
 
 const dayHref = (day: string) => `/injuries/?date=${day}`;
 
@@ -58,6 +59,7 @@ function GameList({ data }: { data: InjuriesOnDate }) {
 }
 
 function InjuryCard({ game }: { game: InjuryGame }) {
+  if (game.rest) return <EspnCard game={game} rest={game.rest} />;
   const titleId = `injuries-${game.game_id}`;
   const groups = groupEntries(game);
   return (
@@ -66,7 +68,9 @@ function InjuryCard({ game }: { game: InjuryGame }) {
         <CardHeader>
           <CardTitle id={titleId}>{teamLabel(game.away)} @ {teamLabel(game.home)}</CardTitle>
           <CardDescription>
-            {game.report_ts ? `Report of ${formatTimestamp(game.report_ts)}` : "No report used"}
+            {game.report_ts ? `Report of ${formatTimestamp(game.report_ts)}`
+              : game.season_type === "preseason" ? "Preseason: no NBA report or ESPN list"
+                : "No report used"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -118,6 +122,77 @@ function SideImpact({ team, impact }: { team: Team; impact: InjuryImpactFull | n
             <li key={p.player_id} className="flex justify-between gap-2">
               <span>{playerName(p)} <span className="text-muted-foreground">{p.status ?? ""}</span></span>
               <span>{p.lost.toFixed(1)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// Preseason: no NBA report exists, so the card shows ESPN's out list (ADR-022)
+function EspnCard({ game, rest }: { game: InjuryGame; rest: RestList }) {
+  const titleId = `injuries-${game.game_id}`;
+  const sides = [["away", game.away], ["home", game.home]] as const;
+  const players = sides.flatMap(([side, team]) => rest[side].players.map((p) => ({ team, p })));
+  return (
+    <section aria-labelledby={titleId}>
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle id={titleId}>{teamLabel(game.away)} @ {teamLabel(game.home)}</CardTitle>
+          <CardDescription>
+            {rest.snapshot_ts ? `ESPN list of ${formatTimestamp(rest.snapshot_ts)}`
+              : (rest.note ?? "No ESPN list")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {sides.map(([side, team]) => <EspnSide key={side} team={team} side={rest[side]} />)}
+          </div>
+          {players.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No players listed out by ESPN.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Team</TableHead>
+                  <TableHead>Player</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Note</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {players.map(({ team, p }, i) => (
+                  <TableRow key={`${team.team_id}-${p.player_id ?? p.name}-${i}`}>
+                    <TableCell className="font-medium">{teamLabel(team)}</TableCell>
+                    <TableCell>{p.name}</TableCell>
+                    <TableCell>{p.status}</TableCell>
+                    <TableCell className="whitespace-normal text-muted-foreground">{p.comment ?? "–"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+function EspnSide({ team, side }: { team: Team; side: RestSide }) {
+  const label = teamLabel(team);
+  return (
+    <div role="group" aria-label={`${label} impact`} className="space-y-1 text-sm">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="font-medium">{label}</span>
+        <span className="text-muted-foreground">{restLostText(side)}</span>
+      </div>
+      {side.players.length > 0 && (
+        <ul className="space-y-0.5 tabular-nums">
+          {side.players.map((p, i) => (
+            <li key={`${p.player_id ?? p.name}-${i}`} className="flex justify-between gap-2">
+              <span>{p.name} <span className="text-muted-foreground">{p.status}</span></span>
+              <span>{p.value.toFixed(1)}</span>
             </li>
           ))}
         </ul>

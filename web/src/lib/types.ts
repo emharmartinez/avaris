@@ -210,11 +210,16 @@ export interface Backtest extends BacktestSummary {
   charts: string[];
 }
 
+// The rest block without the model's raw values, as /api/injuries returns it
+export type RestList = Omit<Rest, "raw_p_home_win" | "raw_margin_mu" | "raw_total_mu">;
+
 export interface InjuryGame {
   game_id: string;
+  season_type: SeasonType;
   home: Team;
   away: Team;
   report_ts: string | null;
+  rest: RestList | null;  // preseason only: ESPN's out list (no NBA report exists)
   impact: { home: InjuryImpactFull | null; away: InjuryImpactFull | null };
   entries: InjuryEntry[];
 }

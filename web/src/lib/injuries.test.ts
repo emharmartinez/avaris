@@ -9,7 +9,9 @@ const game = (entries: InjuryEntry[]): InjuryGame => ({
   game_id: "g1",
   home: { team_id: 1, abbreviation: "BKN", name: "Brooklyn Nets" },
   away: { team_id: 2, abbreviation: "BOS", name: "Boston Celtics" },
+  season_type: "regular",
   report_ts: "2021-11-27T16:00:00Z",
+  rest: null,
   impact: { home: null, away: null },
   entries,
 });

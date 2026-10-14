@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { game, NOW, preseasonGame, rest } from "@/test/data";
 import { renderWithQuery } from "@/test/render";
@@ -91,6 +92,16 @@ describe("GameCard", () => {
     expect(screen.getByText("Brunson, Towns, Anunoby +1 out (ESPN)")).toBeInTheDocument();
     expect(screen.getByText("none out (ESPN)")).toBeInTheDocument();
     expect(screen.queryByText("no report")).toBeNull();
+  });
+
+  it("lists every ESPN out player on hover", async () => {
+    renderWithQuery(<GameCard game={preseasonGame()} now={NOW} />);
+    await userEvent.hover(screen.getByText("Brunson, Towns, Anunoby +1 out (ESPN)"));
+    const tip = await screen.findByRole("tooltip");
+    for (const name of ["Jalen Brunson", "Karl-Anthony Towns", "OG Anunoby", "Kevin McCullar Jr."]) {
+      expect(tip).toHaveTextContent(name);
+    }
+    expect(tip).toHaveTextContent("Day-To-Day · 12.1");
   });
 
   it("adds nothing without a rest block or when it is not adjusted", () => {
