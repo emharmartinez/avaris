@@ -6,6 +6,7 @@
 - **2026-10-13:** Edge tab added (ADR-020): typed odds vs the model, in the browser only. The server stops itself when the app is closed, or from the app's Stop server button (ADR-021)
 - **2026-10-13:** preseason rest adjustment from ESPN's injury list (ADR-022), branch `feat/preseason-rest-adjustment`. Fit on real data: only the margin is enabled (k = 0.108, gate MAE 12.217 -> 12.148); win and total failed the gate. Real DB fitted the same day (same numbers as ADR-022); the first adjusted predictions are the 2026-10-14 02:00 UTC games
 - **2026-10-14 repair (one-off, user-approved exception to ADR-018):** the final GSW @ LAL prediction (`0012600048`) missed Luka Doncic ("will be rested" was not matched). It was deleted and re-predicted as final from the same pre-decision ESPN snapshot (00:53 UTC) with the fixed rule: LAL lost 22.9 -> 49.9, margin LAL +3.8 -> +0.9
+- **2026-10-14 (#20, ADR-023):** preseason win probability is read off the margin model and follows the rest-adjusted margin; tuning-window preseason log loss 0.667 -> 0.648. Branch `feat/preseason-win-from-margin`, stacked on PR #24. Follow-ups: #25 (2019-20 preseason missing), #26 (evaluate and drift still score the classifier for preseason)
 - **Next:** pin "Avaris Launcher" (Start menu) to start the server with the app; the app is dark only since 2026-10-13
 - **Important!** The 2026-27 season starts in late October 2026. Live predictions need Phases 1-5 done, including the final refit through 2025-26.
 

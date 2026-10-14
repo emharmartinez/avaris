@@ -47,6 +47,8 @@ uv run avaris ingest espn                      # ESPN's current list, only when 
 
 - `daily` fetches the ESPN list itself (one request) when a preseason game tips off within 36 h; `[espn] enabled = false` turns it off. Preseason only: regular season, play-in and playoffs never use it.
 
+**Preseason win probability (ADR-023).** A preseason `p_home_win` is P(margin > 0) under the margin model's N(μ, σ), after any rest shift; the `home_win` classifier is overconfident there. `uv run avaris preseason-win-check` compares the two on the tuning window.
+
 ## Features and models
 
 ```
