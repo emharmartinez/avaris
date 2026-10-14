@@ -40,6 +40,13 @@ describe("GameCard", () => {
     expect(screen.getByText("+3.1 pts")).toBeInTheDocument();
   });
 
+  it("reads win drivers as log-odds when the server sends no scale", () => {
+    const g = game();
+    const prediction = { ...g.prediction!, driver_scale: undefined };
+    renderWithQuery(<GameCard game={{ ...g, prediction }} now={NOW} />);
+    expect(screen.getByText("Top drivers (home win, log-odds)")).toBeInTheDocument();
+  });
+
   it("says when a side has no injury report", () => {
     const g = game();
     const prediction = { ...g.prediction!, injury_impact: { home: null, away: null } };

@@ -74,7 +74,7 @@ function PredictionSummary({ game, prediction }: { game: Game; prediction: Predi
   const { home, away } = game;
   const { margin, total, injury_impact: injuries } = prediction;
   const rest = adjustedRest(prediction);
-  const winScale = prediction.driver_scale.home_win;
+  const winScale = prediction.driver_scale?.home_win ?? "log_odds";
   return (
     <>
       <div className="space-y-1.5">

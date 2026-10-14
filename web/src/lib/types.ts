@@ -88,7 +88,8 @@ export interface Prediction {
   margin: Interval;
   total: Interval;
   top_drivers: Record<Target, Driver[]>;
-  driver_scale: Record<Target, DriverSet["scale"]>; // home_win is "points" in preseason (ADR-023)
+  // home_win is "points" in preseason (ADR-023); absent from a server older than that
+  driver_scale?: Record<Target, DriverSet["scale"]>;
   injury_impact: { home: InjuryImpact | null; away: InjuryImpact | null };
   rest: Rest | null; // null for every non-preseason game and vs non-NBA clubs
 }
