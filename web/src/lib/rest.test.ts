@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { preseasonGame, rest } from "@/test/data";
 import {
-  adjustedRest, edgeRestNote, rawText, REST_LABEL, restComparison, restLostText, restStatus,
+  adjustedRest, edgeRestNote, rawText, REST_LABEL, restComparison, restLostText, restOutText, restStatus,
 } from "./rest";
 
 const adjusted = preseasonGame().prediction!;
@@ -45,6 +45,8 @@ describe("restLostText", () => {
 });
 
 const marginOnly = preseasonGame(rest({ k: { margin: 0.11, total: 0, win: 0 } })).prediction!;
+const fromMargin = preseasonGame(rest({ k: { margin: 0.11, total: 0, win: 0 }, win_from_margin: true }))
+  .prediction!;
 
 describe("rawText", () => {
   it("gives the raw value of each adjusted output in one string, the split away first", () => {
@@ -53,6 +55,12 @@ describe("rawText", () => {
 
   it("leaves out outputs whose coefficient is off", () => {
     expect(rawText(marginOnly.rest!, "TOR", "NYK")).toBe("raw margin −3.4");
+  });
+
+  it("gives the raw split when the win followed the adjusted margin (ADR-023)", () => {
+    expect(rawText(fromMargin.rest!, "TOR", "NYK")).toBe("raw NYK 62% · TOR 38%, margin −3.4");
+    expect(edgeRestNote(fromMargin, "TOR"))
+      .toBe("Preseason: rest-adjusted from ESPN list (raw TOR 37.9%, margin −3.4)");
   });
 });
 
@@ -63,5 +71,19 @@ describe("edgeRestNote", () => {
     expect(edgeRestNote(marginOnly, "TOR")).toBe("Preseason: rest-adjusted from ESPN list (raw margin −3.4)");
     expect(edgeRestNote(notAdjusted, "TOR")).toBeNull();
     expect(edgeRestNote({ ...adjusted, rest: null }, "TOR")).toBeNull();
+  });
+});
+
+describe("restOutText", () => {
+  it("names the most valuable players ESPN lists out, by last name", () => {
+    expect(restOutText(rest().away)).toBe("Brunson, Towns, Anunoby +1 out (ESPN)");
+    expect(restOutText({ lost: 19.4, players: [
+      { name: "Jimmy Butler III", player_id: 1, status: "Out", comment: null, value: 19.4, matched: true },
+    ] })).toBe("Butler out (ESPN)");
+  });
+
+  it("says when nobody is listed or there is no ESPN list", () => {
+    expect(restOutText({ lost: 0, players: [] })).toBe("none out (ESPN)");
+    expect(restOutText({ lost: null, players: [] })).toBe("no ESPN list");
   });
 });

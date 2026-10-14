@@ -51,6 +51,13 @@ describe("RestSection", () => {
     expect(within(tor).getByText("No players listed out")).toBeInTheDocument();
   });
 
+  it("says the win follows the margin instead of printing a win coefficient (ADR-023)", () => {
+    const g = preseasonGame(rest({ k: { margin: 0.108, total: 0, win: 0 }, win_from_margin: true }));
+    render(<RestSection prediction={g.prediction} home={g.home} away={g.away} />);
+    expect(screen.getByText(/Coefficients \(0 = off\): margin 0.108, total 0.000, win follows margin/))
+      .toBeInTheDocument();
+  });
+
   it("renders an ESPN note as plain text", () => {
     const r = rest();
     r.away.players[0] = { ...r.away.players[0], comment: "<b>rest</b> **day**" };

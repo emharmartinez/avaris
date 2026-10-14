@@ -60,6 +60,10 @@ def test_status_out_counts_at_any_age() -> None:
     "He will not play in the preseason finale.",
     "Brunson will sit out Tuesday's game.",
     "Brunson will miss Tuesday's exhibition.",
+    "Doncic will be rested for Tuesday's preseason game against the Warriors.",
+    "Doncic is expected to be rested Tuesday.",
+    "Doncic is set to be held out Tuesday.",
+    "Thiero (undisclosed) is out for Tuesday's preseason game against the Warriors.",
 ])
 def test_a_rest_note_counts_inside_the_window(note: str) -> None:
     assert is_out("Day-To-Day", note, recent(), TIP, WINDOW)
@@ -69,6 +73,8 @@ def test_a_rest_note_counts_inside_the_window(note: str) -> None:
     "Bridges finished with nine points over 22 minutes in Monday's loss.",
     "He did not play Monday due to rest.",
     "Hart sat out Monday's game.",
+    "Doncic was rested Monday.",
+    "Kaluma (lower body) returned to practice Saturday.",
     "He is expected to play Tuesday.",
     "Bittle hasn't been ruled out for Tuesday.",
     "Bittle has not been ruled out yet.",

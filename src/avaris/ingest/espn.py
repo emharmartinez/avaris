@@ -24,7 +24,8 @@ ENTRY_COLUMNS = ["team_id", "player_name", "status", "comment", "entry_ts"]
 # Future-tense rulings only: a recap ("did not play Monday") is not a ruling
 OUT_NOTE = re.compile(
     r"\b(?:won't|will not|wouldn't|would not) (?:play|suit up|be available)\b"
-    r"|\bruled out\b|\bwill (?:rest|sit|sit out|miss|be held out)\b|\bis out\b"
+    r"|\bruled out\b|\bwill (?:rest|sit|sit out|miss)\b|\bis out\b"
+    r"|\b(?:will|to) be (?:rested|held out|sidelined|inactive)\b"
 )
 NOT_RULED_OUT = re.compile(r"(?:not|n't) (?:been |be )?ruled out\b")
 WEEKDAYS = re.compile(r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b")

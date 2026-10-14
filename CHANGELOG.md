@@ -2,7 +2,11 @@
 
 ## Unreleased
 
+### Changed
+- Preseason win probability is read off the margin model, P(margin > 0) under N(μ, σ), and follows the ESPN rest-adjusted margin (ADR-023, #20). On 2015-16 to 2018-19 preseason games log loss drops from 0.667 to 0.648. The win-only rest coefficient (`k_win`) is retired. Preseason win drivers are the margin drivers, in points; the API returns `driver_scale` per target
+
 ### Added
+- `avaris preseason-win-check`: the preseason `home_win` classifier against the margin-derived probability on the tuning window (log loss, Brier, accuracy, ECE with paired bootstrap CIs, reliability)
 - Preseason rest adjustment (ADR-022): preseason win probability, margin and total are shifted by the value of the players ESPN lists out or resting, with coefficients fitted on past preseason box scores (`avaris ingest preseason-logs`, `avaris rest-fit`). `daily` fetches the ESPN list only when a preseason game is due (`avaris ingest espn` by hand). The card, game page and Edge tab label it "Rest-adjusted (ESPN)" and show the raw model values. Regular season, play-in and playoffs are unchanged
 - `avaris serve` stops itself once the app has been closed for `[server] idle_shutdown_min` (default 5; `--idle-min`, `0` = never), never while a job runs (ADR-021)
 - Stop server button in the app header (`POST /api/server/stop`), with an inline confirm

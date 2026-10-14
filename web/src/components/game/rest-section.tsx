@@ -59,7 +59,7 @@ function Comparison({ prediction, rest }: { prediction: Prediction; rest: Rest }
         </Table>
         <p className="text-xs text-muted-foreground tabular-nums">
           Coefficients (0 = off): margin {k.margin.toFixed(3)}, total {k.total.toFixed(3)}, win{" "}
-          {k.win.toFixed(3)}
+          {rest.win_from_margin ? "follows margin" : k.win.toFixed(3)}
         </p>
       </CardContent>
     </Card>

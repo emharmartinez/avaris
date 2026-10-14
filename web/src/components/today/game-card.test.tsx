@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { game, NOW, preseasonGame, rest } from "@/test/data";
 import { renderWithQuery } from "@/test/render";
@@ -30,6 +31,20 @@ describe("GameCard", () => {
     expect(screen.getByText("Elo")).toBeInTheDocument();
     expect(screen.getByText("−0.53")).toBeInTheDocument();
     expect(screen.getByText("Availability")).toBeInTheDocument();
+    expect(screen.getByText("Top drivers (home win, log-odds)")).toBeInTheDocument();
+  });
+
+  it("shows preseason win drivers in margin points", () => {
+    renderWithQuery(<GameCard game={preseasonGame()} now={NOW} />);
+    expect(screen.getByText("Top drivers (home win, from margin, points)")).toBeInTheDocument();
+    expect(screen.getByText("+3.1 pts")).toBeInTheDocument();
+  });
+
+  it("reads win drivers as log-odds when the server sends no scale", () => {
+    const g = game();
+    const prediction = { ...g.prediction!, driver_scale: undefined };
+    renderWithQuery(<GameCard game={{ ...g, prediction }} now={NOW} />);
+    expect(screen.getByText("Top drivers (home win, log-odds)")).toBeInTheDocument();
   });
 
   it("says when a side has no injury report", () => {
@@ -84,6 +99,23 @@ describe("GameCard", () => {
     expect(screen.getByText("61%")).toBeInTheDocument();
     expect(screen.getByText("39%")).toBeInTheDocument();
     expect(screen.getByText("+3.9")).toBeInTheDocument();
+  });
+
+  it("shows ESPN's out list as the preseason injuries", () => {
+    renderWithQuery(<GameCard game={preseasonGame()} now={NOW} />);
+    expect(screen.getByText("Brunson, Towns, Anunoby +1 out (ESPN)")).toBeInTheDocument();
+    expect(screen.getByText("none out (ESPN)")).toBeInTheDocument();
+    expect(screen.queryByText("no report")).toBeNull();
+  });
+
+  it("lists every ESPN out player on hover", async () => {
+    renderWithQuery(<GameCard game={preseasonGame()} now={NOW} />);
+    await userEvent.hover(screen.getByText("Brunson, Towns, Anunoby +1 out (ESPN)"));
+    const tip = await screen.findByRole("tooltip");
+    for (const name of ["Jalen Brunson", "Karl-Anthony Towns", "OG Anunoby", "Kevin McCullar Jr."]) {
+      expect(tip).toHaveTextContent(name);
+    }
+    expect(tip).toHaveTextContent("Day-To-Day · 12.1");
   });
 
   it("adds nothing without a rest block or when it is not adjusted", () => {

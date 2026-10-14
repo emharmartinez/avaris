@@ -8,8 +8,12 @@ from avaris.backtest.metrics import primary_metric, score
 from avaris.features.build import AvailabilityMode
 from avaris.models.calibration import IsotonicCalibrator
 from avaris.models.dataset import inputs, xy
-from avaris.models.distributions import fit_sigma, sigma_for
+from avaris.models.distributions import fit_sigma, prob_above, sigma_for
 from avaris.models.ladder import Model, make_rung
+
+# Season types whose p_home_win is read off the margin model (ADR-023): the classifier is
+# overconfident in preseason, where it can only shift its intercept
+WIN_FROM_MARGIN = frozenset({"preseason"})
 
 
 @dataclass
@@ -45,6 +49,15 @@ def finish(
         return pd.DataFrame({"pred": p, "sigma": np.nan}, index=season_types.index)
     sigma = sigma_for(calibration.sigma, season_types) if calibration.sigma else np.nan
     return pd.DataFrame({"pred": raw, "sigma": sigma}, index=season_types.index)
+
+
+def win_probability(
+    season_types: pd.Series, p_home_win: np.ndarray, margin_mu: np.ndarray,
+    margin_sigma: np.ndarray,
+) -> np.ndarray:
+    # P(margin > 0) under N(mu, sigma) for WIN_FROM_MARGIN games, the classifier elsewhere
+    from_margin = season_types.isin(WIN_FROM_MARGIN).to_numpy()
+    return np.where(from_margin, prob_above(margin_mu, margin_sigma, 0.0), p_home_win)
 
 
 def oof_predictions(

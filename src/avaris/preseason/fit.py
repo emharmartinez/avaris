@@ -13,11 +13,12 @@ from avaris.backtest.walkforward import walk_forward
 from avaris.config import ModelsSettings, Settings
 from avaris.features.build import build_features
 from avaris.models.dataset import with_targets
-from avaris.preseason.rest import P_CLIP, RestParams
+from avaris.models.distributions import prob_above
+from avaris.models.predictor import win_probability
+from avaris.preseason.rest import RestParams
 from avaris.seasons import season_range
 
 TARGETS = ("margin", "total", "home_win")
-NEWTON_STEPS = 50
 # Gate metric per output: lower is better
 GATE_METRIC = {"margin": "mae", "total": "mae", "home_win": "log_loss"}
 Predict = Callable[[pd.DataFrame, ModelsSettings, list[str]], pd.DataFrame]
@@ -34,7 +35,8 @@ def preseason_predictions(
 ) -> pd.DataFrame:
     # Walk-forward with the production rungs and frozen parameters, one refit per season:
     # a preseason game is predicted by a model trained on earlier seasons only. One row per
-    # preseason game: game_id, season, <target>_y, <target>_pred
+    # preseason game: game_id, season, <target>_y, <target>_pred, margin_sigma and
+    # home_win_classifier; home_win_pred is read off the margin, as production does (ADR-023)
     out: pd.DataFrame | None = None
     for target in TARGETS:
         t = cfg.target(target)
@@ -42,11 +44,20 @@ def preseason_predictions(
             data, target, t.rung, t.params(), cfg.seed, seasons, "season",
             oof_seasons=cfg.oof_seasons, isotonic=t.calibration == "isotonic",
         )
-        preds = preds[preds["season_type"] == "preseason"][["game_id", "season", "y", "pred"]]
-        preds = preds.rename(columns={"y": f"{target}_y", "pred": f"{target}_pred"})
-        out = preds if out is None else out.merge(preds, on=["game_id", "season"])
+        preds = preds[preds["season_type"] == "preseason"]
+        preds = preds[["game_id", "season", "season_type", "y", "pred", "sigma"]].rename(
+            columns={"y": f"{target}_y", "pred": f"{target}_pred", "sigma": f"{target}_sigma"})
+        if target != "margin":
+            preds = preds.drop(columns=[f"{target}_sigma"])
+        keys = ["game_id", "season", "season_type"]
+        out = preds if out is None else out.merge(preds, on=keys)
     assert out is not None
-    return out.reset_index(drop=True)
+    out = out.rename(columns={"home_win_pred": "home_win_classifier"})
+    out["home_win_pred"] = win_probability(
+        out["season_type"], out["home_win_classifier"].to_numpy(),
+        out["margin_pred"].to_numpy(), out["margin_sigma"].to_numpy(),
+    )
+    return out.drop(columns=["season_type"]).reset_index(drop=True)
 
 
 def k_ols(residual: np.ndarray, x: np.ndarray) -> float:
@@ -55,35 +66,14 @@ def k_ols(residual: np.ndarray, x: np.ndarray) -> float:
     return 0.0 if sxx == 0 else -float(np.dot(residual, x)) / sxx
 
 
-def _logit(p: np.ndarray) -> np.ndarray:
-    p = np.clip(p, P_CLIP, 1 - P_CLIP)
-    return np.log(p / (1 - p))
-
-
-def k_logistic(y: np.ndarray, p: np.ndarray, x: np.ndarray) -> float:
-    # Maximum likelihood of P(y) = sigmoid(logit(p) - k x), logit(p) as offset (Newton)
-    offset, k = _logit(p), 0.0
-    for _ in range(NEWTON_STEPS):
-        q = 1 / (1 + np.exp(-(offset - k * x)))
-        grad = float(np.dot(y - q, -x))
-        hess = -float(np.dot(q * (1 - q), x * x))
-        if hess == 0:
-            break
-        step = grad / hess
-        k -= step
-        if abs(step) < 1e-10:
-            break
-    return k
-
-
-def adjusted(frame: pd.DataFrame, k_margin: float, k_total: float, k_win: float) -> pd.DataFrame:
+def adjusted(frame: pd.DataFrame, k_margin: float, k_total: float) -> pd.DataFrame:
+    # The win probability is read off the shifted margin (ADR-023)
     diff = frame["home_lost"] - frame["away_lost"]
     total = frame["home_lost"] + frame["away_lost"]
-    z = _logit(frame["home_win_pred"].to_numpy()) - k_win * diff.to_numpy()
+    margin = frame["margin_pred"] - k_margin * diff
     return frame.assign(
-        margin_pred=frame["margin_pred"] - k_margin * diff,
-        total_pred=frame["total_pred"] - k_total * total,
-        home_win_pred=1 / (1 + np.exp(-z)),
+        margin_pred=margin, total_pred=frame["total_pred"] - k_total * total,
+        home_win_pred=prob_above(margin.to_numpy(), frame["margin_sigma"].to_numpy(), 0.0),
     )
 
 
@@ -98,7 +88,8 @@ def fit_coefficients(frame: pd.DataFrame, fit_seasons: list[str], gate_seasons: 
                      ) -> RestFit:
     # k fitted on fit_seasons, each switched on only if it beats the raw model on
     # gate_seasons (ADR-022). frame: one row per preseason game with home_lost, away_lost
-    # (who actually sat out), <target>_y and <target>_pred
+    # (who actually sat out), <target>_y, <target>_pred and margin_sigma. The win has no k of
+    # its own: it follows the margin, and its gate row only reports what that does (ADR-023)
     fit = frame[frame["season"].isin(fit_seasons)]
     gate = frame[frame["season"].isin(gate_seasons)]
     for name, rows in (("fit", fit), ("gate", gate)):
@@ -110,18 +101,19 @@ def fit_coefficients(frame: pd.DataFrame, fit_seasons: list[str], gate_seasons: 
         "margin": k_ols((fit["margin_y"] - fit["margin_pred"]).to_numpy(), diff),
         "total": k_ols((fit["total_y"] - fit["total_pred"]).to_numpy(),
                        (fit["home_lost"] + fit["away_lost"]).to_numpy()),
-        "home_win": k_logistic(fit["home_win_y"].to_numpy(), fit["home_win_pred"].to_numpy(),
-                               diff),
     }
-    raw, adj = _metrics(gate), _metrics(adjusted(gate, k["margin"], k["total"], k["home_win"]))
+    raw, adj = _metrics(gate), _metrics(adjusted(gate, k["margin"], k["total"]))
     use = {t: adj[t] < raw[t] for t in TARGETS}
-    params = RestParams(k["margin"], k["total"], k["home_win"], use["margin"], use["total"],
-                        use["home_win"])
+    # The win moves exactly when the margin does; use_win records that, k_win stays 0
+    use["home_win"] = use["margin"]
+    params = RestParams(k["margin"], k["total"], 0.0, use["margin"], use["total"],
+                        use["margin"])
     report = {
         "fit_seasons": fit_seasons, "gate_seasons": gate_seasons,
         "n_fit": len(fit), "n_gate": len(gate), "k": k,
         "gate": {t: {"metric": GATE_METRIC[t], "raw": raw[t], "adjusted": adj[t],
                      "enabled": use[t]} for t in TARGETS},
+        "win_follows_margin": True,
     }
     return RestFit(params, report)
 
