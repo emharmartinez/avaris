@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { injuryText, isDay, todayHref, topDrivers, winSplit } from "./today";
+import { game } from "@/test/data";
+import { activeGames, injuryText, isDay, todayHref, topDrivers, winSplit } from "./today";
 
 describe("winSplit", () => {
   it("splits the home win probability into home and away percentages", () => {
@@ -49,5 +50,22 @@ describe("isDay", () => {
     expect(isDay("2021-13-45")).toBe(false);
     expect(isDay("nope")).toBe(false);
     expect(isDay(null)).toBe(false);
+  });
+});
+
+describe("activeGames", () => {
+  it("keeps scheduled and in-progress games and drops finished ones", () => {
+    const games = [
+      game({ game_id: "a", game_status: "scheduled" }),
+      game({ game_id: "b", game_status: "in_progress" }),
+      game({ game_id: "c", game_status: "final", result: { home_pts: 110, away_pts: 100 } }),
+    ];
+    expect(activeGames(games).map((g) => g.game_id)).toEqual(["a", "b"]);
+  });
+
+  it("keeps a game whose prediction is final but which has not tipped off", () => {
+    const g = game({ game_status: "scheduled" });
+    const finalPrediction = { ...g, prediction: { ...g.prediction!, status: "final" as const } };
+    expect(activeGames([finalPrediction])).toHaveLength(1);
   });
 });
