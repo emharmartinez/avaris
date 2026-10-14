@@ -28,6 +28,25 @@ export function restComparison(p: Prediction, rest: Rest): RestRow[] {
   ];
 }
 
+const NAME_SUFFIXES = new Set(["jr", "jr.", "sr", "sr.", "ii", "iii", "iv", "v"]);
+const OUT_NAMES = 3;
+
+function lastName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  while (parts.length > 1 && NAME_SUFFIXES.has(parts[parts.length - 1].toLowerCase())) parts.pop();
+  return parts[parts.length - 1];
+}
+
+// The card's preseason injuries line: the most valuable players ESPN lists out
+export function restOutText(side: RestSide): string {
+  if (side.lost == null) return "no ESPN list";
+  if (side.players.length === 0) return "none out (ESPN)";
+  const sorted = [...side.players].sort((a, b) => b.value - a.value);
+  const names = sorted.slice(0, OUT_NAMES).map((p) => lastName(p.name)).join(", ");
+  const more = sorted.length > OUT_NAMES ? ` +${sorted.length - OUT_NAMES}` : "";
+  return `${names}${more} out (ESPN)`;
+}
+
 export function restLostText(side: RestSide): string {
   return side.lost == null ? "No ESPN list (unknown)" : `${side.lost.toFixed(1)} Game Score lost`;
 }

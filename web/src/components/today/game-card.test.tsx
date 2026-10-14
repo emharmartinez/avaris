@@ -86,6 +86,13 @@ describe("GameCard", () => {
     expect(screen.getByText("+3.9")).toBeInTheDocument();
   });
 
+  it("shows ESPN's out list as the preseason injuries", () => {
+    renderWithQuery(<GameCard game={preseasonGame()} now={NOW} />);
+    expect(screen.getByText("Brunson, Towns, Anunoby +1 out (ESPN)")).toBeInTheDocument();
+    expect(screen.getByText("none out (ESPN)")).toBeInTheDocument();
+    expect(screen.queryByText("no report")).toBeNull();
+  });
+
   it("adds nothing without a rest block or when it is not adjusted", () => {
     renderWithQuery(<GameCard game={game()} now={NOW} />);
     expect(screen.queryByText("Rest-adjusted (ESPN)")).toBeNull();

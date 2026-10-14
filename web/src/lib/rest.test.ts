@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { preseasonGame, rest } from "@/test/data";
 import {
-  adjustedRest, edgeRestNote, rawText, REST_LABEL, restComparison, restLostText, restStatus,
+  adjustedRest, edgeRestNote, rawText, REST_LABEL, restComparison, restLostText, restOutText, restStatus,
 } from "./rest";
 
 const adjusted = preseasonGame().prediction!;
@@ -63,5 +63,19 @@ describe("edgeRestNote", () => {
     expect(edgeRestNote(marginOnly, "TOR")).toBe("Preseason: rest-adjusted from ESPN list (raw margin −3.4)");
     expect(edgeRestNote(notAdjusted, "TOR")).toBeNull();
     expect(edgeRestNote({ ...adjusted, rest: null }, "TOR")).toBeNull();
+  });
+});
+
+describe("restOutText", () => {
+  it("names the most valuable players ESPN lists out, by last name", () => {
+    expect(restOutText(rest().away)).toBe("Brunson, Towns, Anunoby +1 out (ESPN)");
+    expect(restOutText({ lost: 19.4, players: [
+      { name: "Jimmy Butler III", player_id: 1, status: "Out", comment: null, value: 19.4, matched: true },
+    ] })).toBe("Butler out (ESPN)");
+  });
+
+  it("says when nobody is listed or there is no ESPN list", () => {
+    expect(restOutText({ lost: 0, players: [] })).toBe("none out (ESPN)");
+    expect(restOutText({ lost: null, players: [] })).toBe("no ESPN list");
   });
 });

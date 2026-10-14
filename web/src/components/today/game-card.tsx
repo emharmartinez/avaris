@@ -8,7 +8,7 @@ import {
   countdownToFinal, driverLabel, formatDriver, formatInterval, formatTip, signed, teamLabel,
   teamName,
 } from "@/lib/format";
-import { adjustedRest, rawText, REST_LABEL } from "@/lib/rest";
+import { adjustedRest, rawText, REST_LABEL, restOutText } from "@/lib/rest";
 import { injuryText, topDrivers } from "@/lib/today";
 import type { Game, Prediction } from "@/lib/types";
 import { WinBar } from "./win-bar";
@@ -94,7 +94,7 @@ function PredictionSummary({ game, prediction }: { game: Game; prediction: Predi
         {([["away", away], ["home", home]] as const).map(([side, team]) => (
           <div key={side}>
             <div className="text-xs text-muted-foreground">Injuries {teamLabel(team)}</div>
-            <div>{injuryText(injuries[side])}</div>
+            <div>{prediction.rest ? restOutText(prediction.rest[side]) : injuryText(injuries[side])}</div>
           </div>
         ))}
       </div>
