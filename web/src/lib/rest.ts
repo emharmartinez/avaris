@@ -59,17 +59,22 @@ function rawPointParts(rest: Rest): string[] {
   ];
 }
 
+// The win moved: by its own coefficient (ADR-022 rows) or with the margin (ADR-023)
+function winMoved(rest: Rest): boolean {
+  return Boolean(rest.k.win || rest.win_from_margin);
+}
+
 // The model's own values of the adjusted outputs, in one string so they never collide with
 // the adjusted ones; the win split away first, like the WinBar
 export function rawText(rest: Rest, home: string, away: string): string {
   const s = winSplit(rest.raw_p_home_win);
-  const win = rest.k.win ? [`${away} ${s.awayText} · ${home} ${s.homeText}`] : [];
+  const win = winMoved(rest) ? [`${away} ${s.awayText} · ${home} ${s.homeText}`] : [];
   return `raw ${[...win, ...rawPointParts(rest)].join(", ")}`;
 }
 
 export function edgeRestNote(p: Prediction, home: string): string | null {
   const rest = adjustedRest(p);
   if (!rest) return null;
-  const win = rest.k.win ? [`${home} ${pct(rest.raw_p_home_win, 1)}`] : [];
+  const win = winMoved(rest) ? [`${home} ${pct(rest.raw_p_home_win, 1)}`] : [];
   return `Preseason: rest-adjusted from ESPN list (raw ${[...win, ...rawPointParts(rest)].join(", ")})`;
 }

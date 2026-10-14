@@ -31,6 +31,13 @@ describe("GameCard", () => {
     expect(screen.getByText("Elo")).toBeInTheDocument();
     expect(screen.getByText("−0.53")).toBeInTheDocument();
     expect(screen.getByText("Availability")).toBeInTheDocument();
+    expect(screen.getByText("Top drivers (home win, log-odds)")).toBeInTheDocument();
+  });
+
+  it("shows preseason win drivers in margin points", () => {
+    renderWithQuery(<GameCard game={preseasonGame()} now={NOW} />);
+    expect(screen.getByText("Top drivers (home win, from margin, points)")).toBeInTheDocument();
+    expect(screen.getByText("+3.1 pts")).toBeInTheDocument();
   });
 
   it("says when a side has no injury report", () => {

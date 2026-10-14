@@ -91,6 +91,8 @@ def test_predictions_today(client: TestClient) -> None:
             assert p[target]["sigma"] > 0
         assert set(p["top_drivers"]) == {"home_win", "margin", "total"}
         assert len(p["top_drivers"]["margin"]) == 3
+        assert p["driver_scale"] == {"home_win": "log_odds", "margin": "points",
+                                     "total": "points"}
         assert set(p["injury_impact"]) == {"home", "away"}
         assert p["decision_ts"].endswith("Z")
 

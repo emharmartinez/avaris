@@ -54,6 +54,8 @@ def prediction_view(row: dict[str, Any], full: bool) -> dict[str, Any] | None:
         "margin": _interval(row["margin_mu"], row["margin_sigma"]),
         "total": _interval(row["total_mu"], row["total_sigma"]),
         "top_drivers": {t: d["top"] for t, d in drivers.items()},
+        # points when a preseason win probability is read off the margin (ADR-023)
+        "driver_scale": {t: d["scale"] for t, d in drivers.items()},
         "injury_impact": {side: _impact(v) for side, v in injuries.items()},
         "rest": _rest(row),
     }

@@ -445,9 +445,10 @@ def rest_fit_command(ctx: typer.Context) -> None:
                f"{report['n_fit']} preseason games; gate {report['gate_seasons'][0]} to "
                f"{report['gate_seasons'][-1]}: {report['n_gate']} games")
     for target, gate in report["gate"].items():
-        typer.echo(f"{target}: k = {report['k'][target]:.4f}, {gate['metric']} raw "
-                   f"{gate['raw']:.4f} vs adjusted {gate['adjusted']:.4f}: "
-                   + ("enabled" if gate["enabled"] else "disabled"))
+        # The win has no k: it follows the margin (ADR-023)
+        k = f"k = {report['k'][target]:.4f}" if target in report["k"] else "follows margin"
+        typer.echo(f"{target}: {k}, {gate['metric']} raw {gate['raw']:.4f} vs adjusted "
+                   f"{gate['adjusted']:.4f}: " + ("enabled" if gate["enabled"] else "disabled"))
 
 
 def _run_job(settings: Settings, kind: str, params: dict[str, object]) -> None:

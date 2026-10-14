@@ -74,6 +74,7 @@ function PredictionSummary({ game, prediction }: { game: Game; prediction: Predi
   const { home, away } = game;
   const { margin, total, injury_impact: injuries } = prediction;
   const rest = adjustedRest(prediction);
+  const winScale = prediction.driver_scale.home_win;
   return (
     <>
       <div className="space-y-1.5">
@@ -102,12 +103,14 @@ function PredictionSummary({ game, prediction }: { game: Game; prediction: Predi
         ))}
       </div>
       <div>
-        <div className="mb-1 text-xs text-muted-foreground">Top drivers (home win, log-odds)</div>
+        <div className="mb-1 text-xs text-muted-foreground">
+          {winScale === "log_odds" ? "Top drivers (home win, log-odds)" : "Top drivers (home win, from margin, points)"}
+        </div>
         <ul className="space-y-0.5 text-sm">
           {topDrivers(prediction.top_drivers.home_win).map((d) => (
             <li key={d.family} className="flex justify-between">
               <span>{driverLabel(d.family)}</span>
-              <span className="tabular-nums">{formatDriver(d.value, "log_odds")}</span>
+              <span className="tabular-nums">{formatDriver(d.value, winScale)}</span>
             </li>
           ))}
         </ul>
