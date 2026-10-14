@@ -353,3 +353,10 @@ def test_a_preseason_prediction_carries_the_rest_block(
     assert games and all(g["prediction"]["rest"] is None for g in games.values())
     detail = get(client, "/api/games/0012100098")
     assert detail["prediction"]["rest"] == rest
+    # The Injuries page gets the ESPN list for preseason games (no NBA report exists)
+    day = get(client, f"/api/injuries?date={D2.isoformat()}")
+    injuries = {g["game_id"]: g for g in day["games"]}
+    pre = injuries.pop("0012100098")
+    assert pre["season_type"] == "preseason"
+    assert pre["rest"]["away"] == rest["away"] and pre["rest"]["snapshot_ts"] == rest["snapshot_ts"]
+    assert all(g["rest"] is None and g["season_type"] == "regular" for g in injuries.values())

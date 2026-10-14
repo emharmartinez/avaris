@@ -12,9 +12,10 @@ router = APIRouter(prefix="/api/injuries", tags=["injuries"])
 @router.get("")
 def injuries(cur: Cursor, date: date) -> dict[str, Any]:
     # Per game on the date: strength lost per side and the entries of the report the
-    # prediction used
+    # prediction used; preseason games have no report, only ESPN's out list (rest, ADR-022)
     games = rows(cur, """
-        select g.game_id, g.home_team_id, g.away_team_id, p.report_ts, p.injuries
+        select g.game_id, g.season_type, g.home_team_id, g.away_team_id, p.report_ts,
+            p.injuries, p.rest
         from games g join predictions p using (game_id)
         where g.game_date_et = ? order by g.tip_off_utc, g.game_id
     """, [date])
@@ -27,8 +28,10 @@ def injuries(cur: Cursor, date: date) -> dict[str, Any]:
         """, [g["report_ts"].removesuffix("Z"), date, g["home_team_id"],
               g["away_team_id"]]) if g["report_ts"] else []
         out.append({
-            "game_id": g["game_id"], "home": team(g["home_team_id"]),
+            "game_id": g["game_id"], "season_type": g["season_type"],
+            "home": team(g["home_team_id"]),
             "away": team(g["away_team_id"]), "report_ts": g["report_ts"],
             "impact": json.loads(g["injuries"]), "entries": entries,
+            "rest": json.loads(g["rest"]) if g["rest"] else None,
         })
     return {"date": date.isoformat(), "games": out}
