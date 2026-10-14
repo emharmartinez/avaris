@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-13 ·
 - **Task:** For preseason games only, shift the model's margin, total and win probability by the value of players ESPN lists as out or resting, with the shift fitted on past preseason box scores.
-- **Status:** Ready for implementation
+- **Status:** Implemented on `feat/preseason-rest-adjustment` (fit report in ADR-022)
 - **Complexity**: L
 - **Estimate Points**: 8
 
