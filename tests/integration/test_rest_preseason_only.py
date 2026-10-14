@@ -13,7 +13,7 @@ import pandas as pd
 import pytest
 
 from avaris.config import Settings
-from avaris.db import connect
+from avaris.db import connect, upsert
 from avaris.features.build import FeatureSet, build_features
 from avaris.pipeline.daily import run_daily
 from tests.fixtures.live import models_settings, train_before_d1
@@ -184,3 +184,63 @@ def test_non_preseason_predictions_are_byte_identical(trained: Path, tmp_path: P
     assert len(plain) == 2 and set(plain["status"]) == {"final"}
     pd.testing.assert_frame_equal(plain, rest)
     assert plain["rest"].isna().all() and plain["raw_margin_mu"].isna().all()
+
+
+def with_fetches(synthetic_db: Path, tmp_path: Path, fill: Any) -> FeatureSet:
+    path = tmp_path / "fetches.duckdb"
+    path.write_bytes(synthetic_db.read_bytes())
+    con = duckdb.connect(str(path))
+    fill(con)
+    con.close()
+    return build(path)
+
+
+def test_a_deduped_fetch_uses_the_older_snapshot_it_points_at(
+    synthetic_db: Path, tmp_path: Path,
+) -> None:
+    # The list was first seen 5 days before tip-off (outside the window) and confirmed
+    # unchanged by a fetch 2 h before decision_ts
+    first_seen = TIP - timedelta(days=5)
+
+    def fill(con: duckdb.DuckDBPyConnection) -> None:
+        add_espn_snapshot(con, first_seen, [(ATL, STAR, "Out")])
+        upsert(con, "espn_injury_fetches", pd.DataFrame([
+            {"fetched_at": DECISION - timedelta(hours=2), "snapshot_ts": first_seen}]))
+
+    r = rest_row(with_fetches(synthetic_db, tmp_path, fill), GAME)
+    assert r["snapshot_ts"] == first_seen
+    assert r["home_lost_espn"] > 0
+
+
+def test_a_fetch_at_decision_ts_counts(synthetic_db: Path, tmp_path: Path) -> None:
+    r = rest_row(with_fetches(synthetic_db, tmp_path, lambda con: add_espn_snapshot(
+        con, DECISION, [(ATL, STAR, "Out")])), GAME)
+    assert r["snapshot_ts"] == DECISION and r["home_lost_espn"] > 0
+
+
+def test_a_rest_note_and_an_unmatched_player_flow_through(
+    synthetic_db: Path, tmp_path: Path,
+) -> None:
+    # GAME tips off on a Tuesday evening ET; the note is posted 20 h before
+    fetched = DECISION - timedelta(hours=1)
+
+    def fill(con: duckdb.DuckDBPyConnection) -> None:
+        upsert(con, "espn_injury_snapshots", pd.DataFrame([
+            {"fetched_at": fetched, "team_id": ATL, "player_name": "Player 1000",
+             "player_id": STAR, "status": "Day-To-Day", "comment": "He won't play Tuesday.",
+             "entry_ts": TIP - timedelta(hours=20)},
+            {"fetched_at": fetched, "team_id": ATL, "player_name": "Camp Invite",
+             "player_id": None, "status": "Out", "comment": None, "entry_ts": None},
+            {"fetched_at": fetched, "team_id": BOS, "player_name": "Player 2000",
+             "player_id": 2000, "status": "Day-To-Day", "comment": "He won't play Friday.",
+             "entry_ts": TIP - timedelta(hours=20)},
+        ]))
+        upsert(con, "espn_injury_fetches",
+               pd.DataFrame([{"fetched_at": fetched, "snapshot_ts": fetched}]))
+
+    r = rest_row(with_fetches(synthetic_db, tmp_path, fill), GAME)
+    players = {p["name"]: p for p in r["home_players"]}
+    assert players["Player 1000"]["matched"] and players["Player 1000"]["value"] > 0
+    assert not players["Camp Invite"]["matched"] and players["Camp Invite"]["value"] == 0
+    assert r["home_lost_espn"] == pytest.approx(players["Player 1000"]["value"])
+    assert r["away_players"] == [] and r["away_lost_espn"] == 0

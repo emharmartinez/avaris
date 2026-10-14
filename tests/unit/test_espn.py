@@ -93,3 +93,13 @@ def test_a_rest_note_counts_only_inside_the_window() -> None:
     assert not is_out("Day-To-Day", note, recent(WINDOW + 0.1), TIP, WINDOW)
     assert not is_out("Day-To-Day", note, TIP + timedelta(minutes=1), TIP, WINDOW)
     assert not is_out("Day-To-Day", note, None, TIP, WINDOW)
+
+
+def test_parse_accepts_mixed_date_precision() -> None:
+    mixed = payload()
+    entries = mixed["injuries"][1]["injuries"]  # type: ignore[index]
+    entries[0]["date"] = "2026-10-13T02:47:15Z"
+    entries[1]["date"] = None
+    df = parse_espn_injuries(mixed)
+    assert df["entry_ts"].iloc[1] == datetime(2026, 10, 13, 2, 47, 15)
+    assert df["entry_ts"].isna().sum() == 1

@@ -112,19 +112,24 @@ def source_refresher(settings: Settings) -> Refresher:
     def refresh(con: duckdb.DuckDBPyConnection, now: datetime, progress: Progress) -> None:
         today = et_date(now)
         season = season_for_date(today)
-        stats = make_stats_client(settings)
         try:
-            ingest_stats(con, stats, [season], today=today,
-                         refetch_days=settings.stats.refetch_days, progress=progress)
+            stats = make_stats_client(settings)
+            try:
+                ingest_stats(con, stats, [season], today=today,
+                             refetch_days=settings.stats.refetch_days, progress=progress)
+            finally:
+                stats.close()
+            injuries = make_injury_client(settings)
+            try:
+                ingest_injuries(con, injuries, [season], now_utc=now,
+                                step_back_hours=settings.injuries.step_back_hours,
+                                progress=progress)
+            finally:
+                injuries.close()
         finally:
-            stats.close()
-        injuries = make_injury_client(settings)
-        try:
-            ingest_injuries(con, injuries, [season], now_utc=now,
-                            step_back_hours=settings.injuries.step_back_hours, progress=progress)
-        finally:
-            injuries.close()
-        refresh_espn(con, settings, now, progress)
+            # A stats or injury failure must not cost a due preseason game its ESPN list:
+            # the snapshot is only useful before decision_ts
+            refresh_espn(con, settings, now, progress)
 
     return refresh
 

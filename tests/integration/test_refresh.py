@@ -11,6 +11,7 @@ import respx
 from avaris.config import EspnSettings, InjurySettings, PathsSettings, Settings, StatsSettings
 from avaris.db import connect, upsert
 from avaris.ingest.injuries import BASE_URL
+from avaris.ingest.stats_client import BASE_URL as BASE_STATS_URL
 from avaris.pipeline.daily import source_refresher
 
 NOW = datetime(2026, 10, 12, 16, 0)  # naive UTC, 2026-27 preseason
@@ -86,3 +87,16 @@ def test_espn_can_be_switched_off(
     _due_preseason_game(con)
     source_refresher(_settings(tmp_path, espn=False))(con, NOW, lambda _m: None)
     assert stats_api.routes["espn"].call_count == 0
+
+
+def test_a_stats_failure_still_fetches_espn_then_fails_the_refresh(
+    tmp_path: Path, stats_api: respx.MockRouter, injury_api: respx.MockRouter
+) -> None:
+    con = connect(tmp_path / "a.duckdb")
+    _due_preseason_game(con)
+    stats_api.get(url__startswith=BASE_STATS_URL).mock(return_value=httpx.Response(500))
+    settings = _settings(tmp_path).model_copy(
+        update={"stats": StatsSettings(min_interval_s=0.0, max_attempts=1)})
+    with pytest.raises(httpx.HTTPStatusError):
+        source_refresher(settings)(con, NOW, lambda _m: None)
+    assert stats_api.routes["espn"].call_count == 1

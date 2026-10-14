@@ -48,7 +48,7 @@ def parse_espn_injuries(payload: dict[str, Any]) -> pd.DataFrame:
                 "entry_ts": e.get("date"),
             })
     df = pd.DataFrame(rows, columns=ENTRY_COLUMNS)
-    df["entry_ts"] = pd.to_datetime(df["entry_ts"], utc=True).dt.tz_localize(None)
+    df["entry_ts"] = pd.to_datetime(df["entry_ts"], utc=True, format="ISO8601").dt.tz_localize(None)
     return df.drop_duplicates(["team_id", "player_name"]).reset_index(drop=True)
 
 
