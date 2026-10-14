@@ -13,10 +13,10 @@ from fastapi.testclient import TestClient
 
 from avaris.api.main import create_app
 from avaris.config import ServerSettings, Settings
-from avaris.db import connect
+from avaris.db import connect, upsert
 from avaris.pipeline.daily import run_daily
 from tests.fixtures.live import D1, D2, models_settings, train_before_d1
-from tests.fixtures.synthetic import ATL, BOS, INJURED_STAR
+from tests.fixtures.synthetic import ATL, BKN, BOS, INJURED_STAR, REST_ABSENT, add_espn_snapshot
 from tests.integration.test_daily import add_report
 
 NOON_D2 = datetime(2021, 11, 27, 17, 0)  # D1 games final (catch-up), D2 provisional
@@ -72,7 +72,7 @@ def get(client: TestClient, url: str) -> Any:
 
 def test_health(client: TestClient) -> None:
     body = get(client, "/api/health")
-    assert body["status"] == "ok" and body["schema_version"] == 7 and body["job"] is None
+    assert body["status"] == "ok" and body["schema_version"] == 8 and body["job"] is None
 
 
 def test_predictions_today(client: TestClient) -> None:
@@ -323,3 +323,33 @@ def test_performance_drift_reference_must_be_a_report_name(
     app = create_app(settings, con=con, daily_on_startup=False, clock=lambda: NOON_D2)
     with TestClient(app, base_url="http://127.0.0.1:8000") as c:
         assert get(c, "/api/performance")["drift"] is None
+
+
+def test_a_preseason_prediction_carries_the_rest_block(
+    env: tuple[duckdb.DuckDBPyConnection, Settings], client: TestClient,
+) -> None:
+    con, settings = env
+    upsert(con, "games", pd.DataFrame([{
+        "game_id": "0012100098", "season": "2021-22", "season_type": "preseason",
+        "game_date_et": D2, "tip_off_utc": NOON_D2 + timedelta(hours=7), "home_team_id": ATL,
+        "away_team_id": BKN, "home_pts": None, "away_pts": None, "status": "scheduled",
+        "venue": "State Farm Arena", "venue_city": "Atlanta", "neutral_site": False,
+    }]))
+    add_espn_snapshot(con, NOON_D2 - timedelta(hours=1), [(BKN, REST_ABSENT[BKN], "Out")])
+    con.execute("insert into rest_params values (?, 0.5, 0.4, 0.05, true, true, true, '{}')",
+                [NOON_D2 - timedelta(days=1)])
+    run_daily(con, settings, now=NOON_D2, refresh=None)
+    games = {g["game_id"]: g for g in get(client, "/api/predictions/today")["games"]}
+    p = games.pop("0012100098")["prediction"]
+    rest = p["rest"]
+    assert rest["adjusted"] is True and rest["snapshot_ts"].endswith("Z")
+    assert p["margin"]["mu"] != rest["raw_margin_mu"]
+    assert p["total"]["mu"] != rest["raw_total_mu"]
+    assert p["p_home_win"] != rest["raw_p_home_win"]
+    assert [x["player_id"] for x in rest["away"]["players"]] == [REST_ABSENT[BKN]]
+    assert rest["home"] == {"lost": 0.0, "players": []}
+    # The interval follows the adjusted mu
+    assert p["margin"]["lo"] < p["margin"]["mu"] < p["margin"]["hi"]
+    assert games and all(g["prediction"]["rest"] is None for g in games.values())
+    detail = get(client, "/api/games/0012100098")
+    assert detail["prediction"]["rest"] == rest

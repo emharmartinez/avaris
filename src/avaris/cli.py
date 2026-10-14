@@ -13,13 +13,15 @@ import typer
 from avaris.config import DEFAULT_CONFIG_PATH, ModelsSettings, Settings, load_settings
 from avaris.db import connect
 from avaris.features.build import build_features, feature_hash, write_features
+from avaris.ingest.espn import ingest_espn
 from avaris.ingest.injuries import ingest_injuries
+from avaris.ingest.preseason_logs import FIRST_PRESEASON_LOG_SEASON, ingest_preseason_logs
 from avaris.ingest.runner import ingest_stats
 from avaris.ingest.status import check_injuries, check_report, injury_report, season_report
 from avaris.models.dataset import with_targets
 from avaris.models.ladder import TARGETS
 from avaris.models.registry import Registry
-from avaris.pipeline.daily import make_injury_client, make_stats_client
+from avaris.pipeline.daily import make_espn_client, make_injury_client, make_stats_client
 from avaris.seasons import (
     season_for_date,
     season_label,
@@ -146,6 +148,46 @@ def ingest_injuries_command(
         f"Done: {summary.reports} reports, {summary.entries} entries, "
         f"{summary.unmatched_players} unmatched player rows, {client.requests_made} requests"
     )
+
+
+@ingest_app.command("espn")
+def ingest_espn_command(ctx: typer.Context) -> None:
+    # ESPN's current injury list, only when a preseason game is due (ADR-022)
+    settings: Settings = ctx.obj
+    client = make_espn_client(settings)
+    con = connect(settings.paths.db_path)
+    try:
+        summary = ingest_espn(con, client, datetime.now(UTC).replace(tzinfo=None),
+                              settings.espn.out_window_hours, progress=typer.echo)
+    finally:
+        client.close()
+        con.close()
+    if not summary.fetched:
+        typer.echo(f"No preseason game due within {settings.espn.out_window_hours:g} h: "
+                   "nothing fetched")
+
+
+@ingest_app.command("preseason-logs")
+def ingest_preseason_logs_command(
+    ctx: typer.Context,
+    from_season: Annotated[
+        str, typer.Option("--from", help="First season, e.g. 2014-15.")
+    ] = FIRST_PRESEASON_LOG_SEASON,
+    to_season: Annotated[
+        str | None, typer.Option("--to", help="Last season (default: the evaluation window's).")
+    ] = None,
+) -> None:
+    # Preseason player box scores from stats.nba.com, for `avaris rest-fit` only (ADR-022)
+    settings: Settings = ctx.obj
+    seasons = season_range(from_season, to_season or settings.models.eval_last_season)
+    client = make_stats_client(settings)
+    con = connect(settings.paths.db_path)
+    try:
+        rows = ingest_preseason_logs(con, client, seasons, today=today_et(), progress=typer.echo)
+    finally:
+        client.close()
+        con.close()
+    typer.echo(f"Done: {rows} preseason player-games, {client.requests_made} requests")
 
 
 @ingest_app.command("status")
@@ -384,6 +426,28 @@ def evaluate_command(
     if holdout:
         _write_marker(marker, cfg.holdout_season, modes, out, "scored")
     typer.echo(f"Wrote {out / 'report.md'}")
+
+
+@app.command("rest-fit")
+def rest_fit_command(ctx: typer.Context) -> None:
+    # Preseason rest coefficients (ADR-022): fitted on the tuning window with who actually
+    # sat out, each switched on only if it beats the raw model on the evaluation window
+    from avaris.preseason.fit import fit_rest
+
+    settings: Settings = ctx.obj
+    con = connect(settings.paths.db_path)
+    try:
+        fit = fit_rest(con, settings)
+    finally:
+        con.close()
+    report = fit.report
+    typer.echo(f"Fit {report['fit_seasons'][0]} to {report['fit_seasons'][-1]}: "
+               f"{report['n_fit']} preseason games; gate {report['gate_seasons'][0]} to "
+               f"{report['gate_seasons'][-1]}: {report['n_gate']} games")
+    for target, gate in report["gate"].items():
+        typer.echo(f"{target}: k = {report['k'][target]:.4f}, {gate['metric']} raw "
+                   f"{gate['raw']:.4f} vs adjusted {gate['adjusted']:.4f}: "
+                   + ("enabled" if gate["enabled"] else "disabled"))
 
 
 def _run_job(settings: Settings, kind: str, params: dict[str, object]) -> None:

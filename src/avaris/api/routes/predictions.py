@@ -16,7 +16,7 @@ select g.game_id, g.season, g.season_type, g.game_date_et, g.tip_off_utc,
     g.neutral_site, g.venue,
     p.status, p.decision_ts, p.report_ts, p.predicted_at, p.home_win_run, p.margin_run,
     p.total_run, p.p_home_win, p.margin_mu, p.margin_sigma, p.total_mu, p.total_sigma,
-    p.drivers, p.injuries
+    p.drivers, p.injuries, p.raw_p_home_win, p.raw_margin_mu, p.raw_total_mu, p.rest
 from games g left join predictions p using (game_id)
 """
 
@@ -29,6 +29,14 @@ def _impact(side: dict[str, Any] | None) -> dict[str, Any] | None:
     if side is None:
         return None
     return {k: side[k] for k in ("full_strength", "lost", "lost_share")}
+
+
+def _rest(row: dict[str, Any]) -> dict[str, Any] | None:
+    # Preseason only (ADR-022): the ESPN out list, the k applied and the model's raw values
+    if row["rest"] is None:
+        return None
+    return {**json.loads(row["rest"]), "raw_p_home_win": row["raw_p_home_win"],
+            "raw_margin_mu": row["raw_margin_mu"], "raw_total_mu": row["raw_total_mu"]}
 
 
 def prediction_view(row: dict[str, Any], full: bool) -> dict[str, Any] | None:
@@ -47,6 +55,7 @@ def prediction_view(row: dict[str, Any], full: bool) -> dict[str, Any] | None:
         "total": _interval(row["total_mu"], row["total_sigma"]),
         "top_drivers": {t: d["top"] for t, d in drivers.items()},
         "injury_impact": {side: _impact(v) for side, v in injuries.items()},
+        "rest": _rest(row),
     }
     if full:
         view["drivers"] = drivers

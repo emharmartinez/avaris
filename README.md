@@ -37,6 +37,16 @@ uv run avaris ingest status --check            # includes injury report coverage
 - Fetches the official NBA injury report PDFs each game's `decision_ts` resolves to (the latest report at or before tip-off - 60 min), plus the 1:30 pm ET report, at about 2 requests/sec. A missing report steps back one slot at a time.
 - PDFs are cached in `data/cache/final/injuries/`; old missing slots are remembered in `injury_report_files`.
 
+**Preseason rest (ADR-022).** There is no NBA injury report for preseason days, so preseason predictions are shifted by the value of the players ESPN lists out or resting:
+
+```
+uv run avaris ingest preseason-logs            # preseason box scores, 2014-15 to 2024-25 (fit only)
+uv run avaris rest-fit                         # fit k on 2015-16 to 2019-20, gate on 2020-21 to 2024-25
+uv run avaris ingest espn                      # ESPN's current list, only when a preseason game is due
+```
+
+- `daily` fetches the ESPN list itself (one request) when a preseason game tips off within 36 h; `[espn] enabled = false` turns it off. Preseason only: regular season, play-in and playoffs never use it.
+
 ## Features and models
 
 ```
@@ -113,9 +123,13 @@ DuckDB at `data/avaris.duckdb` (gitignored):
 | `injury_report_files` | Report slots fetched (`ok`) or known missing |
 | `features` | One row per game as of `decision_ts`, with `feature_hash` (rebuilt by `avaris features build`) |
 | `team_ratings` | Elo, ORtg, DRtg, net rating, pace and games played per team as of each game |
-| `predictions` | One row per game: `status` (provisional or final), `decision_ts`, runs, `p_home_win`, margin and total μ and σ, drivers and injuries JSON |
+| `predictions` | One row per game: `status` (provisional or final), `decision_ts`, runs, `p_home_win`, margin and total μ and σ, drivers and injuries JSON; preseason rows also carry `raw_*` model values and a `rest` JSON block |
 | `prediction_scores` | Per final prediction after the game: log loss, Brier, errors, 80% interval hits, PIT |
 | `jobs` | Background jobs: kind, status, params, log tail |
+| `espn_injury_snapshots` | ESPN injury lists (preseason only), one set of rows per distinct list |
+| `espn_injury_fetches` | Each ESPN request and the snapshot in force at that time |
+| `preseason_player_games` | Preseason box scores per player, for `rest-fit` only (never features) |
+| `rest_params` | Fitted rest coefficients, which ones are enabled, and the fit report |
 
 Reference data in `src/avaris/data/`: `teams.csv`, `arenas.csv` (home arenas with coordinates, time zone, altitude) and `neutral_venues.csv` (bubble, international and Cup venues).
 

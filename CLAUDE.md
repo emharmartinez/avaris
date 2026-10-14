@@ -33,7 +33,7 @@ All gates must be green at the end of every phase.
 ## Architecture
 
 - **Data flow:**
-  1. Ingest: stats.nba.com stats (thin httpx client, ADR-009) and NBA injury reports go into a raw response cache and DuckDB.
+  1. Ingest: stats.nba.com stats (thin httpx client, ADR-009) and NBA injury reports go into a raw response cache and DuckDB. For preseason games only, ESPN's injury list feeds a rest adjustment applied after the model (ADR-022).
   2. Point-in-time features.
   3. Models for `home_win` (calibrated probability) and `margin` and `total` (N(μ, σ) with an 80% interval).
   4. Analytics: drivers (feature contributions), team ratings, injury impact.

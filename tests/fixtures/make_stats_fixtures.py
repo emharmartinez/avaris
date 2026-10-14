@@ -5,7 +5,13 @@ import json
 from pathlib import Path
 from typing import Any
 
-from avaris.ingest.endpoints import GAME_LOG, ROSTER, SCHEDULE, log_season_types
+from avaris.ingest.endpoints import (
+    GAME_LOG,
+    PRESEASON_LOG_TYPE,
+    ROSTER,
+    SCHEDULE,
+    log_season_types,
+)
 
 CACHE = Path("data/cache")
 OUT = Path(__file__).parent / "stats"
@@ -36,6 +42,10 @@ GAMES: dict[str, set[str]] = {
     },
 }
 ROSTER_TEAM = 1610612759
+# Preseason player logs (ADR-022): two NBA-vs-NBA games and one against a non-NBA club
+PRESEASON_GAMES: dict[str, set[str]] = {
+    "2019-20": {"0011900001", "0011900002", "0011900010"},
+}
 
 
 def read_cache(endpoint: str, params_glob: str) -> dict[str, Any]:
@@ -66,9 +76,11 @@ def trim_schedule(season: str, keep: set[str]) -> None:
     write(OUT / SCHEDULE / f"{season}.json", payload)
 
 
-def trim_logs(season: str, keep: set[str]) -> None:
-    for season_type in log_season_types(season):
-        for kind in "TP":
+def trim_logs(
+    season: str, keep: set[str], season_types: list[str] | None = None, kinds: str = "TP"
+) -> None:
+    for season_type in season_types or log_season_types(season):
+        for kind in kinds:
             pattern = (
                 f"Counter=0_DateFrom=_DateTo=_Direction=ASC_LeagueID=00_PlayerOrTeam={kind}"
                 f"_Season={season}_SeasonType={season_type.replace(' ', '-')}_Sorter=DATE"
@@ -104,6 +116,8 @@ def main() -> None:
         trim_schedule(season, keep)
         if season != "2026-27":
             trim_logs(season, keep)
+    for season, keep in PRESEASON_GAMES.items():
+        trim_logs(season, keep, [PRESEASON_LOG_TYPE], kinds="P")
     trim_roster("2025-26")
 
 

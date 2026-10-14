@@ -17,6 +17,13 @@ first_season = "2021-22"
 min_interval_s = 0.5
 step_back_hours = 4.0     # try earlier report slots this far back when one is missing
 
+[espn]
+enabled = true            # ESPN injury list, fetched only when a preseason game is due (ADR-022)
+min_interval_s = 1.0
+timeout_s = 20
+max_attempts = 3
+out_window_hours = 36     # a rest note or a snapshot counts this long before tip-off
+
 [models]
 artifacts_dir = "artifacts"
 seed = 7

@@ -10,10 +10,12 @@ import pytest
 import respx
 
 from avaris.ingest.endpoints import GAME_LOG, ROSTER, SCHEDULE
+from avaris.ingest.espn import ESPN_INJURIES_URL
 from avaris.ingest.stats_client import BASE_URL
 from tests.fixtures.synthetic import write_league
 
 STATS_FIXTURES = Path(__file__).parent / "fixtures" / "stats"
+ESPN_FIXTURE = Path(__file__).parent / "fixtures" / "espn" / "injuries.json"
 
 
 def records_by(df: pd.DataFrame, *keys: str) -> dict[Any, dict[str, Any]]:
@@ -61,9 +63,12 @@ def _fixture_response(request: httpx.Request) -> httpx.Response:
 
 @pytest.fixture
 def stats_api() -> Iterator[respx.MockRouter]:
-    # Serves recorded stats.nba.com responses; any other host fails the test
+    # Serves recorded stats.nba.com responses and the recorded ESPN injury list (route
+    # "espn"); any other host fails the test
     with respx.mock(assert_all_called=False) as router:
         router.get(url__startswith=BASE_URL).mock(side_effect=_fixture_response)
+        router.get(url__startswith=ESPN_INJURIES_URL, name="espn").mock(
+            return_value=httpx.Response(200, json=json.loads(ESPN_FIXTURE.read_text())))
         yield router
 
 

@@ -30,6 +30,15 @@ class InjurySettings(BaseModel):
     step_back_hours: float = 4.0  # how far back earlier slots are tried for a missing report
 
 
+class EspnSettings(BaseModel):
+    # ESPN injury list, preseason only (ADR-022)
+    enabled: bool = True
+    min_interval_s: float = 1.0
+    timeout_s: float = 20
+    max_attempts: int = 3
+    out_window_hours: float = 36  # a note or snapshot counts this long before tip-off
+
+
 class TargetModelSettings(BaseModel):
     # The kept rung and frozen hyperparameters per rung (tuned on 2015-16 to 2019-20)
     rung: Literal["elo", "linear", "lgbm"] = "elo"
@@ -92,6 +101,7 @@ class Settings(BaseSettings):
     paths: PathsSettings = PathsSettings()
     stats: StatsSettings = StatsSettings()
     injuries: InjurySettings = InjurySettings()
+    espn: EspnSettings = EspnSettings()
     models: ModelsSettings = ModelsSettings()
     server: ServerSettings = ServerSettings()
 

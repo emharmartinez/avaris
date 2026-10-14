@@ -24,7 +24,7 @@ The goal is accurate, well-calibrated predictions with honest uncertainty. All e
 |---|---|
 | Python env | Python 3.12 + **uv**; ruff, pyright, pytest |
 | Stats data | **stats.nba.com via a thin httpx client** (ADR-009; replaces `nba_api`): `leaguegamelog` per season and season type covers every team-game and player-game line; `commonteamroster` for rosters; `scheduleleaguev2` per season supplies tip-off time (back to 2012-13), `season_type`, venue and today's slate |
-| Injuries | Official NBA pregame injury report PDFs (2021-22+), fetched by Avaris and parsed with `nba-injury-report` (AGPL, fine for personal use; ADR-012). Hourly reports until 2025-12-21, every 15 minutes from 2025-12-22 |
+| Injuries | Official NBA pregame injury report PDFs (2021-22+), fetched by Avaris and parsed with `nba-injury-report` (AGPL, fine for personal use; ADR-012). Hourly reports until 2025-12-21, every 15 minutes from 2025-12-22. Preseason: ESPN's injury list, for a rest adjustment after the model (ADR-022) |
 | Storage | **DuckDB** file + raw JSON/PDF response cache; pandas |
 | Models | scikit-learn (Elo/logistic/ridge baselines, isotonic calibration, time-series CV), **LightGBM** (also gives per-prediction feature contributions), Optuna, scipy |
 | Artifacts | joblib + JSON metadata (features, train window, metrics) |
@@ -220,7 +220,7 @@ DuckDB tables: `games` (incl. `tip_off_utc`, `game_date_et`, `season_type`, `neu
 | Backtest predictions use information not available before tip-off (post-hoc availability, late injury news) | Backtest metrics are inflated; live results disappoint | Single `decision_ts` per game freezes injuries and features; timestamp-granular leakage test; injury-report re-run is the headline number |
 | Odds code removal breaks the injury ingest or leaves dead tables | Phase 2 regressions | Removal is its own commit with the injury done-when re-run; migration 4 drops the tables; grep check in the done-when |
 | Preseason, play-in, playoffs, neutral-site and bubble games distort features or metrics | Bad tuning (bubble is inside the tuning window) and misleading headline numbers | `season_type` and `neutral_site` on `games`; preseason never feeds features; headline metrics on the regular season; neutral-site and preseason tests |
-| Preseason predictions ignore who actually plays (starters rest, no injury report) | Preseason predictions are overconfident | σ fitted per `season_type` bucket; preseason metrics and interval coverage reported on their own; Today flags preseason games |
+| Preseason predictions ignore who actually plays (starters rest, no injury report) | Preseason predictions are overconfident | σ fitted per `season_type` bucket; preseason metrics and interval coverage reported on their own; Today flags preseason games; rest adjustment from ESPN's list (ADR-022) |
 | Tip-off times and ET game dates missing or wrong | Wrong `decision_ts`, late games on the wrong day | Schedule ingest with `tip_off_utc`; `game_date_et` derived; Phase 1 done-when requires a tip-off for every game from 2020-21 |
 | No scheduler, so `daily` may not run before a game | Today shows a provisional or stale prediction | `daily` runs on `serve` startup and from Refresh; it catches up because injury PDFs stay on the CDN; Today shows the status and time to `decision_ts` |
 | Optuna over weekly refits is too slow | Phase 3 does not finish in a session | One refit per season during trials, weekly only for the final comparison; resumable SQLite storage |

@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
+import duckdb
 import numpy as np
 import pandas as pd
 
@@ -285,3 +286,45 @@ def write_league(path: Path) -> Path:
     finally:
         con.close()
     return path
+
+
+# Preseason rest data (ADR-022), added only by the tests that need it so the template
+# league and the models trained on it stay as they are
+REST_ABSENT = {ATL: 1000, BKN: 3000}  # each team's best player sits out its first preseason game
+
+
+def add_preseason_boxes(con: duckdb.DuckDBPyConnection) -> int:
+    # Every player of both teams plays each finished preseason game, except a REST_ABSENT
+    # player in his team's first game of the preseason
+    games = con.execute(
+        "select game_id, season, game_date_et, home_team_id, away_team_id from games "
+        "where season_type = 'preseason' and status = 'final' order by tip_off_utc, game_id"
+    ).fetchall()
+    seen: set[tuple[str, int]] = set()
+    rows = []
+    for game_id, season, day, home, away in games:
+        for team in (home, away):
+            first = (season, team) not in seen
+            seen.add((season, team))
+            for p in _players():
+                if p.team_id != team or (first and REST_ABSENT.get(team) == p.player_id):
+                    continue
+                rows.append({
+                    "game_id": game_id, "player_id": p.player_id, "team_id": team,
+                    "player_name": f"Player {p.player_id}", "season": season,
+                    "season_type": "preseason", "game_date_et": day, "minutes": 24.0,
+                })
+    return upsert(con, "preseason_player_games", pd.DataFrame(rows))
+
+
+def add_espn_snapshot(
+    con: duckdb.DuckDBPyConnection, fetched_at: datetime,
+    entries: list[tuple[int, int | None, str]],  # (team, player_id, status)
+    comment: str | None = None,
+) -> None:
+    upsert(con, "espn_injury_snapshots", pd.DataFrame([{
+        "fetched_at": fetched_at, "team_id": team, "player_name": f"Player {pid}",
+        "player_id": pid, "status": status, "comment": comment, "entry_ts": fetched_at,
+    } for team, pid, status in entries]))
+    upsert(con, "espn_injury_fetches",
+           pd.DataFrame([{"fetched_at": fetched_at, "snapshot_ts": fetched_at}]))

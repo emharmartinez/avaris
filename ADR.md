@@ -2,6 +2,33 @@
 
 One entry per binding decision. Newest first. Status is `accepted`, `superseded` or `proposed`.
 
+## ADR-022: Preseason predictions are rest-adjusted from ESPN's injury list
+
+- **Date:** 2026-10-13 · **Status:** accepted · amends ADR-004 ("predicted at full strength") and narrows ADR-002
+- **Decision:**
+  - Preseason games only (`season_type = 'preseason'`, both teams NBA). The model gets no new inputs and is not retrained; a rule after the model shifts its outputs: `margin -= k_margin * (home_lost - away_lost)`, `total -= k_total * (home_lost + away_lost)`, `logit(p_home_win) -= k_win * (home_lost - away_lost)`. σ is unchanged, so the 80% interval moves with μ.
+  - `lost` is the value (`rate x minutes`, last season's rate) of the players ESPN lists out in the latest snapshot fetched in `[tip - 36 h, decision_ts]`. Out = status `Out`, or a future-tense note ("won't play", "won't suit up", "ruled out", "will rest", "will miss", "is out") posted within 36 h before tip-off whose named weekdays include the game's.
+  - **Source:** `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/injuries`, one request per `daily` run and only when a preseason game tips off within 36 h and has no final prediction. The list has no history; an unchanged list adds a row to `espn_injury_fetches` pointing at the stored snapshot, so reruns rewrite nothing. A failed fetch is a warning; the model prediction stands.
+  - **Fit:** `avaris rest-fit` walks forward the production rungs (one refit per season) over 2015-16 to 2024-25. On 2015-16 to 2019-20, each k is fitted against who actually sat out: players in the team's preseason box scores who were on its regular-season roster last season or this one and missed the game (`preseason_player_games`, never `player_games`). Least squares without intercept for margin and total; logistic regression with `logit(pred)` as offset for the win. Each k is switched on only if it beats the raw model on 2020-21 to 2024-25 (margin MAE, total MAE, log loss). 2025-26 is never read.
+  - Predictions keep the model's values in `raw_p_home_win`, `raw_margin_mu`, `raw_total_mu` and a `rest` JSON block (out list per side, lost value, k applied, `snapshot_ts`, a note when nothing was applied). The card, game page and Edge tab label adjusted values "Rest-adjusted (ESPN)" and show the raw ones.
+- **Why:** user decision. NBA injury reports do not exist for preseason days (every CDN slot returns 403), and teams rest starters; on 2026-10-13 the model gave NYK 62% at TOR with Brunson, Towns and Anunoby resting.
+- **Consequences:**
+  - Non-preseason features, `MODEL_FEATURES`, `feature_hash` and prediction rows are byte-identical with or without this data (tested).
+  - The 2020-21 to 2024-25 window decides only on/off for each k, never its value: a narrow exception to ADR-002's "frozen for 2020-21+".
+  - k is fitted on actual absences but applied to ESPN's list, which misses late rest calls: live gains are smaller than the backtest.
+  - No scheduler: a preseason final is adjusted only if a refresh ran between tip - 36 h and tip - 60 min; otherwise its `rest` block says "no ESPN snapshot before decision time", for good (ADR-018).
+  - Scored preseason predictions are the adjusted ones; `raw_*` allows scoring the model alone. Non-NBA opponents get no adjustment (#11); the win model's preseason overconfidence is #20.
+- **Fit report (2026-10-13):** 24,980 preseason player-games (2014-15 to 2024-25); 331 NBA-v-NBA preseason games with box scores in the fit window, 313 in the gate window.
+
+  | Output | k | Gate metric | Raw | Adjusted | Enabled |
+  | :-- | --: | :-- | --: | --: | :-- |
+  | margin | 0.108 per Game Score point | MAE | 12.217 | 12.148 | yes |
+  | total | -0.080 | MAE | 13.484 | 13.940 | no |
+  | home_win | 0.025 | log loss | 0.707 | 0.721 | no |
+
+  - Only the margin is adjusted. The win probability stays the model's: its preseason log loss (0.707) is already worse than a coin flip, and the shift made it worse (#20). The total has no usable rest signal.
+  - Example: NYK at TOR on 2026-10-13, ESPN's list as if fetched before decision time: NYK lose 52.5 (Brunson 19.8, Anunoby 16.7, Towns 16.0), TOR 3.3, so the TOR margin moves from -0.7 to +4.6. That game was already final, so it stays unadjusted.
+
 ## ADR-021: The server stops itself when the app is closed, or from the app's Stop button
 
 - **Date:** 2026-10-13 · **Status:** accepted

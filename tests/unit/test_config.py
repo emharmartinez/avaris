@@ -61,3 +61,15 @@ def test_model_settings_defaults_and_overrides(tmp_path: Path) -> None:
     assert s.models.target("margin").rung == "lgbm"
     assert s.models.target("margin").params() == {"num_leaves": 8, "learning_rate": 0.05}
     assert s.models.target("total").params() == {}
+
+
+def test_espn_defaults_and_env_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    s = load_settings(tmp_path / "missing.toml")
+    assert s.espn.enabled is True
+    assert s.espn.min_interval_s == 1.0
+    assert s.espn.timeout_s == 20
+    assert s.espn.max_attempts == 3
+    assert s.espn.out_window_hours == 36
+    monkeypatch.setenv("AVARIS_ESPN__ENABLED", "false")
+    assert load_settings(tmp_path / "missing.toml").espn.enabled is False
+    assert load_settings(Path(__file__).parents[2] / "config.toml").espn.out_window_hours == 36

@@ -15,6 +15,7 @@ from avaris.config import Settings
 from avaris.db import upsert
 from avaris.features.build import FeatureSet, build_features, feature_hash, write_features
 from avaris.features.decision_time import DECISION_LEAD
+from avaris.ingest.espn import EspnClient, ingest_espn
 from avaris.ingest.injuries import InjuryClient, ingest_injuries
 from avaris.ingest.runner import ingest_stats
 from avaris.ingest.stats_client import RawCache, StatsClient, Throttle
@@ -24,6 +25,7 @@ from avaris.models.predictor import GamePredictor
 from avaris.models.registry import Registry
 from avaris.pipeline.score import score_predictions
 from avaris.pipeline.train import train
+from avaris.preseason.rest import DISABLED, RestParams, apply_rest, load_params
 from avaris.seasons import et_date, season_for_date
 
 Progress = Callable[[str], None]
@@ -37,8 +39,9 @@ TOP_DRIVERS = 3
 COMPARED = [
     "status", "decision_ts", "report_ts", "feature_hash", "home_win_run", "margin_run",
     "total_run", "p_home_win", "margin_mu", "margin_sigma", "total_mu", "total_sigma",
-    "drivers", "injuries",
+    "drivers", "injuries", "rest",
 ]
+RAW_COLUMNS = ["raw_p_home_win", "raw_margin_mu", "raw_total_mu"]
 
 
 @dataclass
@@ -80,23 +83,53 @@ def make_injury_client(settings: Settings) -> InjuryClient:
     )
 
 
+def make_espn_client(settings: Settings) -> EspnClient:
+    cfg = settings.espn
+    return EspnClient(
+        settings.paths.cache_dir, Throttle(cfg.min_interval_s), timeout_s=cfg.timeout_s,
+        max_attempts=cfg.max_attempts,
+    )
+
+
+def refresh_espn(
+    con: duckdb.DuckDBPyConnection, settings: Settings, now: datetime, progress: Progress
+) -> None:
+    # Preseason rest list (ADR-022); a failure leaves the model prediction standing
+    if not settings.espn.enabled:
+        return
+    client = make_espn_client(settings)
+    try:
+        ingest_espn(con, client, now, settings.espn.out_window_hours, progress=progress)
+    except Exception as exc:
+        progress(f"WARNING ESPN injuries failed, no rest adjustment: {type(exc).__name__}: {exc}")
+    finally:
+        client.close()
+
+
 def source_refresher(settings: Settings) -> Refresher:
-    # This season's schedule, game logs, rosters and injury reports
+    # This season's schedule, game logs, rosters, injury reports and, when a preseason
+    # game is due, the ESPN injury list
     def refresh(con: duckdb.DuckDBPyConnection, now: datetime, progress: Progress) -> None:
         today = et_date(now)
         season = season_for_date(today)
-        stats = make_stats_client(settings)
         try:
-            ingest_stats(con, stats, [season], today=today,
-                         refetch_days=settings.stats.refetch_days, progress=progress)
+            stats = make_stats_client(settings)
+            try:
+                ingest_stats(con, stats, [season], today=today,
+                             refetch_days=settings.stats.refetch_days, progress=progress)
+            finally:
+                stats.close()
+            injuries = make_injury_client(settings)
+            try:
+                ingest_injuries(con, injuries, [season], now_utc=now,
+                                step_back_hours=settings.injuries.step_back_hours,
+                                progress=progress)
+            finally:
+                injuries.close()
         finally:
-            stats.close()
-        injuries = make_injury_client(settings)
-        try:
-            ingest_injuries(con, injuries, [season], now_utc=now,
-                            step_back_hours=settings.injuries.step_back_hours, progress=progress)
-        finally:
-            injuries.close()
+            # A stats or injury failure must not cost a due preseason game its ESPN list:
+            # the snapshot is only useful before decision_ts
+            refresh_espn(con, settings, now, progress)
 
     return refresh
 
@@ -213,8 +246,30 @@ def _injuries(fs: FeatureSet, rows: pd.DataFrame, names: dict[int, str]) -> list
     } for r in rows.to_dict("records")]
 
 
+def _apply_rest(
+    fs: FeatureSet, rows: pd.DataFrame, out: pd.DataFrame, params: RestParams
+) -> None:
+    # Preseason games only (ADR-022): adjusted values in place, the model's in raw_*;
+    # NULL raw_* and rest everywhere else
+    rest = {str(r["game_id"]): {str(k): v for k, v in r.items()}
+            for r in fs.rest.to_dict("records")}
+    adjusted = [
+        apply_rest({"season_type": t, "p_home_win": p, "margin_mu": m, "total_mu": tot},
+                   rest.get(str(g)), params)
+        for g, t, p, m, tot in zip(out["game_id"], rows["season_type"], out["p_home_win"],
+                                   out["margin_mu"], out["total_mu"], strict=True)
+    ]
+    for col in ("p_home_win", "margin_mu", "total_mu"):
+        out[col] = [a[col] for a in adjusted]
+    for col in RAW_COLUMNS:
+        out[col] = pd.array([a[col] for a in adjusted], dtype="Float64")
+    out["rest"] = pd.Series([None if a["rest"] is None else _json(a["rest"]) for a in adjusted],
+                            dtype=object)
+
+
 def prediction_rows(
-    fs: FeatureSet, rows: pd.DataFrame, models: Models, names: dict[int, str], now: datetime
+    fs: FeatureSet, rows: pd.DataFrame, models: Models, names: dict[int, str], now: datetime,
+    rest_params: RestParams = DISABLED,
 ) -> pd.DataFrame:
     # One predictions row per game in rows: live availability is the decision report
     if rows.empty:
@@ -237,6 +292,7 @@ def prediction_rows(
             out[f"{target}_sigma"] = pred["sigma"].to_numpy()
     out["drivers"] = [_json(d) for d in _drivers(models, rows)]
     out["injuries"] = [_json(i) for i in _injuries(fs, rows, names)]
+    _apply_rest(fs, rows, out, rest_params)
     return out
 
 
@@ -285,7 +341,8 @@ def predict_due(
     through = max(date.fromisoformat(meta["through"]) for _, meta in models.values())
     rows = rows[pd.to_datetime(rows["game_date_et"]).dt.date >= through].reset_index(drop=True)
     names = player_names(con) if len(rows) else {}
-    write_predictions(con, prediction_rows(fs, rows, models, names, now), summary)
+    new = prediction_rows(fs, rows, models, names, now, load_params(con))
+    write_predictions(con, new, summary)
 
 
 def run_daily(
@@ -309,7 +366,7 @@ def run_daily(
             summary.warnings.append(f"refresh failed, using stored data: "
                                     f"{type(exc).__name__}: {exc}")
             progress(summary.warnings[-1])
-    fs = build_features(con)
+    fs = build_features(con, settings.espn.out_window_hours)
     write_features(con, fs)
     progress(f"features: {len(fs.features)} games")
     registry = Registry(settings.models.models_dir)

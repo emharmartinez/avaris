@@ -250,6 +250,50 @@ MIGRATIONS: list[str] = [
         log varchar
     );
     """,
+    # Preseason rest adjustment (ADR-022): ESPN injury lists (one snapshot per distinct
+    # list, one fetch row per request), preseason box scores kept out of player_games,
+    # fitted coefficients, and the raw model values beside the adjusted ones
+    """
+    create table espn_injury_snapshots (
+        fetched_at timestamp not null,  -- when this list was first seen
+        team_id integer not null,
+        player_name varchar not null,
+        player_id integer,
+        status varchar not null,
+        comment varchar,
+        entry_ts timestamp,
+        primary key (fetched_at, team_id, player_name)
+    );
+    create table espn_injury_fetches (
+        fetched_at timestamp primary key,
+        snapshot_ts timestamp not null  -- the espn_injury_snapshots list in force
+    );
+    create table preseason_player_games (
+        game_id varchar not null,
+        player_id integer not null,
+        team_id integer not null,
+        player_name varchar,
+        season varchar not null,
+        season_type varchar not null,
+        game_date_et date not null,
+        minutes double,
+        pts integer, fgm integer, fga integer, fg3m integer, fg3a integer,
+        ftm integer, fta integer, oreb integer, dreb integer, reb integer,
+        ast integer, stl integer, blk integer, tov integer, pf integer,
+        plus_minus double,
+        primary key (game_id, player_id)
+    );
+    create table rest_params (
+        fitted_at timestamp primary key,
+        k_margin double not null, k_total double not null, k_win double not null,
+        use_margin boolean not null, use_total boolean not null, use_win boolean not null,
+        report varchar  -- JSON: fit and validation metrics
+    );
+    alter table predictions add column raw_p_home_win double;
+    alter table predictions add column raw_margin_mu double;
+    alter table predictions add column raw_total_mu double;
+    alter table predictions add column rest varchar;  -- JSON, preseason only
+    """,
 ]
 
 
