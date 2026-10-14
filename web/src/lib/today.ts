@@ -1,5 +1,5 @@
 import { pct } from "./format";
-import type { Driver, InjuryImpact } from "./types";
+import type { Driver, Game, InjuryImpact } from "./types";
 
 export interface WinSplit {
   home: number;
@@ -20,6 +20,11 @@ export function injuryText(impact: InjuryImpact | null): string {
 
 export function topDrivers(drivers: Driver[] | undefined, n = 3): Driver[] {
   return (drivers ?? []).slice(0, n);
+}
+
+export function activeGames(games: Game[]): Game[] {
+  // Games not started or still live; a final prediction (tip-off - 60 min) is not a finished game
+  return games.filter((g) => g.game_status !== "final");
 }
 
 export function todayHref(date: string | null): string {
