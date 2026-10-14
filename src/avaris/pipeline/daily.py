@@ -229,7 +229,7 @@ def _drivers(models: Models, rows: pd.DataFrame) -> list[dict[str, Any]]:
     # A win probability read off the margin is explained by the margin drivers (ADR-023)
     for i, season_type in enumerate(rows["season_type"]):
         if season_type in WIN_FROM_MARGIN:
-            out[i]["home_win"] = out[i]["margin"]
+            out[i]["home_win"] = dict(out[i]["margin"])
     return out
 
 

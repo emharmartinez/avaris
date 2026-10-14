@@ -445,10 +445,14 @@ def rest_fit_command(ctx: typer.Context) -> None:
                f"{report['n_fit']} preseason games; gate {report['gate_seasons'][0]} to "
                f"{report['gate_seasons'][-1]}: {report['n_gate']} games")
     for target, gate in report["gate"].items():
-        # The win has no k: it follows the margin (ADR-023)
-        k = f"k = {report['k'][target]:.4f}" if target in report["k"] else "follows margin"
-        typer.echo(f"{target}: {k}, {gate['metric']} raw {gate['raw']:.4f} vs adjusted "
-                   f"{gate['adjusted']:.4f}: " + ("enabled" if gate["enabled"] else "disabled"))
+        metrics = f"{gate['metric']} raw {gate['raw']:.4f} vs adjusted {gate['adjusted']:.4f}"
+        if target not in report["k"]:
+            # The win has no k and no gate of its own: it follows the margin (ADR-023)
+            state = "on" if gate["enabled"] else "off"
+            typer.echo(f"{target}: follows the margin ({state}); {metrics}, for information")
+            continue
+        typer.echo(f"{target}: k = {report['k'][target]:.4f}, {metrics}: "
+                   + ("enabled" if gate["enabled"] else "disabled"))
 
 
 @app.command("preseason-win-check")

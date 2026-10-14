@@ -58,8 +58,9 @@ def test_fit_recovers_planted_k_and_the_win_follows_the_margin() -> None:
     assert fit.params.k_margin == pytest.approx(0.6, abs=0.03)
     assert fit.params.k_total == pytest.approx(0.3, abs=0.03)
     assert fit.params.use_margin and fit.params.use_total
-    # k_win is retired: stored as 0 and off
-    assert fit.params.k_win == 0.0 and not fit.params.use_win
+    # k_win is retired (stored as 0); use_win records that the win moves with the margin
+    assert fit.params.k_win == 0.0 and fit.params.use_win
+    assert fit.report["win_follows_margin"] is True
     assert set(fit.report["k"]) == {"margin", "total"}
     gate = fit.report["gate"]
     assert gate["margin"]["adjusted"] < gate["margin"]["raw"]

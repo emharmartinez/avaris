@@ -104,13 +104,16 @@ def fit_coefficients(frame: pd.DataFrame, fit_seasons: list[str], gate_seasons: 
     }
     raw, adj = _metrics(gate), _metrics(adjusted(gate, k["margin"], k["total"]))
     use = {t: adj[t] < raw[t] for t in TARGETS}
+    # The win moves exactly when the margin does; use_win records that, k_win stays 0
     use["home_win"] = use["margin"]
-    params = RestParams(k["margin"], k["total"], 0.0, use["margin"], use["total"], False)
+    params = RestParams(k["margin"], k["total"], 0.0, use["margin"], use["total"],
+                        use["margin"])
     report = {
         "fit_seasons": fit_seasons, "gate_seasons": gate_seasons,
         "n_fit": len(fit), "n_gate": len(gate), "k": k,
         "gate": {t: {"metric": GATE_METRIC[t], "raw": raw[t], "adjusted": adj[t],
                      "enabled": use[t]} for t in TARGETS},
+        "win_follows_margin": True,
     }
     return RestFit(params, report)
 

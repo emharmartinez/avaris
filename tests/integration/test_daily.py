@@ -9,6 +9,7 @@ import httpx
 import numpy as np
 import pandas as pd
 import pytest
+from scipy.stats import norm
 
 from avaris.config import Settings
 from avaris.db import connect, upsert
@@ -319,6 +320,11 @@ def test_a_preseason_game_is_rest_adjusted(
     assert pre["margin_mu"] == pytest.approx(pre["raw_margin_mu"] + 0.5 * lost)
     assert pre["total_mu"] == pytest.approx(pre["raw_total_mu"] - 0.4 * lost)
     assert pre["p_home_win"] > pre["raw_p_home_win"]
+    # ADR-023: both win probabilities are read off the margin, raw before the rest shift
+    sigma = pre["margin_sigma"]
+    assert pre["raw_p_home_win"] == pytest.approx(norm.cdf(pre["raw_margin_mu"] / sigma))
+    assert pre["p_home_win"] == pytest.approx(norm.cdf(pre["margin_mu"] / sigma))
+    assert rest["win_from_margin"] is True and rest["k"]["win"] == 0.0
     # Regular-season rows carry no rest data: NULL, not NaN
     nulls = con.execute(
         "select count(*) from predictions where game_id <> ? and raw_p_home_win is null "
