@@ -451,6 +451,33 @@ def rest_fit_command(ctx: typer.Context) -> None:
                    f"{gate['adjusted']:.4f}: " + ("enabled" if gate["enabled"] else "disabled"))
 
 
+@app.command("preseason-win-check")
+def preseason_win_check_command(ctx: typer.Context) -> None:
+    # Preseason home_win (#20, ADR-023): the classifier against P(margin > 0) under the
+    # margin model, walk-forward on the tuning window only (ADR-002)
+    from avaris.preseason.fit import preseason_predictions
+    from avaris.preseason.win_check import render_win_check
+
+    settings: Settings = ctx.obj
+    cfg = settings.models
+    seasons = _scored_seasons(cfg, cfg.tune_first_season, cfg.tune_last_season)
+    data = _training_data(settings)
+    preds = preseason_predictions(data[data["season"] <= seasons[-1]].reset_index(drop=True),
+                                  cfg, seasons)
+    if preds.empty:
+        typer.echo(f"no preseason games with results in {seasons[0]} to {seasons[-1]}")
+        raise typer.Exit(1)
+    name = f"preseason_win_check_{seasons[0]}_{seasons[-1]}"
+    md, charts = render_win_check(preds, f"Preseason home_win, {seasons[0]} to {seasons[-1]}")
+    out = cfg.reports_dir / name
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "report.md").write_text(md + "\n")
+    for file, svg in charts.items():
+        (out / file).write_text(svg)
+    preds.to_csv(out / "predictions.csv.gz", index=False)
+    typer.echo(f"Wrote {out / 'report.md'}")
+
+
 def _run_job(settings: Settings, kind: str, params: dict[str, object]) -> None:
     # In-process on a read-write connection; when a server holds the database (one
     # writer), the job runs there instead
