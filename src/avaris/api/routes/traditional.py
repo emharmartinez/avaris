@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api/traditional", tags=["traditional"])
 SLATE_ROLLOVER = timedelta(hours=4)  # past midnight ET, still the night before
 
 FEATURES = [
-    "elo_margin", "league_total", "league_pace", "home_court", "no_fans", "home_b2b",
+    "report_ts", "elo_margin", "league_total", "league_pace", "home_court", "no_fans", "home_b2b",
     "away_b2b", "home_gp", "away_gp",
     *(f"{side}_{stat}_std" for side in ("home", "away") for stat in ("ortg", "drtg", "pace")),
     *(f"{side}_lost_{kind}" for side in ("home", "away") for kind in ("report", "usual")),

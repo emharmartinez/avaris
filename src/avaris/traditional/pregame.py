@@ -3,6 +3,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
+import pandas as pd
 from scipy.stats import norm
 
 # A rule-based model, no fitting (ADR-024): Elo blended with season-to-date efficiency
@@ -64,10 +65,12 @@ def _efficiency(row: Mapping[str, Any], league_total: float) -> tuple[float, flo
 
 def _injury(row: Mapping[str, Any]) -> tuple[float, float, str] | None:
     # Value each team misses beyond its usual (already in its ratings): the decision report,
-    # else (preseason) ESPN's list, which has no usual. None unless both teams are known
+    # else (preseason) ESPN's list, which has no usual. None unless both teams are known; with
+    # no report at decision time lost_report reads 0, which says nothing
+    has_report = not pd.isna(row.get("report_ts"))
     for source in ("report", "espn"):
         lost = [_value(row, f"{side}_lost_{source}") for side in ("home", "away")]
-        if None not in lost:
+        if None not in lost and (source == "espn" or has_report):
             usual = [(_value(row, f"{side}_lost_usual") if source == "report" else None) or 0.0
                      for side in ("home", "away")]
             return float(lost[0] or 0.0) - usual[0], float(lost[1] or 0.0) - usual[1], source

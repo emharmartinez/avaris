@@ -1,11 +1,12 @@
 import copy
 import json
 import math
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
 import httpx
+import pandas as pd
 import pytest
 from scipy.stats import norm
 
@@ -30,6 +31,7 @@ ESPN_FIXTURES = Path(__file__).parents[1] / "fixtures" / "espn"
 MIA, BKN, BOS, CHA, LAC, DEN = (1610612748, 1610612751, 1610612738, 1610612766, 1610612746,
                                 1610612743)
 OKC, UTA = 1610612760, 1610612762
+REPORT_TS = datetime(2021, 11, 27, 22, 30)
 
 
 def features(**overrides: Any) -> dict[str, Any]:
@@ -89,7 +91,7 @@ def test_injuries_beyond_the_usual_cost_points() -> None:
     # Home misses 20 more than usual (a star newly out), away 5 more
     base = pregame(features())
     out = pregame(features(home_lost_report=30.0, home_lost_usual=10.0,
-                           away_lost_report=12.0, away_lost_usual=7.0))
+                           away_lost_report=12.0, away_lost_usual=7.0, report_ts=REPORT_TS))
     assert base is not None and out is not None
     assert out.margin_mu == pytest.approx(base.margin_mu + INJURY_PTS * (5.0 - 20.0))
     assert out.total_mu == pytest.approx(base.total_mu)
@@ -103,14 +105,14 @@ def test_injuries_beyond_the_usual_cost_points() -> None:
 def test_a_team_missing_less_than_usual_gains_points() -> None:
     base = pregame(features())
     out = pregame(features(home_lost_report=4.0, home_lost_usual=24.0,
-                           away_lost_report=10.0, away_lost_usual=10.0))
+                           away_lost_report=10.0, away_lost_usual=10.0, report_ts=REPORT_TS))
     assert base is not None and out is not None
     assert out.margin_mu == pytest.approx(base.margin_mu + INJURY_PTS * 20.0)
 
 
 def test_without_a_usual_the_whole_report_counts() -> None:
     out = pregame(features(home_lost_report=20.0, home_lost_usual=math.nan,
-                           away_lost_report=0.0, away_lost_usual=None))
+                           away_lost_report=0.0, away_lost_usual=None, report_ts=REPORT_TS))
     assert out is not None
     assert out.inputs["injury"] == pytest.approx(-INJURY_PTS * 20.0)
 
@@ -128,7 +130,12 @@ def test_preseason_uses_the_espn_list() -> None:
 
 @pytest.mark.parametrize("overrides", [
     {},
-    {"home_lost_report": 20.0, "away_lost_report": math.nan},
+    {"home_lost_report": 20.0, "away_lost_report": math.nan, "report_ts": REPORT_TS},
+    # No report at decision time (a morning before the day's first, or before 2021-22):
+    # lost_report reads 0 but nobody is known to be out
+    {"home_lost_report": 0.0, "home_lost_usual": 25.0, "away_lost_report": 0.0,
+     "away_lost_usual": 5.0, "report_ts": None},
+    {"home_lost_report": 0.0, "away_lost_report": 0.0, "report_ts": pd.NaT},
     {"home_lost_espn": 20.0, "away_lost_espn": None},
 ])
 def test_no_injury_term_unless_both_teams_are_known(overrides: dict[str, Any]) -> None:
