@@ -44,7 +44,7 @@ All gates must be green at the end of every phase.
 - **No scheduler.** `avaris daily` is idempotent and catches up whenever it runs; `avaris serve` runs it on startup and the UI has a Refresh button.
 - **Tuning uses 2015-16 to 2019-20 only.** Hyperparameters and the kept rung are frozen for 2020-21+.
 - **No odds or market data in the pipeline.** The Odds API was dropped (ADR-014); do not add odds ingestion, odds tables, bets, staking or spend tracking back. The one exception is the Edge tab (ADR-020): odds the user types in, compared with the model in the browser, never fetched or stored.
-- **Traditional model (ADR-024)** is a separate rule-based model (`src/avaris/traditional/`, no fitting) in its own tab. Its live lines come from ESPN's scoreboard (stats.nba.com `scoreboardv3` as the fallback), fetched by the API process, cached in memory for 30 s and never written to DuckDB. It never feeds the ML pipeline or the evaluation ladder.
+- **Traditional model (ADR-024)** is a separate rule-based model (`src/avaris/traditional/`, no fitting) in its own tab. Its live lines come from ESPN's scoreboard (stats.nba.com `scoreboardv3` as the fallback), fetched by the API process, cached in memory for 5 s (the browser polls every 10 s) and never written to DuckDB. It never feeds the ML pipeline or the evaluation ladder.
 - **Single DuckDB writer.**
   - The FastAPI process owns the read-write connection.
   - CLI jobs run in-process only when the server is down. Otherwise they go through `POST /api/jobs/{daily,score,train}`.

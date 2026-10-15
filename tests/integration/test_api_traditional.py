@@ -122,10 +122,10 @@ def test_scoreboard_is_cached_for_the_ttl(make_client: Callable[..., TestClient]
     feed, now = Feed(), [0.0]
     client = make_client(feed, now=TIPPED, monotonic=lambda: now[0])
     get(client, "/api/traditional")
-    now[0] = 10.0
+    now[0] = 4.0
     get(client, "/api/traditional")
     assert len(feed.days) == 1
-    now[0] = 31.0
+    now[0] = 6.0
     get(client, "/api/traditional")
     assert len(feed.days) == 2
 

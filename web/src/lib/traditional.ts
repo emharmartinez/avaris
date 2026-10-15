@@ -11,7 +11,7 @@ import type {
 const DASH = "–";
 const MINUS = "−";
 const OFF_BOARD = 0.005; // a game this settled has no meaningful price
-const LIVE_POLL_MS = 30_000; // the server refetches the scoreboard at most every 30 s
+const LIVE_POLL_MS = 10_000; // the server caches the scoreboard for 5 s, so each poll is fresh
 const TODAY_POLL_MS = 60_000;
 
 export function fairMoneyline(p: number, format: OddsFormat): string {

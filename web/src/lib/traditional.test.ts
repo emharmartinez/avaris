@@ -103,7 +103,7 @@ describe("status", () => {
 
 describe("pollInterval", () => {
   it("polls fast while a game is live, slowly while today's games are still to come", () => {
-    expect(pollInterval(day([game({ status: "in_progress", live })]))).toBe(30_000);
+    expect(pollInterval(day([game({ status: "in_progress", live })]))).toBe(10_000);
     expect(pollInterval(day([game()]))).toBe(60_000);
     expect(pollInterval(day([game({ status: "final" })]))).toBe(false);
     expect(pollInterval(day([game()], false))).toBe(false);
