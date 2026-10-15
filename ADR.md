@@ -2,6 +2,34 @@
 
 One entry per binding decision. Newest first. Status is `accepted`, `superseded` or `proposed`.
 
+## ADR-024: A rule-based Traditional model, pregame and live, in its own tab
+
+- **Date:** 2026-10-14 · **Status:** accepted · narrows ADR-014 (fair lines from a second model; still no odds)
+- **Decision:**
+  - A second model with no machine learning (`src/avaris/traditional/`), shown in the Traditional tab (`/traditional/?date=`) and served by `GET /api/traditional?date=`. It never feeds features, the ML models, Performance or the evaluation ladder.
+  - **Pregame**, from each game's latest `features` row (point-in-time at `decision_ts`, ADR-015):
+    - Efficiency: league rating `L = 100 * league_total / (2 * league_pace)`; points per 100 = own `ortg_std` + opponent `drtg_std` - `L`; pace = `home_pace_std + away_pace_std - league_pace`; `eff_margin` adds 2.5 points of home court (halved without fans, 0 on a neutral site)
+    - Margin: `(1 - w) * elo_margin + w * eff_margin`, `w = 0.5 * g / (g + 10)`, `g` = fewer games played of the two teams this season; -1.5 points to a team on a back-to-back
+    - Total: `(1 - s) * league_total + s * eff_total`, `s = g / (g + 10)`
+    - Win: `Phi(margin / 12.5)`; total σ 19.5. The two σ are the residual std on the 2015-16 to 2019-20 regular season (12.65, 19.26), rounded to 0.5; every other constant is a fixed rule
+    - Preseason and the first game of a season (`g = 0`) are Elo and the league total only. No injury or ESPN rest adjustment (#29)
+  - **Live** (Stern's Brownian motion): with `r` = minutes left / 48, margin `= lead + μ_pre * r`, σ `= σ_pre * sqrt(max(minutes left, 0.5) / 48)`; total `= points so far + rate * minutes left`, rate `= (1 - v) * total_pre / 48 + v * points per minute so far`, `v = played / (played + 24)`. Overtime periods are 5 minutes; a tie at the buzzer counts one more 5-minute period.
+  - **Live source:** `stats.nba.com/stats/scoreboardv3?GameDate=&LeagueID=00` through `StatsClient` (`final=False`, so `<paths.cache_dir>/live/scoreboardv3/` keeps the latest copy per date). Fetched by the API process only for the slate day (the ET date, rolling over at 4 am ET so late tips stay live past midnight) when a game has tipped off or is `in_progress` and not final in `games`; held in memory for 30 s; never written to DuckDB. A failed fetch returns `live_error` and the pregame lines. The scoreboard's status and score win over `games` (the schedule ingest lags). `cdn.nba.com` liveData returns 403; ESPN's scoreboard answered on 2026-10-14 and would be the fallback (not implemented, #30).
+  - Lines are shown as fair prices: American moneyline from the win probability, the margin as a spread, the total; finals are graded against the pregame line. Nothing is compared with bookmaker odds (Edge does that, ADR-020).
+- **Why:** user request: a separate, non-ML model covering moneyline, spread and over/under, live games included.
+- **Check (not used to choose; regular season):**
+
+  | Window | Games | Log loss (Elo) | Margin MAE (Elo) | Total MAE (league avg) | 80% coverage margin / total |
+  | :-- | --: | --: | --: | --: | --: |
+  | 2015-16 to 2019-20 | 5,979 | 0.6112 (0.6167) | 9.88 (9.92) | 15.09 (15.79) | 0.81 / 0.81 |
+  | 2020-21 to 2024-25 | 6,000 | 0.6281 (0.6389) | 10.90 (10.99) | 15.31 (15.70) | 0.77 / 0.81 |
+
+  - The ML model on the tuning window: 0.6099 log loss, 9.76 margin MAE, 14.59 total MAE (Phase 3). 2025-26 was not read. Reproduce with `uv run python scripts/traditional_check.py <db>`.
+- **Consequences:**
+  - On a live day an open Traditional tab makes at most 2 scoreboard fetches a minute (each up to 2 HTTP attempts); other days make none. The live client has its own throttle, so a Refresh during a live night can briefly exceed 1 request/s (#31).
+  - The live model is not evaluated (no in-game history is stored).
+  - A Traditional line can disagree with the ML model's; they are separate by design.
+
 ## ADR-023: Preseason win probability is read off the margin model
 
 - **Date:** 2026-10-14 · **Status:** accepted · amends ADR-022 (the win's `k_win` shift) and ADR-016 (the preseason `home_win` output is no longer the classifier's)

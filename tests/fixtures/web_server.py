@@ -16,12 +16,15 @@ from avaris.config import PathsSettings, ServerSettings, Settings
 from avaris.db import connect
 from avaris.pipeline.daily import run_daily
 from avaris.pipeline.jobs import JobRunner, Progress, default_runners
-from tests.fixtures.live import D1, D2, models_settings, train_before_d1
+from tests.fixtures.live import D1, D2, models_settings, scoreboard_payload, train_before_d1
 from tests.fixtures.synthetic import BOS, INJURED_STAR, write_league
 from tests.integration.test_daily import add_report
 
 NOW = datetime(2021, 11, 27, 17, 0)  # D1 games final and scored, D2 provisional
 UNPREDICTED = "0022100047"  # ATL @ DEN: left for the Refresh flow to predict
+LIVE_GAME = "0022100048"  # BOS @ BKN: in the 3rd quarter on the fake live scoreboard
+SCOREBOARD = scoreboard_payload({"game_id": LIVE_GAME, "period": 3, "clock": "PT04M12.00S",
+                                 "label": "3rd Qtr", "home": 70, "away": 66})
 REFERENCE = "evaluation_2021-22_2024-25"
 # A report table as wide as the real ones (13 columns of values with CIs)
 COLUMNS = ["model"] + [f"{m}{d}" for m in ("log_loss", "brier", "accuracy", "ece", "margin_mae",
@@ -70,6 +73,8 @@ def build(root: Path, web: Path) -> Settings:
                     "where game_date_et = ?", [D1])
         run_daily(con, settings, now=NOW, refresh=None)
         con.execute("delete from predictions where game_id = ?", [UNPREDICTED])
+        # On the scoreboard already: the Traditional tab shows it live
+        con.execute("update games set status = 'in_progress' where game_id = ?", [LIVE_GAME])
     finally:
         con.close()
     write_reference(settings.models.reports_dir)
@@ -93,7 +98,8 @@ def main() -> None:
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="avaris-web-e2e-") as tmp:
         settings = build(Path(tmp), args.web.resolve())
-        app = create_app(settings, clock=lambda: NOW, runners=offline_runners(settings))
+        app = create_app(settings, clock=lambda: NOW, runners=offline_runners(settings),
+                         live_scoreboard=lambda _day: SCOREBOARD)
         uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
 
 

@@ -2,7 +2,7 @@
 // is always live. Hashed build assets are cache-first; pages are network-first.
 const CACHE = "avaris-shell-__BUILD_ID__"; // stamped by scripts/stamp-sw.mjs
 const SHELL = ["/", "/teams/", "/performance/", "/backtests/", "/injuries/", "/edge/",
-  "/game/",
+  "/traditional/", "/game/",
   "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {

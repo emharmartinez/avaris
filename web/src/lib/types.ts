@@ -119,6 +119,54 @@ export interface GamesOnDate {
   games: Game[];
 }
 
+// The rule-based model (ADR-024): pregame lines, and live lines while a game is on
+export type GameStatus = "scheduled" | "in_progress" | "final";
+
+export interface TraditionalLine {
+  p_home_win: number;
+  margin: Interval;
+  total: Interval;
+}
+
+export interface TraditionalInputs {
+  elo_margin: number;
+  eff_margin: number | null;
+  eff_total: number | null;
+  league_total: number;
+  weight: number; // share of the margin from the efficiency ratings
+  home_gp: number;
+  away_gp: number;
+  home_b2b: number;
+  away_b2b: number;
+}
+
+export interface TraditionalLive extends TraditionalLine {
+  period: number;
+  clock: string | null; // M:SS left in the period
+  label: string; // the scoreboard's status, e.g. "2nd Qtr", "Halftime"
+  minutes_left: number;
+}
+
+export interface TraditionalGame {
+  game_id: string;
+  season_type: SeasonType;
+  tip_off_utc: string | null;
+  home: Team;
+  away: Team;
+  status: GameStatus;
+  score: { home_pts: number; away_pts: number } | null;
+  pregame: (TraditionalLine & { inputs: TraditionalInputs }) | null;
+  live: TraditionalLive | null;
+}
+
+export interface TraditionalDay {
+  date: string;
+  is_today: boolean;
+  live_at: string | null;
+  live_error: string | null;
+  games: TraditionalGame[];
+}
+
 export interface InjuryEntry {
   team_id: number;
   player_id: number | null;
