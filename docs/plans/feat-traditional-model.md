@@ -82,7 +82,7 @@
 
 **New:** `src/avaris/traditional/{__init__,pregame,live}.py`, `src/avaris/ingest/scoreboard.py`, `src/avaris/api/routes/traditional.py`, unit and integration tests, a recorded scoreboard fixture under `tests/fixtures/`, `web/src/app/traditional/page.tsx`, `web/src/components/traditional/*`, `web/src/lib/traditional.ts` and tests, an E2E spec
 
-**Modified:** `src/avaris/api/main.py`, `tests/fixtures/web_server.py`, `web/src/components/app-sidebar.tsx`, `web/src/lib/{api,types}.ts`, `web/src/hooks/use-api.ts`, `web/src/test/data.ts`, docs (ADR, STATUS, CHANGELOG, README)
+**Modified:** `src/avaris/api/main.py`, `tests/fixtures/web_server.py`, `web/src/components/app-sidebar.tsx`, `web/src/lib/{api,types}.ts`, `web/src/hooks/use-api.ts`, `web/public/sw.js`, `web/e2e/pages.spec.ts`, `scripts/traditional_check.py`, docs (ADR, STATUS, CHANGELOG, README)
 
 **Not touched:** the ML pipeline, models, features, migrations, Edge
 
