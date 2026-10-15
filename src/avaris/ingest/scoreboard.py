@@ -15,7 +15,7 @@ from avaris.traditional.live import clock_minutes
 # Live scores, period and clock for one ET date (ADR-024); one request covers every game.
 # ESPN first: stats.nba.com's scoreboard has run minutes behind the game (#30)
 SCOREBOARD = "scoreboardv3"
-LIVE_TTL_S = 30.0
+LIVE_TTL_S = 5.0  # under the browser's 10 s poll, so each poll sees a fresh scoreboard
 LIVE_TIMEOUT_S = 15.0
 LIVE_ATTEMPTS = 2
 ORDINALS = {1: "1st", 2: "2nd", 3: "3rd", 4: "4th"}
