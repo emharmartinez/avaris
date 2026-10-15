@@ -1,11 +1,12 @@
-import { formatOdds, type OddsFormat } from "./edge";
+import { formatOdds, lineOutcomes, type OddsFormat } from "./edge";
 import { pct, signed, teamLabel } from "./format";
 import type {
   Team, TraditionalDay, TraditionalGame, TraditionalInputs, TraditionalLive,
 } from "./types";
 
 // The rule-based model's lines (ADR-024) as fair prices: the moneyline from the win
-// probability, the spread from the margin, the total as is. No odds are fetched or stored
+// probability, the spread from the margin, the total as is, with the chance of going over or
+// under a total line the user types (never fetched or stored). No odds are fetched or stored
 
 const DASH = "–";
 const MINUS = "−";
@@ -26,6 +27,25 @@ export function spreadText(marginMu: number, home: Team, away: Team): string {
 
 export function totalText(mu: number): string {
   return mu.toFixed(1);
+}
+
+export interface OverUnder {
+  over: number;
+  under: number;
+  push: number; // only a whole-number line can push
+}
+
+export function overUnder(total: { mu: number; sigma: number }, line: number): OverUnder {
+  // Integer bands, as on the Edge tab
+  const { win, push, lose } = lineOutcomes(total, line, "over");
+  return { over: win, under: lose, push };
+}
+
+export function overUnderText(total: { mu: number; sigma: number }, line: number | null): string {
+  if (line == null) return DASH;
+  const { over, under, push } = overUnder(total, line);
+  const text = `Over ${pct(over)} · Under ${pct(under)}`;
+  return Number.isInteger(line) ? `${text} · Push ${pct(push)}` : text;
 }
 
 export function liveText(live: TraditionalLive): string {
@@ -65,18 +85,20 @@ export interface FinalResult {
   total: string;
 }
 
-export function finalResult(game: TraditionalGame): FinalResult | null {
+export function finalResult(game: TraditionalGame, totalLine: number | null = null): FinalResult | null {
+  // The total is graded against the line typed on the card, else the pregame total
   const { score, pregame, home, away } = game;
   if (game.status !== "final" || score == null || pregame == null) return null;
   const margin = score.home_pts - score.away_pts;
   const winner = teamLabel(margin > 0 ? home : away);
   const total = score.home_pts + score.away_pts;
-  const side = total > pregame.total.mu ? "Over" : "Under";
+  const line = totalLine ?? pregame.total.mu;
+  const side = total > line ? "Over" : total < line ? "Under" : "Push";
   return {
     moneyline: `${winner} won`,
     pickHit: pregame.p_home_win >= 0.5 === margin > 0,
     spread: `${winner} by ${Math.abs(margin)} · line ${spreadText(pregame.margin.mu, home, away)}`,
     covered: pregame.margin.mu >= 0 ? margin > pregame.margin.mu : margin < pregame.margin.mu,
-    total: `${total} · ${side} ${totalText(pregame.total.mu)}`,
+    total: `${total} · ${side} ${totalText(line)}`,
   };
 }

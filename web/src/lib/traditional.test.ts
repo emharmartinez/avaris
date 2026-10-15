@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  fairMoneyline, finalResult, inputsText, liveText, pollInterval, spreadText, statusText,
-  totalText,
+  fairMoneyline, finalResult, inputsText, liveText, overUnder, overUnderText, pollInterval,
+  spreadText, statusText, totalText,
 } from "./traditional";
 import type { TraditionalDay, TraditionalGame } from "./types";
 
@@ -52,6 +52,38 @@ describe("spreadText", () => {
 describe("totalText", () => {
   it("shows the total to one decimal", () => {
     expect(totalText(222.46)).toBe("222.5");
+  });
+});
+
+describe("overUnder", () => {
+  const total = { mu: 222.5, sigma: 19.5 };
+
+  it("splits a half-point line between over and under", () => {
+    const even = overUnder(total, 222.5);
+    expect(even.over).toBeCloseTo(0.5, 6);
+    expect(even.under).toBeCloseTo(0.5, 6);
+    expect(even.push).toBe(0);
+    const high = overUnder(total, 240.5);
+    expect(high.over).toBeCloseTo(0.1780, 4); // 1 - Phi(18 / 19.5)
+    expect(high.over + high.under).toBeCloseTo(1, 9);
+  });
+
+  it("reads scores as whole points, so a whole-number line can push", () => {
+    const { over, under, push } = overUnder(total, 230);
+    expect(over).toBeCloseTo(0.3408, 4); // above 230.5
+    expect(under).toBeCloseTo(0.6402, 4); // below 229.5
+    expect(push).toBeCloseTo(1 - over - under, 9);
+  });
+});
+
+describe("overUnderText", () => {
+  it("shows both sides, and the push only when it can happen", () => {
+    expect(overUnderText({ mu: 222.5, sigma: 19.5 }, 222.5)).toBe("Over 50% · Under 50%");
+    expect(overUnderText({ mu: 222.5, sigma: 19.5 }, 230)).toBe("Over 34% · Under 64% · Push 2%");
+  });
+
+  it("is a dash without a line", () => {
+    expect(overUnderText({ mu: 222.5, sigma: 19.5 }, null)).toBe("–");
   });
 });
 
@@ -107,6 +139,13 @@ describe("finalResult", () => {
       pregame: { ...line(0.4, -3.2, 222.5), inputs } });
     expect(finalResult(away)?.covered).toBe(true);
     expect(result?.total).toBe("235 · Over 222.5");
+  });
+
+  it("grades the total against the line it is given", () => {
+    const g = game({ status: "final", score: { home_pts: 110, away_pts: 100 } });
+    expect(finalResult(g, 205.5)?.total).toBe("210 · Over 205.5");
+    expect(finalResult(g, 210)?.total).toBe("210 · Push 210.0");
+    expect(finalResult(g, null)?.total).toBe("210 · Under 222.5");
   });
 
   it("needs a final score and a pregame line", () => {
