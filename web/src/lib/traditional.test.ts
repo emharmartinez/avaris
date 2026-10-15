@@ -90,7 +90,7 @@ describe("finalResult", () => {
     const g = game({ status: "final", score: { home_pts: 110, away_pts: 100 } });
     expect(finalResult(g)).toEqual({
       moneyline: "DEN won", pickHit: true,
-      spread: "DEN by 10 · line DEN −5.9", total: "210 · Under 222.5",
+      spread: "DEN by 10 · line DEN −5.9", covered: true, total: "210 · Under 222.5",
     });
   });
 
@@ -99,6 +99,11 @@ describe("finalResult", () => {
     const result = finalResult(g);
     expect(result?.moneyline).toBe("ATL won");
     expect(result?.pickHit).toBe(false);
+    expect(result?.covered).toBe(false);
+    // An away favorite covers by winning by more than its line
+    const away = game({ status: "final", score: { home_pts: 100, away_pts: 110 },
+      pregame: { ...line(0.4, -3.2, 222.5), inputs } });
+    expect(finalResult(away)?.covered).toBe(true);
     expect(result?.total).toBe("235 · Over 222.5");
   });
 

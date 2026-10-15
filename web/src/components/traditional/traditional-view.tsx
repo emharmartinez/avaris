@@ -124,6 +124,17 @@ function GameCard({ game }: { game: TraditionalGame }) {
   );
 }
 
+function Verdict({ text, hit, yes, no }: { text: string; hit: boolean; yes: string; no: string }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      {text}
+      {hit
+        ? <Check className="size-4 shrink-0 text-emerald-500" aria-label={yes} />
+        : <X className="size-4 shrink-0 text-destructive" aria-label={no} />}
+    </span>
+  );
+}
+
 function Lines({ game, pregame, live, result }: {
   game: TraditionalGame;
   pregame: TraditionalLine;
@@ -143,12 +154,7 @@ function Lines({ game, pregame, live, result }: {
         </>
       ),
       result: result && (
-        <span className="inline-flex items-center gap-1">
-          {result.moneyline}
-          {result.pickHit
-            ? <Check className="size-4 text-emerald-500" aria-label="pick won" />
-            : <X className="size-4 text-destructive" aria-label="pick lost" />}
-        </span>
+        <Verdict text={result.moneyline} hit={result.pickHit} yes="pick won" no="pick lost" />
       ),
     },
     {
@@ -161,7 +167,9 @@ function Lines({ game, pregame, live, result }: {
           </span>
         </>
       ),
-      result: result?.spread,
+      result: result && (
+        <Verdict text={result.spread} hit={result.covered} yes="line covered" no="line not covered" />
+      ),
     },
     {
       name: "Total",

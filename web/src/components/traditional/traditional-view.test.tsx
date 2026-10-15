@@ -82,6 +82,7 @@ describe("TraditionalView", () => {
     expect(cells(game, "Moneyline")[2]).toBe("DEN won");
     expect(within(game).getByLabelText("pick won")).toBeInTheDocument();
     expect(cells(game, "Spread")[2]).toBe("DEN by 10 · line DEN −3.2");
+    expect(within(game).getByLabelText("line covered")).toBeInTheDocument();
     expect(cells(game, "Total")[2]).toBe("210 · Under 222.5");
     expect(screen.getByRole("link", { name: "Today" })).toHaveAttribute("href", expect.stringMatching(/^\/traditional\/?$/));
   });

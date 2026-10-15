@@ -61,6 +61,7 @@ export interface FinalResult {
   moneyline: string;
   pickHit: boolean; // the pregame favorite won
   spread: string;
+  covered: boolean; // the side the line favored won by more than the line
   total: string;
 }
 
@@ -75,6 +76,7 @@ export function finalResult(game: TraditionalGame): FinalResult | null {
     moneyline: `${winner} won`,
     pickHit: pregame.p_home_win >= 0.5 === margin > 0,
     spread: `${winner} by ${Math.abs(margin)} · line ${spreadText(pregame.margin.mu, home, away)}`,
+    covered: pregame.margin.mu >= 0 ? margin > pregame.margin.mu : margin < pregame.margin.mu,
     total: `${total} · ${side} ${totalText(pregame.total.mu)}`,
   };
 }
