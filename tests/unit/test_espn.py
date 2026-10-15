@@ -119,10 +119,26 @@ def test_a_note_ruling_a_player_out_for_the_preseason_or_season_counts(note: str
     "He will not play in the preseason finale.",
     "Brunson will miss the season opener.",
     "Hart won't play in the preseason game tonight.",
+    "Hart will not play in the preseason contest against Boston.",
+    "Hart will not play in the preseason matchup with the Celtics.",
+    "Hart won't play in the preseason meeting with Boston.",
 ])
 def test_a_single_game_note_is_not_a_season_span(note: str) -> None:
     assert is_out("Day-To-Day", note, recent(), TIP, WINDOW)
     assert not is_out("Day-To-Day", note, recent(24 * 5), TIP, WINDOW)
+
+
+def test_a_season_note_ends_with_the_season_it_was_posted_in() -> None:
+    # Posted in February 2026: over by the 2026-27 preseason
+    note = "Furphy will miss the remainder of the season."
+    assert is_out("Day-To-Day", note, datetime(2026, 9, 2), TIP, WINDOW)
+    assert not is_out("Day-To-Day", note, datetime(2026, 2, 9, 21, 43), TIP, WINDOW)
+
+
+def test_a_note_with_a_span_and_a_return_takes_the_span() -> None:
+    note = "Beal will miss two weeks but should be ready for the start of the regular season."
+    assert is_out("Day-To-Day", note, TIP - timedelta(days=13), TIP, WINDOW)
+    assert not is_out("Day-To-Day", note, TIP - timedelta(days=15), TIP, WINDOW)
 
 
 @pytest.mark.parametrize("note", [
@@ -141,6 +157,17 @@ def test_a_single_game_note_is_not_a_season_span(note: str) -> None:
     "Sabonis remains questionable for Tuesday's preseason game.",
     "Gueye underwent surgery Tuesday to repair a fractured left foot.",
     "Spurs head coach Mitch Johnson said they will not rush Harris (calf) back to the court.",
+    # Affirmative and hedged notes (review of #29)
+    "Durant is playing in Tuesday's preseason game against the Spurs.",
+    "Thompson is playing through a sore knee.",
+    "Doncic will play in the preseason, coach JJ Redick said.",
+    "Smith has been cleared to play in the preseason.",
+    "Beal is expected to be ready for the start of the regular season.",
+    "Ingram should be ready for the start of the season.",
+    "Johnson won't miss two weeks after all.",
+    "Smith isn't expected to miss a few days.",
+    "Gordon could miss a couple weeks.",
+    "Williams, who was out for the entire 2025-26 season, is expected to play Tuesday.",
     None,
     "",
 ])

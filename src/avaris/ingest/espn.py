@@ -15,7 +15,7 @@ from avaris.db import upsert
 from avaris.ingest.injuries import PlayerIndex
 from avaris.ingest.stats_client import Throttle
 from avaris.ingest.teams import team_ids_by_name
-from avaris.seasons import ET, et_date, season_for_date
+from avaris.seasons import ET, et_date, season_for_date, season_start_year
 
 # Preseason only (ADR-022): NBA injury reports do not cover the preseason
 ESPN_API = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba"
@@ -31,30 +31,36 @@ OUT_NOTE = re.compile(
     r"|\b(?:will|to) be (?:rested|held out|sidelined|inactive|unavailable)\b"
     r"|(?:not|n't) expected to (?:play|suit up|be available|face)\b"
     r"|\bunlikely to (?:play|suit up|be available)\b"
-    r"|\b(?:is|isn't) (?:not )?playing\b|\bis (?:doubtful|inactive)\b"
+    r"|\bis not playing\b|\bisn't playing\b|\bis (?:doubtful|inactive)\b"
 )
 NOT_RULED_OUT = re.compile(r"(?:not|n't) (?:been |be )?ruled out\b")
 WEEKDAYS = re.compile(r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b")
+# Not a ruling when negated or hedged: "won't miss", "isn't expected to miss", "could miss"
+UNSURE = ("(?<!won't )(?<!will not )(?<!could )(?<!may )(?<!might )(?<!n't expected to )"
+          "(?<!not expected to )")
+NEGATED = "(?:won't|will not|not) "
 # A note that rules a player out for a span counts for that span, past the window and
 # whatever weekday it names: "will miss at least two weeks", "re-evaluated in two weeks"
 SPAN_NOTE = re.compile(
-    r"\b(?:miss|be out|be sidelined|sidelined for|re-?evaluated in)"
+    rf"{UNSURE}\b(?:miss|be out|be sidelined|sidelined for|re-?evaluated in)"
     r" (?:at least |about |approximately |roughly |around |up to )?(?:the next )?"
     r"(?P<count>\d+|an?|one|two|three|four|five|six|seven|eight|nine|ten|twelve"
     r"|a couple(?: of)?|a few|several)(?:(?: to |-)\w+)? (?P<unit>day|week|month)s?\b"
 )
-# ... or for the preseason or the season, until the note is replaced
+# ... or for the preseason or the season ("the 2026-27 season" names it), until that
+# season ends; "the preseason finale" or "the season opener" is one game
 SEASON_NOTE = re.compile(
-    r"\b(?:miss|play during|play in|be out for|out for) (?:the )?"
+    rf"(?:{UNSURE}\b(?:miss|be out for|out for)|{NEGATED}play (?:during|in)) (?:the )?"
     r"(?:rest of the |remainder of the |entire |entirety of the |whole )?"
-    r"(?:\d{4}-\d{2} )?(?:regular )?(?:pre)?season\b(?![ -](?:finale|opener|game|debut))"
-    r"|\bseason-ending\b|\bbe ready for the start of the (?:regular )?season\b"
+    r"(?:(?P<season>\d{4}-\d{2}) )?(?:regular )?(?:pre)?season\b"
+    r"(?![ -](?:finale|opener|games?|contest|matchup|meeting|exhibition|rematch|tilt|debut))"
+    rf"|\bseason-ending\b|{NEGATED}be ready for the start of the (?:regular )?season\b"
 )
 COUNTS = {"a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
           "seven": 7, "eight": 8, "nine": 9, "ten": 10, "twelve": 12, "a couple": 2,
           "a couple of": 2, "a few": 3, "several": 3}
 UNIT_DAYS = {"day": 1, "week": 7, "month": 30}
-SEASON_SPAN = timedelta(days=365)
+SEASON_END = (7, 1)  # month, day: after the Finals
 
 Progress = Callable[[str], None]
 
@@ -79,16 +85,22 @@ def parse_espn_injuries(payload: dict[str, Any]) -> pd.DataFrame:
     return df.drop_duplicates(["team_id", "player_name"]).reset_index(drop=True)
 
 
-def out_span(text: str) -> timedelta | None:
-    # How long a (lowercase) note rules the player out, None if it names no span
-    if SEASON_NOTE.search(text):
-        return SEASON_SPAN
-    match = SPAN_NOTE.search(text)
-    if match is None:
-        return None
-    count = match["count"]
-    return timedelta(days=(int(count) if count.isdigit() else COUNTS[count])
-                     * UNIT_DAYS[match["unit"]])
+def out_until(text: str, entry_ts: datetime) -> datetime | None:
+    # When a (lowercase) note posted at entry_ts stops ruling the player out: the end of its
+    # span or season, the earlier of the two; None if it names neither or a past season
+    ends = []
+    span = SPAN_NOTE.search(text)
+    if span is not None:
+        count = span["count"]
+        days = (int(count) if count.isdigit() else COUNTS[count]) * UNIT_DAYS[span["unit"]]
+        ends.append(entry_ts + timedelta(days=days))
+    season = SEASON_NOTE.search(text)
+    if season is not None:
+        posted_in = season_for_date(et_date(entry_ts))
+        named = season["season"] or posted_in
+        if named >= posted_in:
+            ends.append(datetime(season_start_year(named) + 1, *SEASON_END))
+    return min(ends, default=None)
 
 
 def is_out(
@@ -105,8 +117,8 @@ def is_out(
     text = comment.replace("\u2019", "'").lower()
     if NOT_RULED_OUT.search(text):
         return False
-    span = out_span(text)
-    if span is not None and tip_utc <= entry_ts + span:
+    until = out_until(text, entry_ts)
+    if until is not None and tip_utc <= until:
         return True
     if tip_utc - timedelta(hours=window_hours) > entry_ts or not OUT_NOTE.search(text):
         return False
