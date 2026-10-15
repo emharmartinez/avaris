@@ -1,4 +1,4 @@
-import { formatOdds } from "./edge";
+import { formatOdds, type OddsFormat } from "./edge";
 import { pct, signed, teamLabel } from "./format";
 import type {
   Team, TraditionalDay, TraditionalGame, TraditionalInputs, TraditionalLive,
@@ -13,9 +13,9 @@ const OFF_BOARD = 0.005; // a game this settled has no meaningful price
 const LIVE_POLL_MS = 30_000; // the server refetches the scoreboard at most every 30 s
 const TODAY_POLL_MS = 60_000;
 
-export function fairMoneyline(p: number): string {
+export function fairMoneyline(p: number, format: OddsFormat): string {
   if (p < OFF_BOARD || p > 1 - OFF_BOARD) return DASH;
-  return formatOdds(1 / p, "american");
+  return formatOdds(1 / p, format);
 }
 
 export function spreadText(marginMu: number, home: Team, away: Team): string {

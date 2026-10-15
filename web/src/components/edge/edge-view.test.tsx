@@ -37,17 +37,20 @@ describe("EdgeView", () => {
     expect(screen.getByRole("link", { name: "Previous day" })).toHaveAttribute("href", expect.stringMatching(/^\/edge\/?\?date=2021-11-26$/));
     expect(screen.getByText(/provisional/i)).toBeInTheDocument();
 
-    // Without odds: model probability and fair price only
+    // Without odds: model probability and fair price only, in decimal odds by default
+    expect(screen.getByRole("button", { name: "Decimal" })).toHaveAttribute("aria-pressed", "true");
     const ml = screen.getByRole("table", { name: "Moneyline" });
-    expect(cells(row(ml, "DEN"))).toEqual(["DEN", "83.7%", "–", "–", "–", "−512"]);
-    expect(cells(row(ml, "ATL"))).toEqual(["ATL", "16.3%", "–", "–", "–", "+512"]);
+    expect(cells(row(ml, "DEN"))).toEqual(["DEN", "83.7%", "–", "–", "–", "1.20"]);
+    expect(cells(row(ml, "ATL"))).toEqual(["ATL", "16.3%", "–", "–", "–", "6.12"]);
+    expect(screen.getByLabelText("DEN moneyline")).toHaveAttribute("placeholder", "1.91");
   });
 
   it("de-vigs typed moneyline odds into edge and EV", async () => {
     const user = userEvent.setup();
     serve({ date: "2021-11-27", games: [game()] });
     renderWithQuery(<EdgeView date={null} gameId={null} onGameChange={vi.fn()} />);
-    await user.type(await screen.findByLabelText("ATL moneyline"), "-110");
+    await user.click(await screen.findByRole("button", { name: "American" }));
+    await user.type(screen.getByLabelText("ATL moneyline"), "-110");
     await user.type(screen.getByLabelText("DEN moneyline"), "-110");
     const ml = screen.getByRole("table", { name: "Moneyline" });
     expect(cells(row(ml, "DEN"))).toEqual(["DEN", "83.7%", "50.0%", "+33.7 pp", "+59.73", "−512"]);
@@ -67,7 +70,8 @@ describe("EdgeView", () => {
     const user = userEvent.setup();
     serve({ date: "2021-11-27", games: [game()] });
     renderWithQuery(<EdgeView date={null} gameId={null} onGameChange={vi.fn()} />);
-    await user.type(await screen.findByLabelText("DEN moneyline"), "+150");
+    await user.click(await screen.findByRole("button", { name: "American" }));
+    await user.type(screen.getByLabelText("DEN moneyline"), "+150");
     await user.click(screen.getByRole("button", { name: "Decimal" }));
     expect(screen.getByRole("button", { name: "Decimal" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("DEN moneyline")).toHaveValue("2.50");
@@ -80,6 +84,7 @@ describe("EdgeView", () => {
     serve({ date: "2021-11-27", games: [game()] });
     renderWithQuery(<EdgeView date={null} gameId={null} onGameChange={vi.fn()} />);
     const fields = { "ATL moneyline": "-600", "DEN moneyline": "-150" };
+    await user.click(await screen.findByRole("button", { name: "American" }));
     for (const [label, value] of Object.entries(fields)) {
       await user.type(await screen.findByLabelText(label), value);
     }
@@ -100,10 +105,10 @@ describe("EdgeView", () => {
     const { rerender } = renderWithQuery(
       <EdgeView date={null} gameId="0022100047" onGameChange={vi.fn()} />);
     await user.type(await screen.findByLabelText("DEN moneyline"), "2.5");
-    await user.click(screen.getByRole("button", { name: "Decimal" }));
+    await user.click(screen.getByRole("button", { name: "American" }));
     rerender(<EdgeView date={null} gameId="0022100049" onGameChange={vi.fn()} />);
     expect(await screen.findByLabelText("BOS moneyline")).toHaveValue("");
-    expect(screen.getByRole("button", { name: "Decimal" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "American" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("replaces a game id that is not on the date with the first game", async () => {

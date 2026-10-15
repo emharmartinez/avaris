@@ -1,4 +1,5 @@
 import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import type { TraditionalDay, TraditionalGame } from "@/lib/types";
@@ -60,6 +61,10 @@ describe("TraditionalView", () => {
     expect(within(live).getByText("Score")).toBeInTheDocument();
     const headers = within(live).getAllByRole("columnheader").map((h) => h.textContent);
     expect(headers).toEqual(["Market", "Pregame", "Live"]);
+    // Decimal odds by default; the toggle switches every card to American
+    expect(screen.getByRole("button", { name: "Decimal" })).toHaveAttribute("aria-pressed", "true");
+    expect(cells(live, "Moneyline")).toEqual(["Moneyline", "BKN 1.67BOS 2.50", "BKN 1.20BOS 6.12"]);
+    await userEvent.setup().click(screen.getByRole("button", { name: "American" }));
     expect(cells(live, "Moneyline")).toEqual(["Moneyline", "BKN −150BOS +150", "BKN −512BOS +512"]);
     expect(cells(live, "Spread")[2]).toBe("BKN −7.080% BKN −9.0 to +23.0");
     expect(cells(live, "Total")[1]).toBe("O/U 222.580% 197.5 to 247.5");
@@ -94,7 +99,7 @@ describe("TraditionalView", () => {
     renderWithQuery(<TraditionalView date={null} />);
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Live scores unavailable (ConnectTimeout); showing pregame lines.");
-    expect(cells(card("BOS @ BKN"), "Moneyline")).toEqual(["Moneyline", "BKN −150BOS +150"]);
+    expect(cells(card("BOS @ BKN"), "Moneyline")).toEqual(["Moneyline", "BKN 1.67BOS 2.50"]);
   });
 
   it("says so when there are no games", async () => {

@@ -27,15 +27,17 @@ const day = (games: TraditionalGame[], isToday = true): TraditionalDay => ({
 const live = { ...line(0.8, 9, 230), period: 2, clock: "1:27", label: "2nd Qtr", minutes_left: 25.45 };
 
 describe("fairMoneyline", () => {
-  it("prices a probability in American odds", () => {
-    expect(fairMoneyline(0.8367)).toBe("−512");
-    expect(fairMoneyline(0.1633)).toBe("+512");
-    expect(fairMoneyline(0.5)).toBe("+100");
+  it("prices a probability in decimal or American odds", () => {
+    expect(fairMoneyline(0.8367, "decimal")).toBe("1.20");
+    expect(fairMoneyline(0.1633, "decimal")).toBe("6.12");
+    expect(fairMoneyline(0.8367, "american")).toBe("−512");
+    expect(fairMoneyline(0.1633, "american")).toBe("+512");
+    expect(fairMoneyline(0.5, "american")).toBe("+100");
   });
 
   it("leaves a settled game off the board", () => {
-    expect(fairMoneyline(0.999)).toBe("–");
-    expect(fairMoneyline(0)).toBe("–");
+    expect(fairMoneyline(0.999, "decimal")).toBe("–");
+    expect(fairMoneyline(0, "american")).toBe("–");
   });
 });
 
