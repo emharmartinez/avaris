@@ -3,14 +3,13 @@
 ## Unreleased
 
 ### Changed
-- Traditional live lines come from ESPN's scoreboard, with stats.nba.com's as the fallback (ADR-024, #30). stats.nba.com ran 4 to 5 minutes behind live games
 - Odds open in decimal on the Edge and Traditional tabs; both have a Decimal/American toggle (Traditional's is new)
 - The Today view hides games that have finished and shows only those not started or in progress ("All of today's games have finished." once the slate is done). Other dates still list their finals with scores
 - Preseason win probability is read off the margin model, P(margin > 0) under N(μ, σ), and follows the ESPN rest-adjusted margin (ADR-023, #20). On 2015-16 to 2018-19 preseason games log loss drops from 0.667 to 0.648. The win-only rest coefficient (`k_win`) is retired. Preseason win drivers are the margin drivers, in points; the API returns `driver_scale` per target
 
 ### Added
 - Traditional tab: a total line on each card (starts at the pregame total, editable) with the chance of going over and under it, pregame and live; finals grade the total against it (ADR-024). The line stays in the browser
-- Traditional tab (`/traditional/?date=`, `GET /api/traditional`, ADR-024): a rule-based model with no machine learning (Elo blended with season-to-date efficiency ratings, home court, back-to-back) giving a fair moneyline, spread and total with 80% intervals for every game. Live games update from stats.nba.com's scoreboard (score, period, clock) and the tab polls while they are on; finals are graded against the pregame line
+- Traditional tab (`/traditional/?date=`, `GET /api/traditional`, ADR-024): a rule-based model with no machine learning (Elo blended with season-to-date efficiency ratings, home court, back-to-back) giving a fair moneyline, spread and total with 80% intervals for every game. Live games update from ESPN's scoreboard (score, period, clock), with stats.nba.com's as the fallback because it ran 4 to 5 minutes behind (#30) and the tab polls while they are on; finals are graded against the pregame line
 - `avaris preseason-win-check`: the preseason `home_win` classifier against the margin-derived probability on the tuning window (log loss, Brier, accuracy, ECE with paired bootstrap CIs, reliability)
 - Preseason rest adjustment (ADR-022): preseason win probability, margin and total are shifted by the value of the players ESPN lists out or resting, with coefficients fitted on past preseason box scores (`avaris ingest preseason-logs`, `avaris rest-fit`). `daily` fetches the ESPN list only when a preseason game is due (`avaris ingest espn` by hand). The card, game page and Edge tab label it "Rest-adjusted (ESPN)" and show the raw model values. Regular season, play-in and playoffs are unchanged
 - `avaris serve` stops itself once the app has been closed for `[server] idle_shutdown_min` (default 5; `--idle-min`, `0` = never), never while a job runs (ADR-021)
