@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Changed
+- Traditional live lines come from ESPN's scoreboard, with stats.nba.com's as the fallback (ADR-024, #30). stats.nba.com ran 4 to 5 minutes behind live games
 - Odds open in decimal on the Edge and Traditional tabs; both have a Decimal/American toggle (Traditional's is new)
 - The Today view hides games that have finished and shows only those not started or in progress ("All of today's games have finished." once the slate is done). Other dates still list their finals with scores
 - Preseason win probability is read off the margin model, P(margin > 0) under N(μ, σ), and follows the ESPN rest-adjusted margin (ADR-023, #20). On 2015-16 to 2018-19 preseason games log loss drops from 0.667 to 0.648. The win-only rest coefficient (`k_win`) is retired. Preseason win drivers are the margin drivers, in points; the API returns `driver_scale` per target

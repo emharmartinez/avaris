@@ -32,10 +32,12 @@ def train_before_d1(db: Path, artifacts: Path) -> None:
 
 
 def scoreboard_payload(*games: dict[str, object]) -> dict[str, object]:
-    # A scoreboardv3 response; each game: game_id, status (1-3), period, clock, label, home, away
+    # A scoreboardv3 response; each game: game_id, home_team and away_team (ids), status (1-3),
+    # period, clock, label, home and away (points)
     return {"scoreboard": {"games": [{
         "gameId": g["game_id"], "gameStatus": g.get("status", 2),
         "gameStatusText": g.get("label", "2nd Qtr"), "period": g.get("period", 2),
         "gameClock": g.get("clock", "PT05M00.00S"), "regulationPeriods": 4,
-        "homeTeam": {"score": g.get("home", 0)}, "awayTeam": {"score": g.get("away", 0)},
+        "homeTeam": {"teamId": g["home_team"], "score": g.get("home", 0)},
+        "awayTeam": {"teamId": g["away_team"], "score": g.get("away", 0)},
     } for g in games]}}

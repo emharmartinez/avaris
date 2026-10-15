@@ -89,7 +89,7 @@ uv run avaris serve --no-daily
 - A game is predicted only by a model whose training cutoff (`through`) is on or before its date. Missed games are finalized with the current model before a stale model is retrained (older than `retrain_every_days`).
 - Each prediction stores drivers (family contributions per target) and injury impact (strength lost per side and the players behind it) as JSON.
 - **Single writer:** `serve` holds the read-write DuckDB connection. While it runs, `avaris daily`, `score` and `train` run as server jobs (`POST /api/jobs/{daily,score,train}`, one at a time, `409` when busy).
-- **Endpoints:** `GET /api/health`, `/api/predictions/today`, `/api/predictions?date=`, `/api/games/{game_id}`, `/api/teams`, `/api/teams/{team_id}`, `/api/performance`, `/api/backtests`, `/api/injuries?date=`, `/api/traditional?date=` (rule-based lines, live from stats.nba.com's scoreboard while games are on), `/api/jobs`, `/api/jobs/{job_id}`; `POST /api/server/stop` (the Stop server button). Timestamps are UTC with a `Z`.
+- **Endpoints:** `GET /api/health`, `/api/predictions/today`, `/api/predictions?date=`, `/api/games/{game_id}`, `/api/teams`, `/api/teams/{team_id}`, `/api/performance`, `/api/backtests`, `/api/injuries?date=`, `/api/traditional?date=` (rule-based lines, live from ESPN's scoreboard, stats.nba.com as the fallback, while games are on), `/api/jobs`, `/api/jobs/{job_id}`; `POST /api/server/stop` (the Stop server button). Timestamps are UTC with a `Z`.
 - **Important!** `model.joblib` is checked against the `model_sha256` in `meta.json` before loading. An artifact written before the hash existed is sealed with `avaris train --promote RUN_ID --target <t>`.
 
 ## Desktop app (PWA)

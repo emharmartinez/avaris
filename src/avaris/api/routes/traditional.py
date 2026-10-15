@@ -7,7 +7,7 @@ from avaris.api.deps import AppClock, Cursor, json_value, rows, team
 from avaris.api.routes.predictions import interval
 from avaris.ingest.scoreboard import LiveGame, LiveScoreboard, LiveSnapshot
 from avaris.seasons import et_date
-from avaris.traditional.live import clock_minutes, format_clock, game_minutes, live_update
+from avaris.traditional.live import format_clock, game_minutes, live_update
 from avaris.traditional.pregame import Line, pregame
 
 router = APIRouter(prefix="/api/traditional", tags=["traditional"])
@@ -49,9 +49,8 @@ def _line(line: Line) -> dict[str, Any]:
 def _live_view(game: LiveGame, pre: Line | None) -> dict[str, Any] | None:
     if game.status != "in_progress" or pre is None:
         return None
-    clock = clock_minutes(game.clock)
-    elapsed, left = game_minutes(game.period, clock, game.regulation_periods)
-    return {"period": game.period, "clock": format_clock(clock), "label": game.label,
+    elapsed, left = game_minutes(game.period, game.clock, game.regulation_periods)
+    return {"period": game.period, "clock": format_clock(game.clock), "label": game.label,
             "minutes_left": left,
             **_line(live_update(pre, game.home_pts, game.away_pts, elapsed, left))}
 
@@ -79,8 +78,9 @@ def traditional(
     cur: Cursor, clock: AppClock, live: Live, date: date | None = None
 ) -> dict[str, Any]:
     # The rule-based model (ADR-024): pregame lines for every game, and live lines from the
-    # scoreboard for today's games that have started. "Today" is the slate day, which rolls over
-    # at 4 am ET so a late tip stays live past midnight
+    # scoreboard (ESPN, stats.nba.com as the fallback) for today's games that have started,
+    # matched by teams. "Today" is the slate day, which rolls over at 4 am ET so a late tip
+    # stays live past midnight
     now = clock()
     today = et_date(now - SLATE_ROLLOVER)
     day = date or today
@@ -91,5 +91,6 @@ def traditional(
     return {
         "date": day.isoformat(), "is_today": day == today,
         "live_at": json_value(snapshot.fetched_at), "live_error": snapshot.error,
-        "games": [_game_view(r, snapshot.games.get(r["game_id"])) for r in found],
+        "games": [_game_view(r, snapshot.games.get((r["home_team_id"], r["away_team_id"])))
+                  for r in found],
     }

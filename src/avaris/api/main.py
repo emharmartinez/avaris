@@ -28,7 +28,7 @@ from avaris.api.routes import (
 )
 from avaris.config import Settings
 from avaris.db import connect
-from avaris.ingest.scoreboard import Fetch, LiveScoreboard, stats_fetcher
+from avaris.ingest.scoreboard import Fetch, LiveScoreboard, live_fetcher
 from avaris.pipeline.jobs import Clock, JobManager, JobRunner, default_runners, utc_now
 from avaris.seasons import et_date
 
@@ -76,7 +76,8 @@ def create_app(
     # through cursors, jobs write in a background thread. `shutdown` stops the server (set by
     # `avaris serve`): the Stop server button, and idle shutdown once no request has come in
     # for `idle_shutdown_min` (the open app polls /api/health every minute).
-    # `live_scoreboard` fetches the live scores (stats.nba.com unless given; ADR-024)
+    # `live_scoreboard` fetches the live scores (ESPN, then stats.nba.com, unless given;
+    # ADR-024)
     on_startup = settings.server.daily_on_startup if daily_on_startup is None else daily_on_startup
     idle_min = settings.server.idle_shutdown_min
     idle = IdleWatch(idle_min * 60, monotonic)
@@ -100,7 +101,7 @@ def create_app(
         app.state.jobs = JobManager(connection, runners or default_runners(settings, clock),
                                     clock)
         app.state.shutdown = shutdown
-        app.state.live = LiveScoreboard(live_scoreboard or stats_fetcher(settings), clock,
+        app.state.live = LiveScoreboard(live_scoreboard or live_fetcher(settings), clock,
                                         monotonic)
         if on_startup:
             app.state.jobs.submit("daily", {})

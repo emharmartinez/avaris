@@ -10,13 +10,16 @@ from fastapi.testclient import TestClient
 
 from avaris.api.main import create_app
 from avaris.config import Settings
+from avaris.ingest.scoreboard import GameKey, LiveGame, first_live, parse_scoreboard
 from avaris.traditional.pregame import SIGMA_MARGIN
 from tests.fixtures.live import D1, D2, scoreboard_payload
+from tests.fixtures.synthetic import BKN, BOS
 from tests.integration.test_api import NOON_D2, env, get, live_db  # noqa: F401
 
 BOS_AT_BKN = "0022100048"
 TIPPED = datetime(2021, 11, 28, 0, 30)  # 19:30 ET on D2: the D2 games tipped at 19:00 ET
-LIVE = scoreboard_payload({"game_id": BOS_AT_BKN, "period": 2, "clock": "PT05M00.00S",
+TEAMS = {"home_team": BKN, "away_team": BOS}
+LIVE = scoreboard_payload({"game_id": BOS_AT_BKN, **TEAMS, "period": 2, "clock": "PT05M00.00S",
                            "home": 50, "away": 45})
 
 
@@ -25,11 +28,11 @@ class Feed:
         self.payload = payload
         self.days: list[date] = []
 
-    def __call__(self, day: date) -> dict[str, Any]:
+    def __call__(self, day: date) -> dict[GameKey, LiveGame]:
         self.days.append(day)
         if isinstance(self.payload, Exception):
             raise self.payload
-        return self.payload
+        return parse_scoreboard(self.payload)
 
 
 Env = tuple[duckdb.DuckDBPyConnection, Settings]
@@ -40,7 +43,7 @@ def make_client(env: Env) -> Iterator[Callable[..., TestClient]]:  # noqa: F811
     con, settings = env
     opened: list[TestClient] = []
 
-    def make(feed: Feed, now: datetime = NOON_D2,
+    def make(feed: Callable[[date], dict[GameKey, LiveGame]], now: datetime = NOON_D2,
              monotonic: Callable[[], float] = lambda: 0.0) -> TestClient:
         app = create_app(settings, con=con, daily_on_startup=False, clock=lambda: now,
                          live_scoreboard=feed, monotonic=monotonic)
@@ -108,7 +111,7 @@ def test_live_game_updates_from_the_scoreboard(make_client: Callable[..., TestCl
 def test_final_on_the_scoreboard_before_the_schedule_catches_up(
     make_client: Callable[..., TestClient],
 ) -> None:
-    feed = Feed(scoreboard_payload({"game_id": BOS_AT_BKN, "status": 3, "label": "Final",
+    feed = Feed(scoreboard_payload({"game_id": BOS_AT_BKN, **TEAMS, "status": 3, "label": "Final",
                                     "period": 4, "clock": "", "home": 101, "away": 99}))
     game = by_id(get(make_client(feed, now=TIPPED), "/api/traditional"))[BOS_AT_BKN]
     assert game["status"] == "final" and game["live"] is None
@@ -134,6 +137,15 @@ def test_feed_failure_keeps_the_pregame_lines(make_client: Callable[..., TestCli
     game = by_id(body)[BOS_AT_BKN]
     assert game["status"] == "scheduled" and game["live"] is None
     assert game["pregame"] is not None
+
+
+def test_a_failed_primary_feed_falls_back(make_client: Callable[..., TestClient]) -> None:
+    # ESPN down: stats.nba.com's scoreboard still gives the live line
+    espn, stats = Feed(RuntimeError("espn down")), Feed()
+    client = make_client(first_live(espn, stats), now=TIPPED)
+    body = get(client, "/api/traditional")
+    assert espn.days == stats.days == [D2] and body["live_error"] is None
+    assert by_id(body)[BOS_AT_BKN]["live"]["label"] == "2nd Qtr"
 
 
 def test_in_progress_schedule_status_fetches_before_the_listed_tip(

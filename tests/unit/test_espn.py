@@ -1,10 +1,12 @@
 import json
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
+import httpx
 import pytest
 
-from avaris.ingest.espn import is_out, parse_espn_injuries
+from avaris.ingest.espn import ESPN_SCOREBOARD_URL, EspnClient, is_out, parse_espn_injuries
+from avaris.ingest.stats_client import Throttle
 
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "espn" / "injuries.json"
 NYK, TOR, LAC = 1610612752, 1610612761, 1610612746
@@ -109,3 +111,17 @@ def test_parse_accepts_mixed_date_precision() -> None:
     df = parse_espn_injuries(mixed)
     assert df["entry_ts"].iloc[1] == datetime(2026, 10, 13, 2, 47, 15)
     assert df["entry_ts"].isna().sum() == 1
+
+
+def test_scoreboard_asks_for_one_et_date_and_keeps_the_latest_copy(tmp_path: Path) -> None:
+    seen: list[httpx.URL] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url)
+        return httpx.Response(200, json={"events": []})
+
+    client = EspnClient(tmp_path, Throttle(0), transport=httpx.MockTransport(answer))
+    assert client.get_scoreboard(date(2026, 10, 14)) == {"events": []}
+    assert str(seen[0].copy_with(query=None)) == ESPN_SCOREBOARD_URL
+    assert seen[0].params["dates"] == "20261014"
+    assert (tmp_path / "live" / "espn" / "scoreboard_20261014.json").exists()

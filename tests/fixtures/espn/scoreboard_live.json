@@ -1,0 +1,667 @@
+{
+ "day": null,
+ "events": [
+  {
+   "id": "401898404",
+   "date": "2026-10-14T23:30Z",
+   "name": "Brooklyn Nets at Miami Heat",
+   "shortName": "BKN @ MIA",
+   "season": {
+    "year": 2027,
+    "type": 1,
+    "slug": "preseason"
+   },
+   "competitions": [
+    {
+     "id": "401898404",
+     "date": "2026-10-14T23:30Z",
+     "startDate": "2026-10-14T23:30Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 720.0,
+      "displayClock": "12:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "14",
+       "homeAway": "home",
+       "score": "144",
+       "team": {
+        "id": "14",
+        "abbreviation": "MIA",
+        "displayName": "Miami Heat",
+        "location": "Miami"
+       },
+       "linescores": [
+        {
+         "value": 35.0,
+         "period": 1
+        },
+        {
+         "value": 34.0,
+         "period": 2
+        },
+        {
+         "value": 43.0,
+         "period": 3
+        },
+        {
+         "value": 32.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "17",
+       "homeAway": "away",
+       "score": "128",
+       "team": {
+        "id": "17",
+        "abbreviation": "BKN",
+        "displayName": "Brooklyn Nets",
+        "location": "Brooklyn"
+       },
+       "linescores": [
+        {
+         "value": 29.0,
+         "period": 1
+        },
+        {
+         "value": 37.0,
+         "period": 2
+        },
+        {
+         "value": 37.0,
+         "period": 3
+        },
+        {
+         "value": 25.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401898405",
+   "date": "2026-10-14T23:30Z",
+   "name": "Charlotte Hornets at Boston Celtics",
+   "shortName": "CHA @ BOS",
+   "season": {
+    "year": 2027,
+    "type": 1,
+    "slug": "preseason"
+   },
+   "competitions": [
+    {
+     "id": "401898405",
+     "date": "2026-10-14T23:30Z",
+     "startDate": "2026-10-14T23:30Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 720.0,
+      "displayClock": "12:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "2",
+       "homeAway": "home",
+       "score": "114",
+       "team": {
+        "id": "2",
+        "abbreviation": "BOS",
+        "displayName": "Boston Celtics",
+        "location": "Boston"
+       },
+       "linescores": [
+        {
+         "value": 28.0,
+         "period": 1
+        },
+        {
+         "value": 26.0,
+         "period": 2
+        },
+        {
+         "value": 31.0,
+         "period": 3
+        },
+        {
+         "value": 29.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "30",
+       "homeAway": "away",
+       "score": "93",
+       "team": {
+        "id": "30",
+        "abbreviation": "CHA",
+        "displayName": "Charlotte Hornets",
+        "location": "Charlotte"
+       },
+       "linescores": [
+        {
+         "value": 20.0,
+         "period": 1
+        },
+        {
+         "value": 24.0,
+         "period": 2
+        },
+        {
+         "value": 33.0,
+         "period": 3
+        },
+        {
+         "value": 16.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401898722",
+   "date": "2026-10-15T00:00Z",
+   "name": "Phoenix Suns at San Antonio Spurs",
+   "shortName": "PHX @ SA",
+   "season": {
+    "year": 2027,
+    "type": 1,
+    "slug": "preseason"
+   },
+   "competitions": [
+    {
+     "id": "401898722",
+     "date": "2026-10-15T00:00Z",
+     "startDate": "2026-10-15T00:00Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0.0",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "24",
+       "homeAway": "home",
+       "score": "123",
+       "team": {
+        "id": "24",
+        "abbreviation": "SA",
+        "displayName": "San Antonio Spurs",
+        "location": "San Antonio"
+       },
+       "linescores": [
+        {
+         "value": 22.0,
+         "period": 1
+        },
+        {
+         "value": 38.0,
+         "period": 2
+        },
+        {
+         "value": 32.0,
+         "period": 3
+        },
+        {
+         "value": 31.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "21",
+       "homeAway": "away",
+       "score": "103",
+       "team": {
+        "id": "21",
+        "abbreviation": "PHX",
+        "displayName": "Phoenix Suns",
+        "location": "Phoenix"
+       },
+       "linescores": [
+        {
+         "value": 23.0,
+         "period": 1
+        },
+        {
+         "value": 26.0,
+         "period": 2
+        },
+        {
+         "value": 26.0,
+         "period": 3
+        },
+        {
+         "value": 28.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401901825",
+   "date": "2026-10-15T00:00Z",
+   "name": "New Orleans Pelicans at Dallas Mavericks",
+   "shortName": "NO @ DAL",
+   "season": {
+    "year": 2027,
+    "type": 1,
+    "slug": "preseason"
+   },
+   "competitions": [
+    {
+     "id": "401901825",
+     "date": "2026-10-15T00:00Z",
+     "startDate": "2026-10-15T00:00Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0.0",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "6",
+       "homeAway": "home",
+       "score": "97",
+       "team": {
+        "id": "6",
+        "abbreviation": "DAL",
+        "displayName": "Dallas Mavericks",
+        "location": "Dallas"
+       },
+       "linescores": [
+        {
+         "value": 18.0,
+         "period": 1
+        },
+        {
+         "value": 27.0,
+         "period": 2
+        },
+        {
+         "value": 18.0,
+         "period": 3
+        },
+        {
+         "value": 34.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "3",
+       "homeAway": "away",
+       "score": "101",
+       "team": {
+        "id": "3",
+        "abbreviation": "NO",
+        "displayName": "New Orleans Pelicans",
+        "location": "New Orleans"
+       },
+       "linescores": [
+        {
+         "value": 24.0,
+         "period": 1
+        },
+        {
+         "value": 32.0,
+         "period": 2
+        },
+        {
+         "value": 19.0,
+         "period": 3
+        },
+        {
+         "value": 26.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401908942",
+   "date": "2026-10-15T00:00Z",
+   "name": "Chicago Bulls at Milwaukee Bucks",
+   "shortName": "CHI @ MIL",
+   "season": {
+    "year": 2027,
+    "type": 1,
+    "slug": "preseason"
+   },
+   "competitions": [
+    {
+     "id": "401908942",
+     "date": "2026-10-15T00:00Z",
+     "startDate": "2026-10-15T00:00Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0.0",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "15",
+       "homeAway": "home",
+       "score": "104",
+       "team": {
+        "id": "15",
+        "abbreviation": "MIL",
+        "displayName": "Milwaukee Bucks",
+        "location": "Milwaukee"
+       },
+       "linescores": [
+        {
+         "value": 15.0,
+         "period": 1
+        },
+        {
+         "value": 24.0,
+         "period": 2
+        },
+        {
+         "value": 39.0,
+         "period": 3
+        },
+        {
+         "value": 26.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "4",
+       "homeAway": "away",
+       "score": "125",
+       "team": {
+        "id": "4",
+        "abbreviation": "CHI",
+        "displayName": "Chicago Bulls",
+        "location": "Chicago"
+       },
+       "linescores": [
+        {
+         "value": 24.0,
+         "period": 1
+        },
+        {
+         "value": 38.0,
+         "period": 2
+        },
+        {
+         "value": 40.0,
+         "period": 3
+        },
+        {
+         "value": 23.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401914125",
+   "date": "2026-10-15T00:00Z",
+   "name": "Detroit Pistons at Minnesota Timberwolves",
+   "shortName": "DET @ MIN",
+   "season": {
+    "year": 2027,
+    "type": 1,
+    "slug": "preseason"
+   },
+   "competitions": [
+    {
+     "id": "401914125",
+     "date": "2026-10-15T00:00Z",
+     "startDate": "2026-10-15T00:00Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0.0",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "16",
+       "homeAway": "home",
+       "score": "106",
+       "team": {
+        "id": "16",
+        "abbreviation": "MIN",
+        "displayName": "Minnesota Timberwolves",
+        "location": "Minnesota"
+       },
+       "linescores": [
+        {
+         "value": 38.0,
+         "period": 1
+        },
+        {
+         "value": 20.0,
+         "period": 2
+        },
+        {
+         "value": 24.0,
+         "period": 3
+        },
+        {
+         "value": 24.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "8",
+       "homeAway": "away",
+       "score": "128",
+       "team": {
+        "id": "8",
+        "abbreviation": "DET",
+        "displayName": "Detroit Pistons",
+        "location": "Detroit"
+       },
+       "linescores": [
+        {
+         "value": 29.0,
+         "period": 1
+        },
+        {
+         "value": 36.0,
+         "period": 2
+        },
+        {
+         "value": 32.0,
+         "period": 3
+        },
+        {
+         "value": 31.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401918011",
+   "date": "2026-10-15T02:30Z",
+   "name": "Denver Nuggets at LA Clippers",
+   "shortName": "DEN @ LAC",
+   "season": {
+    "year": 2027,
+    "type": 1,
+    "slug": "preseason"
+   },
+   "competitions": [
+    {
+     "id": "401918011",
+     "date": "2026-10-15T02:30Z",
+     "startDate": "2026-10-15T02:30Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 321.0,
+      "displayClock": "5:21",
+      "period": 1,
+      "type": {
+       "id": "2",
+       "name": "STATUS_IN_PROGRESS",
+       "state": "in",
+       "completed": false,
+       "description": "In Progress",
+       "detail": "5:21 - 1st Quarter",
+       "shortDetail": "5:21 - 1st"
+      }
+     },
+     "competitors": [
+      {
+       "id": "12",
+       "homeAway": "home",
+       "score": "6",
+       "team": {
+        "id": "12",
+        "abbreviation": "LAC",
+        "displayName": "LA Clippers",
+        "location": "LA"
+       },
+       "linescores": [
+        {
+         "value": 6.0,
+         "period": 1
+        }
+       ]
+      },
+      {
+       "id": "7",
+       "homeAway": "away",
+       "score": "15",
+       "team": {
+        "id": "7",
+        "abbreviation": "DEN",
+        "displayName": "Denver Nuggets",
+        "location": "Denver"
+       },
+       "linescores": [
+        {
+         "value": 15.0,
+         "period": 1
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
