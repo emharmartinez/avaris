@@ -21,7 +21,7 @@ from games g left join predictions p using (game_id)
 """
 
 
-def _interval(mu: float, sigma: float) -> dict[str, float]:
+def interval(mu: float, sigma: float) -> dict[str, float]:
     return {"mu": mu, "sigma": sigma, "lo": mu - Z_80 * sigma, "hi": mu + Z_80 * sigma}
 
 
@@ -51,8 +51,8 @@ def prediction_view(row: dict[str, Any], full: bool) -> dict[str, Any] | None:
         "report_ts": row["report_ts"], "predicted_at": row["predicted_at"],
         "runs": {t: row[f"{t}_run"] for t in ("home_win", "margin", "total")},
         "p_home_win": row["p_home_win"],
-        "margin": _interval(row["margin_mu"], row["margin_sigma"]),
-        "total": _interval(row["total_mu"], row["total_sigma"]),
+        "margin": interval(row["margin_mu"], row["margin_sigma"]),
+        "total": interval(row["total_mu"], row["total_sigma"]),
         "top_drivers": {t: d["top"] for t, d in drivers.items()},
         # points when a preseason win probability is read off the margin (ADR-023)
         "driver_scale": {t: d["scale"] for t, d in drivers.items()},

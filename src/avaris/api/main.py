@@ -24,9 +24,11 @@ from avaris.api.routes import (
     predictions,
     server,
     teams,
+    traditional,
 )
 from avaris.config import Settings
 from avaris.db import connect
+from avaris.ingest.scoreboard import Fetch, LiveScoreboard, stats_fetcher
 from avaris.pipeline.jobs import Clock, JobManager, JobRunner, default_runners, utc_now
 from avaris.seasons import et_date
 
@@ -68,11 +70,13 @@ def create_app(
     shutdown: Callable[[], None] | None = None,
     monotonic: Monotonic = time.monotonic,
     idle_check_s: float = 15.0,
+    live_scoreboard: Fetch | None = None,
 ) -> FastAPI:
     # The app owns the one read-write DuckDB connection unless given one; requests read
     # through cursors, jobs write in a background thread. `shutdown` stops the server (set by
     # `avaris serve`): the Stop server button, and idle shutdown once no request has come in
-    # for `idle_shutdown_min` (the open app polls /api/health every minute)
+    # for `idle_shutdown_min` (the open app polls /api/health every minute).
+    # `live_scoreboard` fetches the live scores (stats.nba.com unless given; ADR-024)
     on_startup = settings.server.daily_on_startup if daily_on_startup is None else daily_on_startup
     idle_min = settings.server.idle_shutdown_min
     idle = IdleWatch(idle_min * 60, monotonic)
@@ -96,6 +100,8 @@ def create_app(
         app.state.jobs = JobManager(connection, runners or default_runners(settings, clock),
                                     clock)
         app.state.shutdown = shutdown
+        app.state.live = LiveScoreboard(live_scoreboard or stats_fetcher(settings), clock,
+                                        monotonic)
         if on_startup:
             app.state.jobs.submit("daily", {})
         watcher = (asyncio.create_task(watch_idle(app, shutdown))
@@ -129,7 +135,8 @@ def create_app(
     # Added last, so it runs first (preflights included). DNS rebinding: a remote page
     # resolved to 127.0.0.1 still sends its own host name
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=sorted(LOOPBACK_HOSTS))
-    for module in (predictions, games, teams, performance, backtests, injuries, jobs, server):
+    for module in (predictions, games, teams, performance, backtests, injuries, jobs, server,
+                   traditional):
         app.include_router(module.router)
 
     @app.get("/api/health")
