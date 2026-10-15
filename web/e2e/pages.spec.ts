@@ -114,6 +114,11 @@ test("traditional: live lines from the scoreboard, finals graded the day before"
   await expect(live.getByRole("row", { name: /^Moneyline/ }).getByRole("cell").nth(2))
     .toHaveText(/^BKN \d+\.\d{2}BOS \d+\.\d{2}$/);
   await expect(page.getByText(/^Live scores as of/)).toBeVisible();
+  // Over/under chances against the pregame total, then against a typed line
+  const totalCell = live.getByRole("row", { name: /^Total/ }).getByRole("cell").nth(2);
+  await expect(totalCell).toContainText(/Over \d+% · Under \d+%/);
+  await live.getByLabel("Total line BOS @ BKN").fill("400");
+  await expect(totalCell).toContainText("Over 0% · Under 100% · Push 0%");
   await expect(page.getByRole("group", { name: "ATL @ DEN" }).getByText("Upcoming")).toBeVisible();
 
   await page.getByRole("link", { name: "Previous day" }).click();

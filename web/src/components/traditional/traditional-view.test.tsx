@@ -67,13 +67,34 @@ describe("TraditionalView", () => {
     await userEvent.setup().click(screen.getByRole("button", { name: "American" }));
     expect(cells(live, "Moneyline")).toEqual(["Moneyline", "BKN −150BOS +150", "BKN −512BOS +512"]);
     expect(cells(live, "Spread")[2]).toBe("BKN −7.080% BKN −9.0 to +23.0");
-    expect(cells(live, "Total")[1]).toBe("O/U 222.580% 197.5 to 247.5");
+    // P(over/under) against the pregame total until a line is typed, in both columns
+    expect(within(live).getByLabelText("Total line BOS @ BKN")).toHaveValue("222.5");
+    expect(cells(live, "Total")).toEqual([
+      "Total", "O/U 222.5Over 50% · Under 50%80% 197.5 to 247.5",
+      "O/U 230.0Over 65% · Under 35%80% 205.0 to 255.0",
+    ]);
 
     const upcoming = card("ATL @ DEN");
     expect(within(upcoming).getByText("Upcoming")).toBeInTheDocument();
     expect(within(upcoming).getAllByRole("columnheader")).toHaveLength(2);
     expect(within(upcoming).getByText("Elo DEN +4.0 · ratings DEN +1.0 at 25% weight"))
       .toBeInTheDocument();
+  });
+
+  it("prices the over and under at a typed total line", async () => {
+    serve(day([liveGame]));
+    renderWithQuery(<TraditionalView date={null} />);
+    const live = await screen.findByRole("group", { name: "BOS @ BKN" });
+    const input = within(live).getByLabelText("Total line BOS @ BKN");
+    const user = userEvent.setup();
+    await user.clear(input);
+    await user.type(input, "240.5");
+    expect(cells(live, "Total")[1]).toBe("O/U 222.5Over 18% · Under 82%80% 197.5 to 247.5");
+    expect(cells(live, "Total")[2]).toBe("O/U 230.0Over 30% · Under 70%80% 205.0 to 255.0");
+    await user.clear(input);
+    await user.type(input, "abc");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(cells(live, "Total")[1]).toBe("O/U 222.5–80% 197.5 to 247.5");
   });
 
   it("grades a final against its pregame line", async () => {
@@ -89,6 +110,11 @@ describe("TraditionalView", () => {
     expect(cells(game, "Spread")[2]).toBe("DEN by 10 · line DEN −3.2");
     expect(within(game).getByLabelText("line covered")).toBeInTheDocument();
     expect(cells(game, "Total")[2]).toBe("210 · Under 222.5");
+    const input = within(game).getByLabelText("Total line ATL @ DEN");
+    const user = userEvent.setup();
+    await user.clear(input);
+    await user.type(input, "205.5");
+    expect(cells(game, "Total")[2]).toBe("210 · Over 205.5");
     expect(screen.getByRole("link", { name: "Today" })).toHaveAttribute("href", expect.stringMatching(/^\/traditional\/?$/));
   });
 

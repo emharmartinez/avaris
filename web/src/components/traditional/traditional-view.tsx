@@ -11,14 +11,16 @@ import { WinBar } from "@/components/today/win-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useTraditional } from "@/hooks/use-api";
-import { DEFAULT_ODDS_FORMAT, type OddsFormat } from "@/lib/edge";
+import { DEFAULT_ODDS_FORMAT, parseTotal, type OddsFormat } from "@/lib/edge";
 import {
   formatDate, formatInterval, formatTimestamp, formatTip, shiftDate, teamLabel,
 } from "@/lib/format";
 import {
-  fairMoneyline, finalResult, inputsText, spreadText, statusText, totalText, type FinalResult,
+  fairMoneyline, finalResult, inputsText, overUnderText, spreadText, statusText, totalText,
+  type FinalResult,
 } from "@/lib/traditional";
 import type { TraditionalDay, TraditionalGame, TraditionalLine } from "@/lib/types";
 
@@ -92,7 +94,10 @@ function StatusBadge({ game }: { game: TraditionalGame }) {
 function GameCard({ game, format }: { game: TraditionalGame; format: OddsFormat }) {
   const { home, away, score, pregame, live } = game;
   const title = `${teamLabel(away)} @ ${teamLabel(home)}`;
-  const result = finalResult(game);
+  // Typed in the browser only (ADR-024); starts at the pregame total and outlives live refetches
+  const [lineText, setLineText] = useState(pregame ? totalText(pregame.total.mu) : "");
+  const totalLine = parseTotal(lineText);
+  const result = finalResult(game, totalLine);
   return (
     <Card role="group" aria-label={title}>
       <CardHeader>
@@ -122,7 +127,18 @@ function GameCard({ game, format }: { game: TraditionalGame; format: OddsFormat 
           ? (
             <>
               <WinBar pHome={(live ?? pregame).p_home_win} home={home} away={away} />
-              <Lines game={game} pregame={pregame} live={live} result={result} format={format} />
+              <Lines
+                game={game} pregame={pregame} live={live} result={result} format={format}
+                totalLine={totalLine}
+              />
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                Total line
+                <Input
+                  className="h-7 w-24 tabular-nums" inputMode="decimal" aria-label={`Total line ${title}`}
+                  aria-invalid={totalLine == null} value={lineText}
+                  onChange={(e) => setLineText(e.target.value)}
+                />
+              </label>
               <p className="text-xs text-muted-foreground">{inputsText(pregame.inputs, home, away)}</p>
             </>
           )
@@ -143,12 +159,13 @@ function Verdict({ text, hit, yes, no }: { text: string; hit: boolean; yes: stri
   );
 }
 
-function Lines({ game, pregame, live, result, format }: {
+function Lines({ game, pregame, live, result, format, totalLine }: {
   game: TraditionalGame;
   pregame: TraditionalLine;
   live: TraditionalLine | null;
   result: FinalResult | null;
   format: OddsFormat;
+  totalLine: number | null;
 }) {
   const columns: { name: string; line: TraditionalLine }[] = [{ name: "Pregame", line: pregame }];
   if (live) columns.push({ name: "Live", line: live });
@@ -185,6 +202,7 @@ function Lines({ game, pregame, live, result, format }: {
       cell: (l: TraditionalLine) => (
         <>
           <span className="block">O/U {totalText(l.total.mu)}</span>
+          <span className="block">{overUnderText(l.total, totalLine)}</span>
           <span className="block text-xs text-muted-foreground">80% {formatInterval(l.total, false)}</span>
         </>
       ),
