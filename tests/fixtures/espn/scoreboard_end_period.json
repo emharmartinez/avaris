@@ -1,0 +1,79 @@
+{
+ "day": null,
+ "events": [
+  {
+   "id": "401918011",
+   "date": "2026-10-15T02:30Z",
+   "name": "Denver Nuggets at LA Clippers",
+   "shortName": "DEN @ LAC",
+   "season": {
+    "year": 2027,
+    "type": 1,
+    "slug": "preseason"
+   },
+   "competitions": [
+    {
+     "id": "401918011",
+     "date": "2026-10-15T02:30Z",
+     "startDate": "2026-10-15T02:30Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0.0",
+      "period": 1,
+      "type": {
+       "id": "22",
+       "name": "STATUS_END_PERIOD",
+       "state": "in",
+       "completed": false,
+       "description": "End of Period",
+       "detail": "End of 1st Quarter",
+       "shortDetail": "End of 1st"
+      }
+     },
+     "competitors": [
+      {
+       "id": "12",
+       "homeAway": "home",
+       "score": "24",
+       "team": {
+        "id": "12",
+        "abbreviation": "LAC",
+        "displayName": "LA Clippers",
+        "location": "LA"
+       },
+       "linescores": [
+        {
+         "value": 24.0,
+         "period": 1
+        }
+       ]
+      },
+      {
+       "id": "7",
+       "homeAway": "away",
+       "score": "24",
+       "team": {
+        "id": "7",
+        "abbreviation": "DEN",
+        "displayName": "Denver Nuggets",
+        "location": "Denver"
+       },
+       "linescores": [
+        {
+         "value": 24.0,
+         "period": 1
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

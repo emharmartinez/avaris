@@ -215,6 +215,14 @@ def test_parse_espn_final_in_overtime() -> None:
         "final", "Final/OT", 5, 129, 125)
 
 
+def test_parse_espn_end_of_quarter() -> None:
+    # Recorded 2026-10-14 23:08 ET: DEN @ LAC tied after one
+    den = parse_espn_scoreboard(espn("scoreboard_end_period.json"))[(LAC, DEN)]
+    assert (den.status, den.label, den.period, den.clock) == (
+        "in_progress", "End of 1st Qtr", 1, 0.0)
+    assert (den.home_pts, den.away_pts) == (24, 24)
+
+
 def espn_status(period: int, clock: float, name: str, state: str = "in",
                 completed: bool = False) -> LiveGame:
     # The live DEN @ LAC event with its status replaced
