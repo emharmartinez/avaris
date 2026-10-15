@@ -74,6 +74,10 @@ export function inputsText(inputs: TraditionalInputs, home: Team, away: Team): s
     : `ratings ${h} ${signed(inputs.eff_margin)} at ${pct(inputs.weight)} weight`);
   if (inputs.home_b2b) parts.push(`${h} on a back-to-back`);
   if (inputs.away_b2b) parts.push(`${teamLabel(away)} on a back-to-back`);
+  if (inputs.injury_source) {
+    const source = inputs.injury_source === "report" ? "NBA report" : "ESPN list";
+    parts.push(`injuries ${h} ${signed(inputs.injury)} (${source})`);
+  }
   return parts.join(" · ");
 }
 

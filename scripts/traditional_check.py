@@ -1,5 +1,6 @@
 # The Traditional model's check in ADR-024: regular-season log loss, MAE and 80% coverage
-# against Elo and the league average. Never reads 2025-26 (the holdout).
+# against Elo and the league average, and on the injury-report seasons the same without the
+# injury term (#29). Never reads 2025-26 (the holdout).
 #   uv run python scripts/traditional_check.py data/avaris.duckdb   (server stopped, or a copy)
 import math
 import sys
@@ -13,6 +14,9 @@ from avaris.backtest.metrics import Z_80
 from avaris.traditional.pregame import pregame
 
 WINDOWS = (("2015-16", "2019-20"), ("2020-21", "2024-25"))
+REPORT_WINDOW = ("2021-22", "2024-25")  # injury reports exist from 2021-22
+NO_INJURIES = {f"{side}_lost_{kind}": None for side in ("home", "away")
+               for kind in ("report", "usual")}
 COLUMNS = ", ".join(f"f.{name}" for name in FEATURES)
 SQL = f"""
 select g.season, g.home_pts - g.away_pts as margin, g.home_pts + g.away_pts as total,
@@ -31,8 +35,9 @@ def log_loss(won: np.ndarray, p: np.ndarray) -> float:
     return float(-np.mean(won * np.log(p) + (1 - won) * np.log(1 - p)))
 
 
-def check(games: pd.DataFrame, label: str) -> None:
-    found = [pregame(row) for row in games.to_dict("records")]
+def check(games: pd.DataFrame, label: str, injuries: bool = True) -> None:
+    rows = games.to_dict("records")
+    found = [pregame(row if injuries else {**row, **NO_INJURIES}) for row in rows]
     lines = [line for line in found if line is not None]
     games = games[[line is not None for line in found]]
     p = np.array([line.p_home_win for line in lines])
@@ -59,6 +64,10 @@ def main() -> None:
     con = duckdb.connect(sys.argv[1], read_only=True)
     for first, last in WINDOWS:
         check(con.execute(SQL, [first, last]).df(), f"{first} to {last}")
+    first, last = REPORT_WINDOW
+    games = con.execute(SQL, [first, last]).df()
+    check(games, f"{first} to {last}, injury term")
+    check(games, f"{first} to {last}, no injury term", injuries=False)
 
 
 if __name__ == "__main__":

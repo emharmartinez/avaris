@@ -12,7 +12,9 @@ One entry per binding decision. Newest first. Status is `accepted`, `superseded`
     - Margin: `(1 - w) * elo_margin + w * eff_margin`, `w = 0.5 * g / (g + 10)`, `g` = fewer games played of the two teams this season; -1.5 points to a team on a back-to-back
     - Total: `(1 - s) * league_total + s * eff_total`, `s = g / (g + 10)`
     - Win: `Phi(margin / 12.5)`; total σ 19.5. The two σ are the residual std on the 2015-16 to 2019-20 regular season (12.65, 19.26), rounded to 0.5; every other constant is a fixed rule
-    - Preseason and the first game of a season (`g = 0`) are Elo and the league total only. No injury or ESPN rest adjustment (#29)
+    - Preseason and the first game of a season (`g = 0`) are Elo and the league total only
+    - **Injuries (amended 2026-10-14, #29):** margin `+= 0.15 * (away_excess - home_excess)`, in Game Score points (`rate x minutes`, as `*_lost_report`). `excess = lost_report - lost_usual`, where `lost_usual` is the team's 10-game half-life mean of `lost_report` over its earlier decisions this season (NaN, counted as 0, until one is known): absences the team usually has are already in its Elo and ratings, so only the change counts, and a team missing less than usual gains. In preseason, which has no NBA report, `excess` is the value ESPN lists out (ADR-022, read from the prediction's `rest` block), with no usual. No term unless both teams are known. The total is unchanged (ADR-022 found no usable total signal). The card's inputs line shows the points and the source
+    - **Why 0.15:** a fixed rule, not fitted. A star (about 20 Game Score) newly out costs about 3 points, in line with common rules of thumb (2 to 5 points for an all-star); ADR-022's preseason fit (0.108 on actual absences) is the same order. Over 2021-22 to 2024-25 the excess difference has std 18.7 (26.0 without the usual), so a typical shift is about 2.8 points
   - **Live** (Stern's Brownian motion): with `r` = minutes left / 48, margin `= lead + μ_pre * r`, σ `= σ_pre * sqrt(max(minutes left, 0.5) / 48)`; total `= points so far + rate * minutes left`, rate `= (1 - v) * total_pre / 48 + v * points per minute so far`, `v = played / (played + 24)`. Overtime periods are 5 minutes; a tie at the buzzer counts one more 5-minute period.
   - **Live source:** `stats.nba.com/stats/scoreboardv3?GameDate=&LeagueID=00` through `StatsClient` (`final=False`, so `<paths.cache_dir>/live/scoreboardv3/` keeps the latest copy per date). Fetched by the API process only for the slate day (the ET date, rolling over at 4 am ET so late tips stay live past midnight) when a game has tipped off or is `in_progress` and not final in `games`; held in memory for 30 s; never written to DuckDB. A failed fetch returns `live_error` and the pregame lines. The scoreboard's status and score win over `games` (the schedule ingest lags). `cdn.nba.com` liveData returns 403. Superseded as the primary source by ESPN (below); kept as the fallback.
   - **ESPN live source (amended 2026-10-14, #30):** live scores come from ESPN's `site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=YYYYMMDD` first, and from `scoreboardv3` only when ESPN fails or has no games. On 2026-10-14 `scoreboardv3` ran 4 to 5 minutes behind the game (a final shown as 0:05 left for 6 minutes); ESPN was current.
@@ -27,13 +29,18 @@ One entry per binding decision. Newest first. Status is `accepted`, `superseded`
   | Window | Games | Log loss (Elo) | Margin MAE (Elo) | Total MAE (league avg) | 80% coverage margin / total |
   | :-- | --: | --: | --: | --: | --: |
   | 2015-16 to 2019-20 | 5,979 | 0.6112 (0.6167) | 9.88 (9.92) | 15.09 (15.79) | 0.81 / 0.81 |
-  | 2020-21 to 2024-25 | 6,000 | 0.6281 (0.6389) | 10.90 (10.99) | 15.31 (15.70) | 0.77 / 0.81 |
+  | 2020-21 to 2024-25 | 6,000 | 0.6195 (0.6389) | 10.77 (10.99) | 15.31 (15.70) | 0.77 / 0.81 |
+  | 2021-22 to 2024-25, injury term | 4,920 | 0.6144 (0.6375) | 10.68 (10.94) | 15.36 (15.71) | 0.77 / 0.80 |
+  | 2021-22 to 2024-25, no injury term | 4,920 | 0.6248 (0.6375) | 10.84 (10.94) | 15.36 (15.71) | 0.77 / 0.80 |
 
-  - The ML model on the tuning window: 0.6099 log loss, 9.76 margin MAE, 14.59 total MAE (Phase 3). 2025-26 was not read. Reproduce with `uv run python scripts/traditional_check.py <db>`.
+  - The ML model on the tuning window: 0.6099 log loss, 9.76 margin MAE, 14.59 total MAE (Phase 3). 2025-26 was not read.
+  - The injury term changes nothing before 2021-22 (no reports, so `lost_report` and `lost_usual` are 0); the 2020-21 to 2024-25 row includes it (was 0.6281 / 10.90 without). Reproduce with `uv run python scripts/traditional_check.py <db>`.
 - **Consequences:**
   - On a live day an open Traditional tab makes at most 2 scoreboard fetches a minute (each up to 2 HTTP attempts per feed, the fallback only after ESPN fails); other days make none. The live client has its own throttle, so a Refresh during a live night can briefly exceed 1 request/s (#31).
   - The live model is not evaluated (no in-game history is stored).
   - A Traditional line can disagree with the ML model's; they are separate by design.
+  - `features` gains `home_lost_usual` and `away_lost_usual` (a new migration); they are not in `MODEL_FEATURES`, so `feature_hash` and the ML models are unchanged.
+  - Injury reports later than `decision_ts` (late scratches) and unmatched report names (#38) are not counted. In preseason, a game decided before any ESPN snapshot gets no injury term, as in ADR-022.
 
 ## ADR-023: Preseason win probability is read off the margin model
 

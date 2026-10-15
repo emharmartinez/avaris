@@ -6,10 +6,13 @@ from typing import Any
 from scipy.stats import norm
 
 # A rule-based model, no fitting (ADR-024): Elo blended with season-to-date efficiency
-# ratings, a fixed home court and back-to-back penalty, and fixed spreads
+# ratings, a fixed home court, back-to-back and injury penalty, and fixed spreads
 HOME_COURT_PTS = 2.5
 NO_FANS_FACTOR = 0.5  # 2020-21, as in Elo
 B2B_PTS = 1.5
+# Points of margin per Game Score point a team misses beyond its usual: a star (about 20)
+# newly out costs about 3 points
+INJURY_PTS = 0.15
 PRIOR_GAMES = 10.0  # games at which ratings get half their full weight
 MAX_RATINGS_WEIGHT = 0.5  # share of the margin the ratings can take from Elo
 # Residual std on the 2015-16 to 2019-20 regular season (12.65, 19.26), to the nearest 0.5
@@ -59,6 +62,18 @@ def _efficiency(row: Mapping[str, Any], league_total: float) -> tuple[float, flo
         home_per_100 + away_per_100) / 100
 
 
+def _injury(row: Mapping[str, Any]) -> tuple[float, float, str] | None:
+    # Value each team misses beyond its usual (already in its ratings): the decision report,
+    # else (preseason) ESPN's list, which has no usual. None unless both teams are known
+    for source in ("report", "espn"):
+        lost = [_value(row, f"{side}_lost_{source}") for side in ("home", "away")]
+        if None not in lost:
+            usual = [(_value(row, f"{side}_lost_usual") if source == "report" else None) or 0.0
+                     for side in ("home", "away")]
+            return float(lost[0] or 0.0) - usual[0], float(lost[1] or 0.0) - usual[1], source
+    return None
+
+
 def pregame(row: Mapping[str, Any]) -> Line | None:
     # `row` is a features row, point-in-time at decision_ts (ADR-015)
     elo_margin, league_total = _value(row, "elo_margin"), _value(row, "league_total")
@@ -70,13 +85,18 @@ def pregame(row: Mapping[str, Any]) -> Line | None:
     weight = MAX_RATINGS_WEIGHT * share
     eff_margin, eff_total = efficiency or (None, None)
     rest = B2B_PTS * (int(row.get("away_b2b") or 0) - int(row.get("home_b2b") or 0))
-    margin = (1 - weight) * elo_margin + weight * (eff_margin or 0.0) + rest
+    injury = _injury(row)
+    home_lost, away_lost, source = injury or (None, None, None)
+    injury_pts = 0.0 if injury is None else INJURY_PTS * (injury[1] - injury[0])
+    margin = (1 - weight) * elo_margin + weight * (eff_margin or 0.0) + rest + injury_pts
     total = (1 - share) * league_total + share * (eff_total or 0.0)
     inputs = {
         "elo_margin": elo_margin, "eff_margin": eff_margin, "eff_total": eff_total,
         "league_total": league_total, "weight": weight,
         "home_gp": int(row.get("home_gp") or 0), "away_gp": int(row.get("away_gp") or 0),
         "home_b2b": int(row.get("home_b2b") or 0), "away_b2b": int(row.get("away_b2b") or 0),
+        "injury": injury_pts, "injury_source": source,
+        "home_lost": home_lost, "away_lost": away_lost,
     }
     return Line(win_probability(margin, SIGMA_MARGIN), margin, SIGMA_MARGIN, total,
                 SIGMA_TOTAL, inputs)
