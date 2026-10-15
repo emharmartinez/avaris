@@ -202,7 +202,7 @@ def test_actual_vs_report_availability(built: FeatureSet) -> None:
 
 def test_usual_lost_is_the_decayed_mean_of_earlier_reports(built: FeatureSet) -> None:
     # Per team and season, the AVAIL_HALF_LIFE-game mean of lost_report over the team's
-    # earlier decisions; NaN until one is known. Never a model input
+    # earlier decisions with a report; NaN until one is known. Never a model input
     f = built.features.sort_values("decision_ts")
     decay = 0.5 ** (1 / AVAIL_HALF_LIFE)
     sums: dict[tuple[int, str], tuple[float, float]] = {}
@@ -218,7 +218,7 @@ def test_usual_lost_is_the_decayed_mean_of_earlier_reports(built: FeatureSet) ->
                 assert usual == pytest.approx(sum_x / sum_w)
                 checked += 1
             lost = r[f"{side}_lost_report"]
-            if not math.isnan(lost):
+            if not pd.isna(r["report_ts"]) and not math.isnan(lost):
                 sums[key] = (decay * sum_x + lost, decay * sum_w + 1)
     assert checked > 0
     assert "home_lost_usual" not in MODEL_FEATURES

@@ -303,11 +303,11 @@ class _Loop:
             row[f"{side}_full_strength"] = full
             row[f"{side}_lost_actual"] = lost_actual
             row[f"{side}_lost_report"] = lost_report
-            # What the team usually misses, as of its earlier decisions: already in its
-            # ratings. Not a model input; the Traditional model counts lost_report above it
+            # What the team usually misses, as of its earlier decisions with a report: already
+            # in its ratings. Not a model input; the Traditional model counts lost_report above it
             usual = self.usual_lost[(team, season)]
             row[f"{side}_lost_usual"] = _nan(usual.value)
-            if not math.isnan(lost_report):
+            if report_ts is not None and not math.isnan(lost_report):
                 usual.add(lost_report)
         row["league_total"] = _nan(self.league_total.value)
         row["league_pace"] = _nan(league_pace)
