@@ -19,7 +19,8 @@ const line = (p: number, margin: number, total: number) => ({
 const pregame = {
   ...line(0.6, 3.2, 222.5),
   inputs: { elo_margin: 4, eff_margin: 1, eff_total: 225, league_total: 220, weight: 0.25,
-    home_gp: 10, away_gp: 10, home_b2b: 0, away_b2b: 0 },
+    home_gp: 10, away_gp: 10, home_b2b: 0, away_b2b: 0, injury: 0, injury_source: null,
+    home_lost: null, away_lost: null },
 };
 const scheduled: TraditionalGame = {
   game_id: "0022100047", season_type: "regular", tip_off_utc: "2021-11-28T00:00:00Z",

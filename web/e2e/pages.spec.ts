@@ -114,6 +114,8 @@ test("traditional: live lines from the scoreboard, finals graded the day before"
   await expect(live.getByRole("row", { name: /^Moneyline/ }).getByRole("cell").nth(2))
     .toHaveText(/^BKN \d+\.\d{2}BOS \d+\.\d{2}$/);
   await expect(page.getByText(/^Live scores as of/)).toBeVisible();
+  // The inputs line shows the injury points from the decision report (#29)
+  await expect(live.getByText(/injuries BKN [+−]?\d+\.\d \(NBA report\)/)).toBeVisible();
   // Over/under chances against the pregame total, then against a typed line
   const totalCell = live.getByRole("row", { name: /^Total/ }).getByRole("cell").nth(2);
   await expect(totalCell).toContainText(/Over \d+% · Under \d+%/);

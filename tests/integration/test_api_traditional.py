@@ -1,5 +1,6 @@
 # The traditional model's endpoint: pregame lines from features, live lines from an injected
 # scoreboard (no network)
+import json
 from collections.abc import Callable, Iterator
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -11,7 +12,7 @@ from fastapi.testclient import TestClient
 from avaris.api.main import create_app
 from avaris.config import Settings
 from avaris.ingest.scoreboard import GameKey, LiveGame, first_live, parse_scoreboard
-from avaris.traditional.pregame import SIGMA_MARGIN
+from avaris.traditional.pregame import INJURY_PTS, SIGMA_MARGIN
 from tests.fixtures.live import D1, D2, scoreboard_payload
 from tests.fixtures.synthetic import BKN, BOS
 from tests.integration.test_api import NOON_D2, env, get, live_db  # noqa: F401
@@ -186,3 +187,39 @@ def test_a_day_without_games(make_client: Callable[..., TestClient]) -> None:
     body = get(make_client(Feed()), f"/api/traditional?date={day.isoformat()}")
     assert body == {"date": day.isoformat(), "is_today": False, "live_at": None,
                     "live_error": None, "games": []}
+
+
+def test_pregame_counts_reported_injuries_beyond_the_usual(
+    env: Env, make_client: Callable[..., TestClient],  # noqa: F811
+) -> None:
+    con, _ = env
+    base = by_id(get(make_client(Feed()), "/api/traditional"))[BOS_AT_BKN]["pregame"]
+    con.execute("update features set home_lost_report = 30, home_lost_usual = 10, "
+                "away_lost_report = 5, away_lost_usual = 5 where game_id = ?", [BOS_AT_BKN])
+    pre = by_id(get(make_client(Feed()), "/api/traditional"))[BOS_AT_BKN]["pregame"]
+    assert pre["inputs"]["injury_source"] == "report"
+    assert pre["inputs"]["injury"] == pytest.approx(-INJURY_PTS * 20)
+    assert pre["inputs"]["home_lost"] == pytest.approx(20)
+    shift = pre["margin"]["mu"] - base["margin"]["mu"]
+    assert shift == pytest.approx(-INJURY_PTS * 20 - base["inputs"]["injury"])
+
+
+def test_pregame_reads_espn_lost_from_the_preseason_rest_block(
+    env: Env, make_client: Callable[..., TestClient],  # noqa: F811
+) -> None:
+    # Preseason has no report: the value ESPN lists out, as the prediction stored it
+    con, _ = env
+    con.execute("update features set home_lost_report = null, away_lost_report = null "
+                "where game_id = ?", [BOS_AT_BKN])
+    rest = {"home": {"lost": 40.0, "players": []}, "away": {"lost": 10.0, "players": []}}
+    con.execute("update predictions set rest = ? where game_id = ?",
+                [json.dumps(rest), BOS_AT_BKN])
+    inputs = by_id(get(make_client(Feed()), "/api/traditional"))[BOS_AT_BKN]["pregame"]["inputs"]
+    assert inputs["injury_source"] == "espn"
+    assert inputs["injury"] == pytest.approx(INJURY_PTS * (10.0 - 40.0))
+    # No snapshot before decision time: no injury term
+    rest["home"]["lost"] = None
+    con.execute("update predictions set rest = ? where game_id = ?",
+                [json.dumps(rest), BOS_AT_BKN])
+    inputs = by_id(get(make_client(Feed()), "/api/traditional"))[BOS_AT_BKN]["pregame"]["inputs"]
+    assert inputs["injury_source"] is None and inputs["injury"] == 0.0

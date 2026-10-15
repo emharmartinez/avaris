@@ -294,6 +294,11 @@ MIGRATIONS: list[str] = [
     alter table predictions add column raw_total_mu double;
     alter table predictions add column rest varchar;  -- JSON, preseason only
     """,
+    # Traditional injury rule (ADR-024, #29): what each team usually misses, as of decision_ts
+    """
+    alter table features add column home_lost_usual double;
+    alter table features add column away_lost_usual double;
+    """,
 ]
 
 

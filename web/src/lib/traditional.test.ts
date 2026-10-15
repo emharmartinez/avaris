@@ -15,6 +15,7 @@ const line = (p: number, margin: number, total: number) => ({
 const inputs = {
   elo_margin: 4, eff_margin: 11.5, eff_total: 225, league_total: 220, weight: 0.25,
   home_gp: 10, away_gp: 10, home_b2b: 0, away_b2b: 0,
+  injury: 0, injury_source: null, home_lost: null, away_lost: null,
 };
 const game = (extra: Partial<TraditionalGame> = {}): TraditionalGame => ({
   game_id: "0022100047", season_type: "regular", tip_off_utc: "2021-11-28T00:00:00Z",
@@ -116,6 +117,15 @@ describe("inputsText", () => {
     expect(inputsText(inputs, DEN, ATL)).toBe("Elo DEN +4.0 · ratings DEN +11.5 at 25% weight");
     expect(inputsText({ ...inputs, eff_margin: null, weight: 0, away_b2b: 1 }, DEN, ATL))
       .toBe("Elo DEN +4.0 · ratings not used until both teams have played · ATL on a back-to-back");
+  });
+
+  it("adds the injury points and where they come from", () => {
+    const report = { ...inputs, injury: -3, injury_source: "report" as const, home_lost: 20,
+      away_lost: 0 };
+    expect(inputsText(report, DEN, ATL))
+      .toBe("Elo DEN +4.0 · ratings DEN +11.5 at 25% weight · injuries DEN −3.0 (NBA report)");
+    expect(inputsText({ ...report, injury: 7.4, injury_source: "espn" }, DEN, ATL))
+      .toBe("Elo DEN +4.0 · ratings DEN +11.5 at 25% weight · injuries DEN +7.4 (ESPN list)");
   });
 });
 

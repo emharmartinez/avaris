@@ -14,20 +14,25 @@ router = APIRouter(prefix="/api/traditional", tags=["traditional"])
 SLATE_ROLLOVER = timedelta(hours=4)  # past midnight ET, still the night before
 
 FEATURES = [
-    "elo_margin", "league_total", "league_pace", "home_court", "no_fans", "home_b2b",
+    "report_ts", "elo_margin", "league_total", "league_pace", "home_court", "no_fans", "home_b2b",
     "away_b2b", "home_gp", "away_gp",
     *(f"{side}_{stat}_std" for side in ("home", "away") for stat in ("ortg", "drtg", "pace")),
+    *(f"{side}_lost_{kind}" for side in ("home", "away") for kind in ("report", "usual")),
 ]
-# Each game with its latest features row (point-in-time at decision_ts); `tipped` is
+# Each game with its latest features row (point-in-time at decision_ts) and, in preseason,
+# the value ESPN lists out as the prediction's rest block holds it (ADR-022); `tipped` is
 # whether the listed tip-off has passed
 GAMES_SQL = f"""
 select g.game_id, g.season_type, g.tip_off_utc, g.status, g.home_team_id, g.away_team_id,
     g.home_pts, g.away_pts, coalesce(g.tip_off_utc <= ?, false) as tipped,
-    {", ".join(f"f.{name}" for name in FEATURES)}
+    {", ".join(f"f.{name}" for name in FEATURES)},
+    try_cast(json_extract_string(p.rest, '$.home.lost') as double) as home_lost_espn,
+    try_cast(json_extract_string(p.rest, '$.away.lost') as double) as away_lost_espn
 from games g left join (
     select * from features
     qualify row_number() over (partition by game_id order by decision_ts desc) = 1
 ) f on f.game_id = g.game_id
+left join predictions p on p.game_id = g.game_id
 where g.game_date_et = ?
 order by g.tip_off_utc, g.game_id
 """

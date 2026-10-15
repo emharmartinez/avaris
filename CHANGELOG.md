@@ -9,6 +9,7 @@
 - Preseason win probability is read off the margin model, P(margin > 0) under N(μ, σ), and follows the ESPN rest-adjusted margin (ADR-023, #20). On 2015-16 to 2018-19 preseason games log loss drops from 0.667 to 0.648. The win-only rest coefficient (`k_win`) is retired. Preseason win drivers are the margin drivers, in points; the API returns `driver_scale` per target
 
 ### Added
+- Traditional model is injury-aware (#29, ADR-024): the pregame margin moves 0.15 points per Game Score point a team misses beyond its usual (NBA injury report at decision time; ESPN's list in preseason). The card's inputs line shows the points and the source. On 2021-22 to 2024-25 log loss drops from 0.6248 to 0.6144 and margin MAE from 10.84 to 10.68. New `features` columns `home_lost_usual`, `away_lost_usual` (not ML inputs)
 - Traditional tab: a total line on each card (starts at the pregame total, editable) with the chance of going over and under it, pregame and live; finals grade the total against it (ADR-024). The line stays in the browser
 - Traditional tab (`/traditional/?date=`, `GET /api/traditional`, ADR-024): a rule-based model with no machine learning (Elo blended with season-to-date efficiency ratings, home court, back-to-back) giving a fair moneyline, spread and total with 80% intervals for every game. Live games update from ESPN's scoreboard (score, period, clock), with stats.nba.com's as the fallback because it ran 4 to 5 minutes behind (#30) and the tab polls while they are on; finals are graded against the pregame line
 - `avaris preseason-win-check`: the preseason `home_win` classifier against the margin-derived probability on the tuning window (log loss, Brier, accuracy, ECE with paired bootstrap CIs, reliability)
@@ -18,6 +19,7 @@
 - Edge tab (`/edge/`, ADR-020): pick a predicted game, type moneyline, spread and total odds (American or decimal) and see model probability, no-vig implied probability, edge, EV per 100 and fair price. Whole-number lines show the push chance. Odds stay in the browser
 
 ### Fixed
+- ESPN rest list (ADR-022) missed players: notes like "isn't expected to play", "is doubtful", "is unlikely to suit up", "is inactive" now count, and multi-week or season-long notes ("will miss at least two weeks", "will miss the preseason") keep counting for their span instead of dropping after 36 h
 - The launcher's `-Stop` no longer kills an unrelated process through a stale `data/serve.pid`
 - The app could hang after a rebuild: pages had no `Cache-Control`, so Chrome reused an old page whose scripts the rebuild deleted. Pages are now `no-cache`, hashed `_next/static/` assets `immutable`, and the service worker revalidates pages
 
