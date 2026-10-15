@@ -4,6 +4,7 @@ import { normalCdf } from "./distribution";
 // Nothing here is stored or fetched. Odds are carried as decimal prices.
 
 export type OddsFormat = "american" | "decimal";
+export const DEFAULT_ODDS_FORMAT: OddsFormat = "decimal"; // Edge and Traditional open on it
 
 const MINUS = "−";
 

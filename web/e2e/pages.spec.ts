@@ -86,6 +86,8 @@ test("edge: pick a game from the sidebar tab, type odds, read the edge", async (
   await expect(page.getByRole("combobox", { name: "Game" })).toContainText("DEN @ BOS");
   await expect(page.getByText(/^Final prediction/)).toBeVisible();
 
+  await expect(page.getByRole("button", { name: "Decimal" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "American" }).click();
   await page.getByLabel("DEN moneyline").fill("-110");
   await page.getByLabel("BOS moneyline").fill("-110");
   const ml = page.getByRole("table", { name: "Moneyline" });
@@ -110,7 +112,7 @@ test("traditional: live lines from the scoreboard, finals graded the day before"
   await expect(live.getByText("Score", { exact: true })).toBeVisible();
   await expect(live.getByRole("columnheader")).toHaveText(["Market", "Pregame", "Live"]);
   await expect(live.getByRole("row", { name: /^Moneyline/ }).getByRole("cell").nth(2))
-    .toHaveText(/^BKN [−+]\d+BOS [−+]\d+$/);
+    .toHaveText(/^BKN \d+\.\d{2}BOS \d+\.\d{2}$/);
   await expect(page.getByText(/^Live scores as of/)).toBeVisible();
   await expect(page.getByRole("group", { name: "ATL @ DEN" }).getByText("Upcoming")).toBeVisible();
 

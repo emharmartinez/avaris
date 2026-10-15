@@ -2,7 +2,9 @@
 
 import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { SeasonTypeBadge } from "@/components/badges";
+import { OddsFormatToggle } from "@/components/odds-format-toggle";
 import { PageHeader, QueryState } from "@/components/query-state";
 import { gameHref } from "@/components/today/game-card";
 import { WinBar } from "@/components/today/win-bar";
@@ -11,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useTraditional } from "@/hooks/use-api";
+import { DEFAULT_ODDS_FORMAT, type OddsFormat } from "@/lib/edge";
 import {
   formatDate, formatInterval, formatTimestamp, formatTip, shiftDate, teamLabel,
 } from "@/lib/format";
@@ -24,6 +27,8 @@ const dayHref = (day: string) => `/traditional/?date=${day}`;
 export function TraditionalView({ date }: { date: string | null }) {
   const query = useTraditional(date);
   const day = date ?? query.data?.date ?? null;
+  // Outlives a change of date and every live refetch
+  const [format, setFormat] = useState<OddsFormat>(DEFAULT_ODDS_FORMAT);
   return (
     <div className="space-y-6">
       <PageHeader title="Traditional" description={day ? formatDate(day) : undefined}>
@@ -41,19 +46,22 @@ export function TraditionalView({ date }: { date: string | null }) {
           </nav>
         )}
       </PageHeader>
-      <p className="text-sm text-muted-foreground">
-        A rule-based model with no machine learning: Elo blended with season-to-date offensive and
-        defensive ratings, a fixed home court and a back-to-back penalty. Lines are the model&apos;s
-        fair prices, not bookmaker odds. Live games update from the score and the clock.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <p className="max-w-3xl text-sm text-muted-foreground">
+          A rule-based model with no machine learning: Elo blended with season-to-date offensive and
+          defensive ratings, a fixed home court and a back-to-back penalty. Lines are the
+          model&apos;s fair prices, not bookmaker odds. Live games update from the score and the clock.
+        </p>
+        <OddsFormatToggle value={format} onChange={setFormat} />
+      </div>
       <QueryState query={query} label="traditional lines">
-        {(data) => <GameList data={data} />}
+        {(data) => <GameList data={data} format={format} />}
       </QueryState>
     </div>
   );
 }
 
-function GameList({ data }: { data: TraditionalDay }) {
+function GameList({ data, format }: { data: TraditionalDay; format: OddsFormat }) {
   return (
     <div className="space-y-4">
       {data.live_error && (
@@ -68,7 +76,7 @@ function GameList({ data }: { data: TraditionalDay }) {
         ? <p className="text-sm text-muted-foreground">No games on this date.</p>
         : (
           <div className="grid gap-4 xl:grid-cols-2">
-            {data.games.map((g) => <GameCard key={g.game_id} game={g} />)}
+            {data.games.map((g) => <GameCard key={g.game_id} game={g} format={format} />)}
           </div>
         )}
     </div>
@@ -81,7 +89,7 @@ function StatusBadge({ game }: { game: TraditionalGame }) {
   return <Badge variant={game.status === "final" ? "secondary" : "outline"}>{text}</Badge>;
 }
 
-function GameCard({ game }: { game: TraditionalGame }) {
+function GameCard({ game, format }: { game: TraditionalGame; format: OddsFormat }) {
   const { home, away, score, pregame, live } = game;
   const title = `${teamLabel(away)} @ ${teamLabel(home)}`;
   const result = finalResult(game);
@@ -114,7 +122,7 @@ function GameCard({ game }: { game: TraditionalGame }) {
           ? (
             <>
               <WinBar pHome={(live ?? pregame).p_home_win} home={home} away={away} />
-              <Lines game={game} pregame={pregame} live={live} result={result} />
+              <Lines game={game} pregame={pregame} live={live} result={result} format={format} />
               <p className="text-xs text-muted-foreground">{inputsText(pregame.inputs, home, away)}</p>
             </>
           )
@@ -135,11 +143,12 @@ function Verdict({ text, hit, yes, no }: { text: string; hit: boolean; yes: stri
   );
 }
 
-function Lines({ game, pregame, live, result }: {
+function Lines({ game, pregame, live, result, format }: {
   game: TraditionalGame;
   pregame: TraditionalLine;
   live: TraditionalLine | null;
   result: FinalResult | null;
+  format: OddsFormat;
 }) {
   const columns: { name: string; line: TraditionalLine }[] = [{ name: "Pregame", line: pregame }];
   if (live) columns.push({ name: "Live", line: live });
@@ -149,8 +158,8 @@ function Lines({ game, pregame, live, result }: {
       name: "Moneyline",
       cell: (l: TraditionalLine) => (
         <>
-          <span className="block">{teamLabel(home)} {fairMoneyline(l.p_home_win)}</span>
-          <span className="block">{teamLabel(away)} {fairMoneyline(1 - l.p_home_win)}</span>
+          <span className="block">{teamLabel(home)} {fairMoneyline(l.p_home_win, format)}</span>
+          <span className="block">{teamLabel(away)} {fairMoneyline(1 - l.p_home_win, format)}</span>
         </>
       ),
       result: result && (

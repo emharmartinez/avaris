@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useState } from "react";
+import { OddsFormatToggle } from "@/components/odds-format-toggle";
 import { PageHeader, QueryState } from "@/components/query-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,8 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useGames } from "@/hooks/use-api";
 import {
-  evaluateMarket, formatOdds, moneylineMarket, parseLine, parseOdds, parseTotal, spreadMarket,
-  totalMarket,
+  DEFAULT_ODDS_FORMAT, evaluateMarket, formatOdds, moneylineMarket, parseLine, parseOdds,
+  parseTotal, spreadMarket, totalMarket,
   type MarketResult, type OddsFormat, type Outcome, type Pair,
 } from "@/lib/edge";
 import { formatDate, formatTip, pct, shiftDate, signed, teamLabel } from "@/lib/format";
@@ -32,7 +33,7 @@ export function EdgeView({ date, gameId, onGameChange }: {
   const query = useGames(date);
   const day = date ?? query.data?.date ?? null;
   // The odds format outlives a change of game or date; the typed odds do not
-  const [format, setFormat] = useState<OddsFormat>("american");
+  const [format, setFormat] = useState<OddsFormat>(DEFAULT_ODDS_FORMAT);
   return (
     <div className="space-y-6">
       <PageHeader title="Edge" description={day ? formatDate(day) : undefined}>
@@ -157,16 +158,7 @@ function Calculator({ game, format, onFormatChange }: {
           </p>
           {restNote && <p>{restNote}</p>}
         </div>
-        <div role="group" aria-label="Odds format" className="flex gap-1">
-          {(["american", "decimal"] as const).map((f) => (
-            <Button
-              key={f} size="sm" variant={f === format ? "secondary" : "ghost"}
-              aria-pressed={f === format} onClick={() => switchFormat(f)}
-            >
-              {f === "american" ? "American" : "Decimal"}
-            </Button>
-          ))}
-        </div>
+        <OddsFormatToggle value={format} onChange={switchFormat} />
       </div>
 
       <MarketCard
