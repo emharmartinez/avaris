@@ -2,7 +2,7 @@ import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +18,10 @@ from avaris.ingest.teams import team_ids_by_name
 from avaris.seasons import ET, et_date, season_for_date
 
 # Preseason only (ADR-022): NBA injury reports do not cover the preseason
-ESPN_INJURIES_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/injuries"
+ESPN_API = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba"
+ESPN_INJURIES_URL = f"{ESPN_API}/injuries"
+# Live scores for the Traditional tab (ADR-024): one ET date per request
+ESPN_SCOREBOARD_URL = f"{ESPN_API}/scoreboard"
 OUT_WINDOW_HOURS = 36.0
 ENTRY_COLUMNS = ["team_id", "player_name", "status", "comment", "entry_ts"]
 # Future-tense rulings only: a recap ("did not play Monday") is not a ruling
@@ -80,7 +83,7 @@ def _is_retryable(exc: BaseException) -> bool:
 
 
 class EspnClient:
-    # The list has no history: every response is kept under live/espn for inspection only
+    # Neither feed has history: every response is kept under live/espn for inspection only
     def __init__(
         self,
         cache_dir: Path,
@@ -88,18 +91,27 @@ class EspnClient:
         timeout_s: float = 20.0,
         max_attempts: int = 3,
         retry_wait_s: float = 2.0,
+        transport: httpx.BaseTransport | None = None,
     ) -> None:
         self.cache_dir = cache_dir / "live" / "espn"
         self.throttle = throttle
         self.max_attempts = max_attempts
         self.retry_wait_s = retry_wait_s
         self.requests_made = 0
-        self._http = httpx.Client(timeout=timeout_s)
+        self._http = httpx.Client(timeout=timeout_s, transport=transport)
 
     def close(self) -> None:
         self._http.close()
 
     def get_injuries(self, now_utc: datetime) -> dict[str, Any]:
+        return self._get(ESPN_INJURIES_URL, {}, f"injuries_{now_utc:%Y%m%dT%H%M%S}Z.json")
+
+    def get_scoreboard(self, day: date) -> dict[str, Any]:
+        # The latest copy per date
+        return self._get(ESPN_SCOREBOARD_URL, {"dates": f"{day:%Y%m%d}"},
+                         f"scoreboard_{day:%Y%m%d}.json")
+
+    def _get(self, url: str, params: dict[str, str], saved_as: str) -> dict[str, Any]:
         retrying = Retrying(
             stop=stop_after_attempt(self.max_attempts),
             wait=wait_exponential(multiplier=self.retry_wait_s, max=30),
@@ -110,12 +122,11 @@ class EspnClient:
             with attempt:
                 self.throttle.wait()
                 self.requests_made += 1
-                response = self._http.get(ESPN_INJURIES_URL)
+                response = self._http.get(url, params=params)
                 response.raise_for_status()
                 payload: dict[str, Any] = response.json()
                 self.cache_dir.mkdir(parents=True, exist_ok=True)
-                (self.cache_dir / f"injuries_{now_utc:%Y%m%dT%H%M%S}Z.json").write_text(
-                    json.dumps(payload))
+                (self.cache_dir / saved_as).write_text(json.dumps(payload))
                 return payload
         raise AssertionError("unreachable")
 

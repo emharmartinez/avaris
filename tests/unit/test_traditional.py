@@ -1,12 +1,21 @@
+import copy
 import json
 import math
+from datetime import date
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from scipy.stats import norm
 
-from avaris.ingest.scoreboard import parse_scoreboard
+from avaris.ingest.scoreboard import (
+    GameKey,
+    LiveGame,
+    first_live,
+    parse_espn_scoreboard,
+    parse_scoreboard,
+)
 from avaris.traditional.live import clock_minutes, game_minutes, live_update
 from avaris.traditional.pregame import (
     B2B_PTS,
@@ -16,6 +25,10 @@ from avaris.traditional.pregame import (
 )
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "scoreboard"
+ESPN_FIXTURES = Path(__file__).parents[1] / "fixtures" / "espn"
+MIA, BKN, BOS, CHA, LAC, DEN = (1610612748, 1610612751, 1610612738, 1610612766, 1610612746,
+                                1610612743)
+OKC, UTA = 1610612760, 1610612762
 
 
 def features(**overrides: Any) -> dict[str, Any]:
@@ -157,21 +170,132 @@ def test_live_update_in_overtime() -> None:
 def test_parse_live_scoreboard() -> None:
     payload = json.loads((FIXTURES / "scoreboardv3_live.json").read_text())
     games = parse_scoreboard(payload)
-    mia = games["0012600003"]
+    mia = games[(MIA, BKN)]
     assert (mia.status, mia.period, mia.home_pts, mia.away_pts) == ("in_progress", 2, 65, 59)
-    assert mia.clock == "PT01M27.00S"
+    assert mia.clock == pytest.approx(1 + 27 / 60)
     assert mia.label == "2nd Qtr"
-    assert games["0012600017"].label == "Halftime"
-    assert games["0012600064"].status == "scheduled"
+    halftime = games[(BOS, CHA)]
+    assert (halftime.label, halftime.clock) == ("Halftime", 0.0)
+    assert games[(LAC, DEN)].status == "scheduled"
 
 
 def test_parse_final_scoreboard_with_overtime() -> None:
     payload = json.loads((FIXTURES / "scoreboardv3_final.json").read_text())
-    okc = parse_scoreboard(payload)["0012600047"]
-    assert (okc.status, okc.period, okc.home_pts, okc.away_pts) == ("final", 5, 114, 112)
+    okc = next(g for g in parse_scoreboard(payload).values() if g.period == 5)
+    assert (okc.status, okc.home_pts, okc.away_pts) == ("final", 114, 112)
     assert okc.regulation_periods == 4
 
 
 def test_parse_empty_scoreboard() -> None:
     assert parse_scoreboard({"scoreboard": {"games": []}}) == {}
     assert parse_scoreboard({}) == {}
+
+
+def espn(name: str) -> dict[str, Any]:
+    return json.loads((ESPN_FIXTURES / name).read_text())
+
+
+def test_parse_live_espn_scoreboard() -> None:
+    # Recorded 2026-10-14 22:55 ET: DEN @ LAC in the 1st, six games final
+    games = parse_espn_scoreboard(espn("scoreboard_live.json"))
+    assert len(games) == 7
+    den = games[(LAC, DEN)]
+    assert (den.status, den.label, den.period, den.home_pts, den.away_pts) == (
+        "in_progress", "1st Qtr", 1, 6, 15)
+    assert den.clock == pytest.approx(5 + 21 / 60)
+    assert den.regulation_periods == 4
+    mia = games[(MIA, BKN)]
+    assert (mia.status, mia.label, mia.home_pts, mia.away_pts) == ("final", "Final", 144, 128)
+
+
+def test_parse_espn_final_in_overtime() -> None:
+    # Recorded 2026-01-07: UTAH @ OKC went to overtime
+    okc = parse_espn_scoreboard(espn("scoreboard_final_ot.json"))[(OKC, UTA)]
+    assert (okc.status, okc.label, okc.period, okc.home_pts, okc.away_pts) == (
+        "final", "Final/OT", 5, 129, 125)
+
+
+def test_parse_espn_end_of_quarter() -> None:
+    # Recorded 2026-10-14 23:08 ET: DEN @ LAC tied after one
+    den = parse_espn_scoreboard(espn("scoreboard_end_period.json"))[(LAC, DEN)]
+    assert (den.status, den.label, den.period, den.clock) == (
+        "in_progress", "End of 1st Qtr", 1, 0.0)
+    assert (den.home_pts, den.away_pts) == (24, 24)
+
+
+def espn_status(period: int, clock: float, name: str, state: str = "in",
+                completed: bool = False) -> LiveGame:
+    # The live DEN @ LAC event with its status replaced
+    payload = espn("scoreboard_live.json")
+    event = copy.deepcopy(next(e for e in payload["events"] if e["id"] == "401918011"))
+    event["competitions"][0]["status"] = {
+        "clock": clock, "period": period,
+        "type": {"name": name, "state": state, "completed": completed, "shortDetail": "TBD"},
+    }
+    return parse_espn_scoreboard({"events": [event]})[(LAC, DEN)]
+
+
+@pytest.mark.parametrize(("period", "clock", "name", "label"), [
+    (2, 0.0, "STATUS_HALFTIME", "Halftime"),
+    (3, 0.0, "STATUS_END_PERIOD", "End of 3rd Qtr"),
+    (4, 0.0, "STATUS_END_PERIOD", "End of 4th Qtr"),
+    (5, 154.0, "STATUS_IN_PROGRESS", "OT"),
+    (6, 0.0, "STATUS_END_PERIOD", "End of 2OT"),
+])
+def test_espn_labels_read_like_the_nba_scoreboard(
+    period: int, clock: float, name: str, label: str,
+) -> None:
+    game = espn_status(period, clock, name)
+    assert (game.status, game.label, game.period) == ("in_progress", label, period)
+    assert game.clock == pytest.approx(clock / 60)
+
+
+def test_espn_postponed_game_is_not_final() -> None:
+    game = espn_status(0, 0.0, "STATUS_POSTPONED", state="post")
+    assert game.status == "scheduled"
+
+
+def test_espn_double_overtime_final() -> None:
+    game = espn_status(6, 0.0, "STATUS_FINAL", state="post", completed=True)
+    assert (game.status, game.label) == ("final", "Final/2OT")
+
+
+def test_espn_skips_a_club_outside_the_nba() -> None:
+    payload = espn("scoreboard_live.json")
+    payload["events"][0]["competitions"][0]["competitors"][0]["team"]["displayName"] = "Real Madrid"
+    assert len(parse_espn_scoreboard(payload)) == 6
+    assert parse_espn_scoreboard({}) == {}
+
+
+DAY = date(2026, 10, 14)
+GAME = LiveGame("in_progress", "1st Qtr", 1, 5.35, 4, 6, 15)
+
+
+class Source:
+    def __init__(self, games: dict[GameKey, LiveGame] | Exception) -> None:
+        self.games = games
+        self.calls = 0
+
+    def __call__(self, day: date) -> dict[GameKey, LiveGame]:
+        self.calls += 1
+        if isinstance(self.games, Exception):
+            raise self.games
+        return self.games
+
+
+def test_first_live_uses_the_primary_feed_alone() -> None:
+    primary, fallback = Source({(LAC, DEN): GAME}), Source({})
+    assert first_live(primary, fallback)(DAY) == {(LAC, DEN): GAME}
+    assert fallback.calls == 0
+
+
+def test_first_live_falls_back_on_a_failed_or_empty_feed() -> None:
+    games = {(LAC, DEN): GAME}
+    assert first_live(Source(httpx.ConnectTimeout("espn")), Source(games))(DAY) == games
+    assert first_live(Source({}), Source(games))(DAY) == games
+
+
+def test_first_live_raises_only_when_no_feed_answers() -> None:
+    assert first_live(Source({}), Source(RuntimeError("blocked")))(DAY) == {}
+    with pytest.raises(RuntimeError, match="blocked"):
+        first_live(Source(httpx.ConnectTimeout("espn")), Source(RuntimeError("blocked")))(DAY)

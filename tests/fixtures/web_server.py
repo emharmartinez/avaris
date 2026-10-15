@@ -14,17 +14,19 @@ import uvicorn
 from avaris.api.main import create_app
 from avaris.config import PathsSettings, ServerSettings, Settings
 from avaris.db import connect
+from avaris.ingest.scoreboard import parse_scoreboard
 from avaris.pipeline.daily import run_daily
 from avaris.pipeline.jobs import JobRunner, Progress, default_runners
 from tests.fixtures.live import D1, D2, models_settings, scoreboard_payload, train_before_d1
-from tests.fixtures.synthetic import BOS, INJURED_STAR, write_league
+from tests.fixtures.synthetic import BKN, BOS, INJURED_STAR, write_league
 from tests.integration.test_daily import add_report
 
 NOW = datetime(2021, 11, 27, 17, 0)  # D1 games final and scored, D2 provisional
 UNPREDICTED = "0022100047"  # ATL @ DEN: left for the Refresh flow to predict
 LIVE_GAME = "0022100048"  # BOS @ BKN: in the 3rd quarter on the fake live scoreboard
-SCOREBOARD = scoreboard_payload({"game_id": LIVE_GAME, "period": 3, "clock": "PT04M12.00S",
-                                 "label": "3rd Qtr", "home": 70, "away": 66})
+SCOREBOARD = parse_scoreboard(scoreboard_payload({
+    "game_id": LIVE_GAME, "home_team": BKN, "away_team": BOS, "period": 3,
+    "clock": "PT04M12.00S", "label": "3rd Qtr", "home": 70, "away": 66}))
 REFERENCE = "evaluation_2021-22_2024-25"
 # A report table as wide as the real ones (13 columns of values with CIs)
 COLUMNS = ["model"] + [f"{m}{d}" for m in ("log_loss", "brier", "accuracy", "ece", "margin_mae",

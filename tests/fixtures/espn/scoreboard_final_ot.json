@@ -1,0 +1,1199 @@
+{
+ "day": null,
+ "events": [
+  {
+   "id": "401810371",
+   "date": "2026-01-08T00:00Z",
+   "name": "Toronto Raptors at Charlotte Hornets",
+   "shortName": "TOR @ CHA",
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   },
+   "competitions": [
+    {
+     "id": "401810371",
+     "date": "2026-01-08T00:00Z",
+     "startDate": "2026-01-08T00:00Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 720.0,
+      "displayClock": "12:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "30",
+       "homeAway": "home",
+       "score": "96",
+       "team": {
+        "id": "30",
+        "abbreviation": "CHA",
+        "displayName": "Charlotte Hornets",
+        "location": "Charlotte"
+       },
+       "linescores": [
+        {
+         "value": 22.0,
+         "period": 1
+        },
+        {
+         "value": 28.0,
+         "period": 2
+        },
+        {
+         "value": 22.0,
+         "period": 3
+        },
+        {
+         "value": 24.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "28",
+       "homeAway": "away",
+       "score": "97",
+       "team": {
+        "id": "28",
+        "abbreviation": "TOR",
+        "displayName": "Toronto Raptors",
+        "location": "Toronto"
+       },
+       "linescores": [
+        {
+         "value": 25.0,
+         "period": 1
+        },
+        {
+         "value": 20.0,
+         "period": 2
+        },
+        {
+         "value": 21.0,
+         "period": 3
+        },
+        {
+         "value": 31.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401810372",
+   "date": "2026-01-08T00:00Z",
+   "name": "Chicago Bulls at Detroit Pistons",
+   "shortName": "CHI @ DET",
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   },
+   "competitions": [
+    {
+     "id": "401810372",
+     "date": "2026-01-08T00:00Z",
+     "startDate": "2026-01-08T00:00Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 720.0,
+      "displayClock": "12:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "8",
+       "homeAway": "home",
+       "score": "108",
+       "team": {
+        "id": "8",
+        "abbreviation": "DET",
+        "displayName": "Detroit Pistons",
+        "location": "Detroit"
+       },
+       "linescores": [
+        {
+         "value": 30.0,
+         "period": 1
+        },
+        {
+         "value": 22.0,
+         "period": 2
+        },
+        {
+         "value": 24.0,
+         "period": 3
+        },
+        {
+         "value": 32.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "4",
+       "homeAway": "away",
+       "score": "93",
+       "team": {
+        "id": "4",
+        "abbreviation": "CHI",
+        "displayName": "Chicago Bulls",
+        "location": "Chicago"
+       },
+       "linescores": [
+        {
+         "value": 24.0,
+         "period": 1
+        },
+        {
+         "value": 26.0,
+         "period": 2
+        },
+        {
+         "value": 27.0,
+         "period": 3
+        },
+        {
+         "value": 16.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401810373",
+   "date": "2026-01-08T00:00Z",
+   "name": "Washington Wizards at Philadelphia 76ers",
+   "shortName": "WSH @ PHI",
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   },
+   "competitions": [
+    {
+     "id": "401810373",
+     "date": "2026-01-08T00:00Z",
+     "startDate": "2026-01-08T00:00Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 720.0,
+      "displayClock": "12:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "20",
+       "homeAway": "home",
+       "score": "131",
+       "team": {
+        "id": "20",
+        "abbreviation": "PHI",
+        "displayName": "Philadelphia 76ers",
+        "location": "Philadelphia"
+       },
+       "linescores": [
+        {
+         "value": 37.0,
+         "period": 1
+        },
+        {
+         "value": 25.0,
+         "period": 2
+        },
+        {
+         "value": 30.0,
+         "period": 3
+        },
+        {
+         "value": 39.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "27",
+       "homeAway": "away",
+       "score": "110",
+       "team": {
+        "id": "27",
+        "abbreviation": "WSH",
+        "displayName": "Washington Wizards",
+        "location": "Washington"
+       },
+       "linescores": [
+        {
+         "value": 30.0,
+         "period": 1
+        },
+        {
+         "value": 26.0,
+         "period": 2
+        },
+        {
+         "value": 24.0,
+         "period": 3
+        },
+        {
+         "value": 30.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401810375",
+   "date": "2026-01-08T00:00Z",
+   "name": "Denver Nuggets at Boston Celtics",
+   "shortName": "DEN @ BOS",
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   },
+   "competitions": [
+    {
+     "id": "401810375",
+     "date": "2026-01-08T00:00Z",
+     "startDate": "2026-01-08T00:00Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 720.0,
+      "displayClock": "12:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "2",
+       "homeAway": "home",
+       "score": "110",
+       "team": {
+        "id": "2",
+        "abbreviation": "BOS",
+        "displayName": "Boston Celtics",
+        "location": "Boston"
+       },
+       "linescores": [
+        {
+         "value": 35.0,
+         "period": 1
+        },
+        {
+         "value": 23.0,
+         "period": 2
+        },
+        {
+         "value": 24.0,
+         "period": 3
+        },
+        {
+         "value": 28.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "7",
+       "homeAway": "away",
+       "score": "114",
+       "team": {
+        "id": "7",
+        "abbreviation": "DEN",
+        "displayName": "Denver Nuggets",
+        "location": "Denver"
+       },
+       "linescores": [
+        {
+         "value": 31.0,
+         "period": 1
+        },
+        {
+         "value": 27.0,
+         "period": 2
+        },
+        {
+         "value": 21.0,
+         "period": 3
+        },
+        {
+         "value": 35.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401810374",
+   "date": "2026-01-08T00:30Z",
+   "name": "New Orleans Pelicans at Atlanta Hawks",
+   "shortName": "NO @ ATL",
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   },
+   "competitions": [
+    {
+     "id": "401810374",
+     "date": "2026-01-08T00:30Z",
+     "startDate": "2026-01-08T00:30Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 720.0,
+      "displayClock": "12:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "1",
+       "homeAway": "home",
+       "score": "117",
+       "team": {
+        "id": "1",
+        "abbreviation": "ATL",
+        "displayName": "Atlanta Hawks",
+        "location": "Atlanta"
+       },
+       "linescores": [
+        {
+         "value": 37.0,
+         "period": 1
+        },
+        {
+         "value": 28.0,
+         "period": 2
+        },
+        {
+         "value": 24.0,
+         "period": 3
+        },
+        {
+         "value": 28.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "3",
+       "homeAway": "away",
+       "score": "100",
+       "team": {
+        "id": "3",
+        "abbreviation": "NO",
+        "displayName": "New Orleans Pelicans",
+        "location": "New Orleans"
+       },
+       "linescores": [
+        {
+         "value": 26.0,
+         "period": 1
+        },
+        {
+         "value": 27.0,
+         "period": 2
+        },
+        {
+         "value": 13.0,
+         "period": 3
+        },
+        {
+         "value": 34.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401810376",
+   "date": "2026-01-08T00:30Z",
+   "name": "Orlando Magic at Brooklyn Nets",
+   "shortName": "ORL @ BKN",
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   },
+   "competitions": [
+    {
+     "id": "401810376",
+     "date": "2026-01-08T00:30Z",
+     "startDate": "2026-01-08T00:30Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 300.0,
+      "displayClock": "5:00",
+      "period": 5,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final/OT",
+       "shortDetail": "Final/OT",
+       "altDetail": "OT"
+      }
+     },
+     "competitors": [
+      {
+       "id": "17",
+       "homeAway": "home",
+       "score": "103",
+       "team": {
+        "id": "17",
+        "abbreviation": "BKN",
+        "displayName": "Brooklyn Nets",
+        "location": "Brooklyn"
+       },
+       "linescores": [
+        {
+         "value": 23.0,
+         "period": 1
+        },
+        {
+         "value": 20.0,
+         "period": 2
+        },
+        {
+         "value": 21.0,
+         "period": 3
+        },
+        {
+         "value": 29.0,
+         "period": 4
+        },
+        {
+         "value": 10.0,
+         "period": 5
+        }
+       ]
+      },
+      {
+       "id": "19",
+       "homeAway": "away",
+       "score": "104",
+       "team": {
+        "id": "19",
+        "abbreviation": "ORL",
+        "displayName": "Orlando Magic",
+        "location": "Orlando"
+       },
+       "linescores": [
+        {
+         "value": 21.0,
+         "period": 1
+        },
+        {
+         "value": 27.0,
+         "period": 2
+        },
+        {
+         "value": 31.0,
+         "period": 3
+        },
+        {
+         "value": 14.0,
+         "period": 4
+        },
+        {
+         "value": 11.0,
+         "period": 5
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401810377",
+   "date": "2026-01-08T00:30Z",
+   "name": "LA Clippers at New York Knicks",
+   "shortName": "LAC @ NY",
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   },
+   "competitions": [
+    {
+     "id": "401810377",
+     "date": "2026-01-08T00:30Z",
+     "startDate": "2026-01-08T00:30Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 720.0,
+      "displayClock": "12:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "18",
+       "homeAway": "home",
+       "score": "123",
+       "team": {
+        "id": "18",
+        "abbreviation": "NY",
+        "displayName": "New York Knicks",
+        "location": "New York"
+       },
+       "linescores": [
+        {
+         "value": 27.0,
+         "period": 1
+        },
+        {
+         "value": 24.0,
+         "period": 2
+        },
+        {
+         "value": 39.0,
+         "period": 3
+        },
+        {
+         "value": 33.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "12",
+       "homeAway": "away",
+       "score": "111",
+       "team": {
+        "id": "12",
+        "abbreviation": "LAC",
+        "displayName": "LA Clippers",
+        "location": "LA"
+       },
+       "linescores": [
+        {
+         "value": 31.0,
+         "period": 1
+        },
+        {
+         "value": 25.0,
+         "period": 2
+        },
+        {
+         "value": 31.0,
+         "period": 3
+        },
+        {
+         "value": 24.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401810379",
+   "date": "2026-01-08T01:00Z",
+   "name": "Phoenix Suns at Memphis Grizzlies",
+   "shortName": "PHX @ MEM",
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   },
+   "competitions": [
+    {
+     "id": "401810379",
+     "date": "2026-01-08T01:00Z",
+     "startDate": "2026-01-08T01:00Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 720.0,
+      "displayClock": "12:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "29",
+       "homeAway": "home",
+       "score": "98",
+       "team": {
+        "id": "29",
+        "abbreviation": "MEM",
+        "displayName": "Memphis Grizzlies",
+        "location": "Memphis"
+       },
+       "linescores": [
+        {
+         "value": 23.0,
+         "period": 1
+        },
+        {
+         "value": 24.0,
+         "period": 2
+        },
+        {
+         "value": 21.0,
+         "period": 3
+        },
+        {
+         "value": 30.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "21",
+       "homeAway": "away",
+       "score": "117",
+       "team": {
+        "id": "21",
+        "abbreviation": "PHX",
+        "displayName": "Phoenix Suns",
+        "location": "Phoenix"
+       },
+       "linescores": [
+        {
+         "value": 30.0,
+         "period": 1
+        },
+        {
+         "value": 35.0,
+         "period": 2
+        },
+        {
+         "value": 26.0,
+         "period": 3
+        },
+        {
+         "value": 26.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401810380",
+   "date": "2026-01-08T01:00Z",
+   "name": "Utah Jazz at Oklahoma City Thunder",
+   "shortName": "UTAH @ OKC",
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   },
+   "competitions": [
+    {
+     "id": "401810380",
+     "date": "2026-01-08T01:00Z",
+     "startDate": "2026-01-08T01:00Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 300.0,
+      "displayClock": "5:00",
+      "period": 5,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final/OT",
+       "shortDetail": "Final/OT",
+       "altDetail": "OT"
+      }
+     },
+     "competitors": [
+      {
+       "id": "25",
+       "homeAway": "home",
+       "score": "129",
+       "team": {
+        "id": "25",
+        "abbreviation": "OKC",
+        "displayName": "Oklahoma City Thunder",
+        "location": "Oklahoma City"
+       },
+       "linescores": [
+        {
+         "value": 31.0,
+         "period": 1
+        },
+        {
+         "value": 27.0,
+         "period": 2
+        },
+        {
+         "value": 33.0,
+         "period": 3
+        },
+        {
+         "value": 23.0,
+         "period": 4
+        },
+        {
+         "value": 15.0,
+         "period": 5
+        }
+       ]
+      },
+      {
+       "id": "26",
+       "homeAway": "away",
+       "score": "125",
+       "team": {
+        "id": "26",
+        "abbreviation": "UTAH",
+        "displayName": "Utah Jazz",
+        "location": "Utah"
+       },
+       "linescores": [
+        {
+         "value": 22.0,
+         "period": 1
+        },
+        {
+         "value": 31.0,
+         "period": 2
+        },
+        {
+         "value": 33.0,
+         "period": 3
+        },
+        {
+         "value": 28.0,
+         "period": 4
+        },
+        {
+         "value": 11.0,
+         "period": 5
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401810378",
+   "date": "2026-01-08T02:30Z",
+   "name": "Los Angeles Lakers at San Antonio Spurs",
+   "shortName": "LAL @ SA",
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   },
+   "competitions": [
+    {
+     "id": "401810378",
+     "date": "2026-01-08T02:30Z",
+     "startDate": "2026-01-08T02:30Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 720.0,
+      "displayClock": "12:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "24",
+       "homeAway": "home",
+       "score": "107",
+       "team": {
+        "id": "24",
+        "abbreviation": "SA",
+        "displayName": "San Antonio Spurs",
+        "location": "San Antonio"
+       },
+       "linescores": [
+        {
+         "value": 26.0,
+         "period": 1
+        },
+        {
+         "value": 22.0,
+         "period": 2
+        },
+        {
+         "value": 31.0,
+         "period": 3
+        },
+        {
+         "value": 28.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "13",
+       "homeAway": "away",
+       "score": "91",
+       "team": {
+        "id": "13",
+        "abbreviation": "LAL",
+        "displayName": "Los Angeles Lakers",
+        "location": "Los Angeles"
+       },
+       "linescores": [
+        {
+         "value": 23.0,
+         "period": 1
+        },
+        {
+         "value": 20.0,
+         "period": 2
+        },
+        {
+         "value": 25.0,
+         "period": 3
+        },
+        {
+         "value": 23.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401810381",
+   "date": "2026-01-08T03:00Z",
+   "name": "Milwaukee Bucks at Golden State Warriors",
+   "shortName": "MIL @ GS",
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   },
+   "competitions": [
+    {
+     "id": "401810381",
+     "date": "2026-01-08T03:00Z",
+     "startDate": "2026-01-08T03:00Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 720.0,
+      "displayClock": "12:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "9",
+       "homeAway": "home",
+       "score": "120",
+       "team": {
+        "id": "9",
+        "abbreviation": "GS",
+        "displayName": "Golden State Warriors",
+        "location": "Golden State"
+       },
+       "linescores": [
+        {
+         "value": 31.0,
+         "period": 1
+        },
+        {
+         "value": 33.0,
+         "period": 2
+        },
+        {
+         "value": 34.0,
+         "period": 3
+        },
+        {
+         "value": 22.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "15",
+       "homeAway": "away",
+       "score": "113",
+       "team": {
+        "id": "15",
+        "abbreviation": "MIL",
+        "displayName": "Milwaukee Bucks",
+        "location": "Milwaukee"
+       },
+       "linescores": [
+        {
+         "value": 31.0,
+         "period": 1
+        },
+        {
+         "value": 22.0,
+         "period": 2
+        },
+        {
+         "value": 29.0,
+         "period": 3
+        },
+        {
+         "value": 31.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401810382",
+   "date": "2026-01-08T03:00Z",
+   "name": "Houston Rockets at Portland Trail Blazers",
+   "shortName": "HOU @ POR",
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   },
+   "competitions": [
+    {
+     "id": "401810382",
+     "date": "2026-01-08T03:00Z",
+     "startDate": "2026-01-08T03:00Z",
+     "neutralSite": false,
+     "format": {
+      "regulation": {
+       "periods": 4
+      }
+     },
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0.0",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "22",
+       "homeAway": "home",
+       "score": "103",
+       "team": {
+        "id": "22",
+        "abbreviation": "POR",
+        "displayName": "Portland Trail Blazers",
+        "location": "Portland"
+       },
+       "linescores": [
+        {
+         "value": 25.0,
+         "period": 1
+        },
+        {
+         "value": 32.0,
+         "period": 2
+        },
+        {
+         "value": 24.0,
+         "period": 3
+        },
+        {
+         "value": 22.0,
+         "period": 4
+        }
+       ]
+      },
+      {
+       "id": "10",
+       "homeAway": "away",
+       "score": "102",
+       "team": {
+        "id": "10",
+        "abbreviation": "HOU",
+        "displayName": "Houston Rockets",
+        "location": "Houston"
+       },
+       "linescores": [
+        {
+         "value": 22.0,
+         "period": 1
+        },
+        {
+         "value": 25.0,
+         "period": 2
+        },
+        {
+         "value": 28.0,
+         "period": 3
+        },
+        {
+         "value": 27.0,
+         "period": 4
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
