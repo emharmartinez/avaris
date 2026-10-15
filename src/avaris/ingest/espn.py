@@ -26,12 +26,35 @@ OUT_WINDOW_HOURS = 36.0
 ENTRY_COLUMNS = ["team_id", "player_name", "status", "comment", "entry_ts"]
 # Future-tense rulings only: a recap ("did not play Monday") is not a ruling
 OUT_NOTE = re.compile(
-    r"\b(?:won't|will not|wouldn't|would not) (?:play|suit up|be available)\b"
+    r"\b(?:won't|will not|wouldn't|would not) (?:play|suit up|be available|travel)\b"
     r"|\bruled out\b|\bwill (?:rest|sit|sit out|miss)\b|\bis out\b"
-    r"|\b(?:will|to) be (?:rested|held out|sidelined|inactive)\b"
+    r"|\b(?:will|to) be (?:rested|held out|sidelined|inactive|unavailable)\b"
+    r"|(?:not|n't) expected to (?:play|suit up|be available|face)\b"
+    r"|\bunlikely to (?:play|suit up|be available)\b"
+    r"|\b(?:is|isn't) (?:not )?playing\b|\bis (?:doubtful|inactive)\b"
 )
 NOT_RULED_OUT = re.compile(r"(?:not|n't) (?:been |be )?ruled out\b")
 WEEKDAYS = re.compile(r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b")
+# A note that rules a player out for a span counts for that span, past the window and
+# whatever weekday it names: "will miss at least two weeks", "re-evaluated in two weeks"
+SPAN_NOTE = re.compile(
+    r"\b(?:miss|be out|be sidelined|sidelined for|re-?evaluated in)"
+    r" (?:at least |about |approximately |roughly |around |up to )?(?:the next )?"
+    r"(?P<count>\d+|an?|one|two|three|four|five|six|seven|eight|nine|ten|twelve"
+    r"|a couple(?: of)?|a few|several)(?:(?: to |-)\w+)? (?P<unit>day|week|month)s?\b"
+)
+# ... or for the preseason or the season, until the note is replaced
+SEASON_NOTE = re.compile(
+    r"\b(?:miss|play during|play in|be out for|out for) (?:the )?"
+    r"(?:rest of the |remainder of the |entire |entirety of the |whole )?"
+    r"(?:\d{4}-\d{2} )?(?:regular )?(?:pre)?season\b(?![ -](?:finale|opener|game|debut))"
+    r"|\bseason-ending\b|\bbe ready for the start of the (?:regular )?season\b"
+)
+COUNTS = {"a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+          "seven": 7, "eight": 8, "nine": 9, "ten": 10, "twelve": 12, "a couple": 2,
+          "a couple of": 2, "a few": 3, "several": 3}
+UNIT_DAYS = {"day": 1, "week": 7, "month": 30}
+SEASON_SPAN = timedelta(days=365)
 
 Progress = Callable[[str], None]
 
@@ -56,20 +79,36 @@ def parse_espn_injuries(payload: dict[str, Any]) -> pd.DataFrame:
     return df.drop_duplicates(["team_id", "player_name"]).reset_index(drop=True)
 
 
+def out_span(text: str) -> timedelta | None:
+    # How long a (lowercase) note rules the player out, None if it names no span
+    if SEASON_NOTE.search(text):
+        return SEASON_SPAN
+    match = SPAN_NOTE.search(text)
+    if match is None:
+        return None
+    count = match["count"]
+    return timedelta(days=(int(count) if count.isdigit() else COUNTS[count])
+                     * UNIT_DAYS[match["unit"]])
+
+
 def is_out(
     status: str, comment: str | None, entry_ts: datetime | None, tip_utc: datetime,
     window_hours: float,
 ) -> bool:
-    # Status Out, or a note posted within window_hours before tip-off that rules the
-    # player out; a note naming weekdays must name the game's (ET)
+    # Status Out; a note ruling the player out for a span that covers tip-off; or a note
+    # posted within window_hours before tip-off that rules the player out, which when it
+    # names weekdays must name the game's (ET)
     if status.strip().lower() == "out":
         return True
-    if not comment or entry_ts is None or pd.isna(entry_ts):
-        return False
-    if not tip_utc - timedelta(hours=window_hours) <= entry_ts <= tip_utc:
+    if not comment or entry_ts is None or pd.isna(entry_ts) or entry_ts > tip_utc:
         return False
     text = comment.replace("\u2019", "'").lower()
-    if not OUT_NOTE.search(text) or NOT_RULED_OUT.search(text):
+    if NOT_RULED_OUT.search(text):
+        return False
+    span = out_span(text)
+    if span is not None and tip_utc <= entry_ts + span:
+        return True
+    if tip_utc - timedelta(hours=window_hours) > entry_ts or not OUT_NOTE.search(text):
         return False
     days = set(WEEKDAYS.findall(text))
     weekday = tip_utc.replace(tzinfo=UTC).astimezone(ET).strftime("%A").lower()

@@ -18,6 +18,7 @@
 - Edge tab (`/edge/`, ADR-020): pick a predicted game, type moneyline, spread and total odds (American or decimal) and see model probability, no-vig implied probability, edge, EV per 100 and fair price. Whole-number lines show the push chance. Odds stay in the browser
 
 ### Fixed
+- ESPN rest list (ADR-022) missed players: notes like "isn't expected to play", "is doubtful", "is unlikely to suit up", "is inactive" now count, and multi-week or season-long notes ("will miss at least two weeks", "will miss the preseason") keep counting for their span instead of dropping after 36 h
 - The launcher's `-Stop` no longer kills an unrelated process through a stale `data/serve.pid`
 - The app could hang after a rebuild: pages had no `Cache-Control`, so Chrome reused an old page whose scripts the rebuild deleted. Pages are now `no-cache`, hashed `_next/static/` assets `immutable`, and the service worker revalidates pages
 
