@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request
@@ -11,6 +11,7 @@ from avaris.traditional.live import clock_minutes, format_clock, game_minutes, l
 from avaris.traditional.pregame import Line, pregame
 
 router = APIRouter(prefix="/api/traditional", tags=["traditional"])
+SLATE_ROLLOVER = timedelta(hours=4)  # past midnight ET, still the night before
 
 FEATURES = [
     "elo_margin", "league_total", "league_pace", "home_court", "no_fans", "home_b2b",
@@ -78,9 +79,10 @@ def traditional(
     cur: Cursor, clock: AppClock, live: Live, date: date | None = None
 ) -> dict[str, Any]:
     # The rule-based model (ADR-024): pregame lines for every game, and live lines from the
-    # scoreboard for today's games that have started
+    # scoreboard for today's games that have started. "Today" is the slate day, which rolls over
+    # at 4 am ET so a late tip stays live past midnight
     now = clock()
-    today = et_date(now)
+    today = et_date(now - SLATE_ROLLOVER)
     day = date or today
     found = rows(cur, GAMES_SQL, [now, day])
     started = any(r["status"] == "in_progress" or (r["tipped"] and r["status"] != "final")

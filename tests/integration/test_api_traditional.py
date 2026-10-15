@@ -147,6 +147,28 @@ def test_in_progress_schedule_status_fetches_before_the_listed_tip(
     assert by_id(body)[BOS_AT_BKN]["live"] is not None
 
 
+def test_a_late_game_stays_live_past_midnight_et(
+    make_client: Callable[..., TestClient],
+) -> None:
+    feed = Feed()
+    after_midnight = datetime(2021, 11, 28, 5, 30)  # 00:30 ET on the day after D2
+    body = get(make_client(feed, now=after_midnight), "/api/traditional")
+    assert body["date"] == D2.isoformat() and body["is_today"] is True
+    assert feed.days == [D2]
+    assert by_id(body)[BOS_AT_BKN]["live"] is not None
+
+
+def test_a_game_without_features_has_no_lines(
+    env: Env,  # noqa: F811
+    make_client: Callable[..., TestClient],
+) -> None:
+    env[0].execute("delete from features where game_id = ?", [BOS_AT_BKN])
+    game = by_id(get(make_client(Feed(), now=TIPPED), "/api/traditional"))[BOS_AT_BKN]
+    assert game["pregame"] is None and game["live"] is None
+    assert game["status"] == "in_progress"
+    assert game["score"] == {"home_pts": 50, "away_pts": 45}
+
+
 def test_a_day_without_games(make_client: Callable[..., TestClient]) -> None:
     day = D2 + timedelta(days=30)
     body = get(make_client(Feed()), f"/api/traditional?date={day.isoformat()}")

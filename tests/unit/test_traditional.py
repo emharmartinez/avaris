@@ -78,7 +78,7 @@ def test_missing_elo_or_league_total_gives_no_prediction() -> None:
 
 @pytest.mark.parametrize(("text", "minutes"), [
     ("PT05M23.00S", 5 + 23 / 60), ("PT00M00.00S", 0.0), ("PT12M00.00S", 12.0),
-    ("5:23", 5 + 23 / 60), ("", None), ("  ", None),
+    ("5:23", 5 + 23 / 60), ("PT5S", 5 / 60), ("", None), ("  ", None), ("PT", None),
 ])
 def test_clock_minutes(text: str, minutes: float | None) -> None:
     got = clock_minutes(text)
@@ -121,10 +121,37 @@ def test_live_update_at_the_buzzer() -> None:
     pre = pregame(features())
     assert pre is not None
     ahead = live_update(pre, home_pts=100, away_pts=98, elapsed=48.0, left=0.0)
-    tied = live_update(pre, home_pts=100, away_pts=100, elapsed=48.0, left=0.0)
-    assert ahead.p_home_win > 0.99
+    assert ahead.p_home_win == 1.0
     assert ahead.total_mu == pytest.approx(198.0)
-    assert tied.p_home_win == pytest.approx(0.5)
+    # The spread never shrinks below 30 s of play
+    floor = math.sqrt(0.5 / 48)
+    assert ahead.margin_sigma == pytest.approx(SIGMA_MARGIN * floor)
+    assert ahead.total_sigma == pytest.approx(SIGMA_TOTAL * floor)
+
+
+def test_tie_at_the_buzzer_plays_an_overtime() -> None:
+    pre = pregame(features())
+    assert pre is not None
+    tied = live_update(pre, home_pts=100, away_pts=100, elapsed=48.0, left=0.0)
+    share = 5 / 48
+    assert tied.margin_mu == pytest.approx(pre.margin_mu * share)
+    assert tied.margin_sigma == pytest.approx(SIGMA_MARGIN * math.sqrt(share))
+    assert 0.5 < tied.p_home_win < pre.p_home_win
+    assert tied.total_mu > 200 + 15
+
+
+def test_live_update_in_overtime() -> None:
+    # Overtime minutes count against a 48-minute game, not the minutes played so far
+    pre = pregame(features(home_gp=0, away_gp=0))  # margin 4, total 220
+    assert pre is not None
+    elapsed, left = game_minutes(5, 3.0)
+    assert (elapsed, left) == pytest.approx((50.0, 3.0))
+    out = live_update(pre, home_pts=104, away_pts=102, elapsed=elapsed, left=left)
+    assert out.margin_mu == pytest.approx(2 + 4 * 3 / 48)
+    assert out.margin_sigma == pytest.approx(SIGMA_MARGIN * math.sqrt(3 / 48))
+    weight = 50 / (50 + 24)
+    rate = (1 - weight) * 220 / 48 + weight * 206 / 50
+    assert out.total_mu == pytest.approx(206 + rate * 3)
 
 
 def test_parse_live_scoreboard() -> None:

@@ -19,7 +19,7 @@ def clock_minutes(text: str | None) -> float | None:
     # Minutes left in the period: scoreboardv3 sends PT05M23.00S, empty when not running
     text = (text or "").strip()
     match = ISO_CLOCK.match(text) or PLAIN_CLOCK.match(text)
-    if not text or match is None:
+    if match is None or not any(match.groups()):
         return None
     minutes, seconds = match.groups()
     return float(minutes or 0) + float(seconds or 0) / 60
@@ -51,11 +51,13 @@ def game_minutes(
 
 
 def live_update(pre: Line, home_pts: int, away_pts: int, elapsed: float, left: float) -> Line:
+    if left <= 0 and home_pts == away_pts:
+        left = OVERTIME_MINUTES  # tied at the buzzer: another period is still to play
     share_left = left / GAME_MINUTES
     shrink = math.sqrt(max(left, MIN_LEFT) / GAME_MINUTES)
     margin_mu = home_pts - away_pts + pre.margin_mu * share_left
     margin_sigma = pre.margin_sigma * shrink
-    # Settled at the buzzer: a lead wins outright, a tie goes to overtime
+    # Settled at the buzzer: the lead wins outright
     p_home_win = win_probability(margin_mu, margin_sigma if left > 0 else 0.0)
     observed = (home_pts + away_pts) / elapsed if elapsed > 0 else 0.0
     weight = elapsed / (elapsed + PACE_PRIOR_MINUTES)
