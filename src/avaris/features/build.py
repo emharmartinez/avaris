@@ -9,7 +9,12 @@ from typing import Any, Literal
 import duckdb
 import pandas as pd
 
-from avaris.features.availability import REPORT_ABSENCE, PlayerTracker, game_score
+from avaris.features.availability import (
+    AVAIL_HALF_LIFE,
+    REPORT_ABSENCE,
+    PlayerTracker,
+    game_score,
+)
 from avaris.features.decision_time import decision_times
 from avaris.features.elo import (
     ELO_SEASON_TYPES,
@@ -92,6 +97,9 @@ class _Loop:
         self.league_total = EwMean(LEAGUE_HALF_LIFE)
         self.league_rtg = EwMean(LEAGUE_HALF_LIFE)
         self.league_pace = EwMean(LEAGUE_HALF_LIFE)
+        # Per team and season: the decision reports' lost value so far (lost_usual)
+        self.usual_lost: dict[tuple[int, str], EwMean] = defaultdict(
+            lambda: EwMean(AVAIL_HALF_LIFE))
         self.feature_rows: list[dict[str, Any]] = []
         self.rating_rows: list[dict[str, Any]] = []
         self.avail_rows: list[dict[str, Any]] = []
@@ -295,6 +303,12 @@ class _Loop:
             row[f"{side}_full_strength"] = full
             row[f"{side}_lost_actual"] = lost_actual
             row[f"{side}_lost_report"] = lost_report
+            # What the team usually misses, as of its earlier decisions: already in its
+            # ratings. Not a model input; the Traditional model counts lost_report above it
+            usual = self.usual_lost[(team, season)]
+            row[f"{side}_lost_usual"] = _nan(usual.value)
+            if not math.isnan(lost_report):
+                usual.add(lost_report)
         row["league_total"] = _nan(self.league_total.value)
         row["league_pace"] = _nan(league_pace)
         row["altitude_m"] = venue.altitude_m if venue else math.nan

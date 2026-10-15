@@ -144,7 +144,7 @@ def test_migration_7_upgrades_a_populated_version_6_db(tmp_path: Path) -> None:
     con = connect(db_path)
     assert tables(con) >= PHASE_5_TABLES
     assert con.execute("select count(*) from games").fetchone() == (1,)
-    assert con.execute("select max(version) from schema_version").fetchone() == (8,)
+    assert con.execute("select max(version) from schema_version").fetchone() == (len(MIGRATIONS),)
 
 
 def test_migration_8_adds_rest_tables_and_prediction_columns(tmp_path: Path) -> None:
@@ -184,4 +184,25 @@ def test_migration_8_upgrades_a_populated_version_7_db(tmp_path: Path) -> None:
         "select p_home_win, raw_p_home_win, raw_margin_mu, raw_total_mu, rest from predictions"
     ).fetchone()
     assert row == (0.5, None, None, None, None)
-    assert con.execute("select max(version) from schema_version").fetchone() == (8,)
+    assert con.execute("select max(version) from schema_version").fetchone() == (len(MIGRATIONS),)
+
+
+def test_migration_9_adds_usual_lost_to_a_populated_version_8_db(tmp_path: Path) -> None:
+    db_path = tmp_path / "a.duckdb"
+    con = duckdb.connect(str(db_path))
+    con.execute("create table schema_version (version integer primary key)")
+    for version, ddl in enumerate(MIGRATIONS[:8], start=1):
+        con.execute(ddl)
+        con.execute("insert into schema_version values (?)", [version])
+    con.execute(
+        "insert into features (game_id, decision_ts, feature_hash, season, season_type, "
+        "game_date_et, home_team_id, away_team_id, home_court, no_fans, is_preseason, "
+        "is_postseason, home_lost_report) values ('g', now(), 'h', '2021-22', 'regular', "
+        "'2021-11-01', 1, 2, 1, 0, 0, 0, 12.5)"
+    )
+    con.close()
+    con = connect(db_path)
+    row = con.execute(
+        "select home_lost_report, home_lost_usual, away_lost_usual from features").fetchone()
+    assert row == (12.5, None, None)
+    assert con.execute("select max(version) from schema_version").fetchone() == (9,)

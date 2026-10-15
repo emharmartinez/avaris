@@ -7,6 +7,7 @@ import duckdb
 import pandas as pd
 import pytest
 
+from avaris.features.availability import AVAIL_HALF_LIFE
 from avaris.features.build import (
     MODEL_FEATURES,
     FeatureSet,
@@ -197,6 +198,30 @@ def test_actual_vs_report_availability(built: FeatureSet) -> None:
     assert (old["home_lost_report"] == 0).all()
     # Unplayed games have no actual availability
     assert f[f["game_id"] == "0022100047"]["home_lost_actual"].isna().all()
+
+
+def test_usual_lost_is_the_decayed_mean_of_earlier_reports(built: FeatureSet) -> None:
+    # Per team and season, the AVAIL_HALF_LIFE-game mean of lost_report over the team's
+    # earlier decisions; NaN until one is known. Never a model input
+    f = built.features.sort_values("decision_ts")
+    decay = 0.5 ** (1 / AVAIL_HALF_LIFE)
+    sums: dict[tuple[int, str], tuple[float, float]] = {}
+    checked = 0
+    for r in f.to_dict("records"):
+        for side in ("home", "away"):
+            key = (int(r[f"{side}_team_id"]), str(r["season"]))
+            sum_x, sum_w = sums.get(key, (0.0, 0.0))
+            usual = r[f"{side}_lost_usual"]
+            if sum_w == 0:
+                assert math.isnan(usual)
+            else:
+                assert usual == pytest.approx(sum_x / sum_w)
+                checked += 1
+            lost = r[f"{side}_lost_report"]
+            if not math.isnan(lost):
+                sums[key] = (decay * sum_x + lost, decay * sum_w + 1)
+    assert checked > 0
+    assert "home_lost_usual" not in MODEL_FEATURES
 
 
 def test_model_frame_uses_neutral_availability_names(built: FeatureSet) -> None:
