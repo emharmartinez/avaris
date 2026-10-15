@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { pollInterval } from "@/lib/traditional";
 
 // One hook per endpoint; query keys start with the endpoint name so a refresh can
 // invalidate everything but the job it is polling
@@ -41,3 +42,11 @@ export const useBacktest = (name: string | null) =>
 
 export const useInjuries = (date: string | null) =>
   useQuery({ queryKey: ["injuries", date], queryFn: () => api.injuries(date!), enabled: !!date });
+
+// Polls while today's games are on (live lines); other dates never change
+export const useTraditional = (date: string | null) =>
+  useQuery({
+    queryKey: ["traditional", date ?? "today"],
+    queryFn: () => api.traditional(date),
+    refetchInterval: (query) => pollInterval(query.state.data),
+  });

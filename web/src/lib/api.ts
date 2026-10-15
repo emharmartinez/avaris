@@ -1,6 +1,6 @@
 import type {
   Backtest, BacktestSummary, GameDetail, GamesOnDate, Health, InjuriesOnDate, Job, JobKind,
-  Performance, TeamHistory, TeamRatings,
+  Performance, TeamHistory, TeamRatings, TraditionalDay,
 } from "./types";
 
 // Empty in production (same origin as the API); `next dev` sets http://localhost:8000
@@ -67,6 +67,8 @@ export const api = {
   backtest: (name: string) => request<Backtest>(`/api/backtests/${q(name)}`),
   chartUrl: (name: string, chart: string) => apiUrl(`/api/backtests/${q(name)}/charts/${q(chart)}`),
   injuries: (date: string) => request<InjuriesOnDate>(`/api/injuries?date=${q(date)}`),
+  traditional: (date: string | null) =>
+    request<TraditionalDay>(`/api/traditional${date ? `?date=${q(date)}` : ""}`),
   job: (id: string) => request<Job>(`/api/jobs/${q(id)}`),
   stopServer: () => request<{ status: string }>("/api/server/stop", { method: "POST" }),
   submitJob: (kind: JobKind, params: Record<string, unknown> = {}) =>

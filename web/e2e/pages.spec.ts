@@ -97,3 +97,29 @@ test("edge: pick a game from the sidebar tab, type odds, read the edge", async (
   await expect(page.getByRole("table", { name: "Spread" }).getByRole("row", { name: /^BOS −2\.5/ }))
     .toBeVisible();
 });
+
+test("traditional: live lines from the scoreboard, finals graded the day before", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "Traditional" }).click();
+  await expect(page).toHaveURL(/\/traditional\/$/);
+  await expect(page.getByRole("heading", { name: "Traditional", level: 1 })).toBeVisible();
+
+  // BOS @ BKN is in the 3rd quarter on the fixture server's scoreboard
+  const live = page.getByRole("group", { name: "BOS @ BKN" });
+  await expect(live.getByText("3rd Qtr · 4:12")).toBeVisible();
+  await expect(live.getByText("Score", { exact: true })).toBeVisible();
+  await expect(live.getByRole("columnheader")).toHaveText(["Market", "Pregame", "Live"]);
+  await expect(live.getByRole("row", { name: /^Moneyline/ }).getByRole("cell").nth(2))
+    .toHaveText(/^BKN [−+]\d+BOS [−+]\d+$/);
+  await expect(page.getByText(/^Live scores as of/)).toBeVisible();
+  await expect(page.getByRole("group", { name: "ATL @ DEN" }).getByText("Upcoming")).toBeVisible();
+
+  await page.getByRole("link", { name: "Previous day" }).click();
+  await expect(page).toHaveURL(/\/traditional\/\?date=2021-11-26$/);
+  const final = page.getByRole("group", { name: "DEN @ BOS" });
+  await expect(final.getByText("Final score")).toBeVisible();
+  await expect(final.getByRole("row", { name: /^Moneyline/ }).getByRole("cell").nth(2))
+    .toHaveText("BOS won");
+  await expect(final.getByRole("row", { name: /^Total/ }).getByRole("cell").nth(2))
+    .toHaveText(/^210 · (Over|Under) \d+\.\d$/);
+});
