@@ -46,6 +46,23 @@ describe("api client", () => {
     expect(url).toBe("/api/server/stop");
     expect(init.method).toBe("POST");
   });
+  it("puts the bankroll and posts bets as JSON", async () => {
+    const fetchMock = mockFetch(200, {});
+    await api.setBankroll(1000, 1);
+    await api.placeBet({ game_id: "0022100047", market: "total", side: "over", line: 220.5, odds: 1.91, stake: 10 });
+    const calls = fetchMock.mock.calls as unknown as [string, RequestInit][];
+    expect(calls.map(([url, init]) => [url, init.method, init.body])).toEqual([
+      ["/api/bankroll", "PUT", '{"starting":1000,"unit_pct":1}'],
+      ["/api/bets", "POST", '{"game_id":"0022100047","market":"total","side":"over","line":220.5,"odds":1.91,"stake":10}'],
+    ]);
+  });
+  it("deletes a bet without reading a body", async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await api.deleteBet(7)).toBeUndefined();
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect([url, init.method]).toEqual(["/api/bets/7", "DELETE"]);
+  });
   it("joins FastAPI's validation messages", async () => {
     mockFetch(422, { detail: [{ loc: ["query", "date"], msg: "Input should be a valid date", type: "date_from_datetime_parsing" }] });
     const err = await api.predictions("nope").catch((e: unknown) => e);

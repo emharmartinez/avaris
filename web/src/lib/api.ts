@@ -1,6 +1,6 @@
 import type {
-  Backtest, BacktestSummary, GameDetail, GamesOnDate, Health, InjuriesOnDate, Job, JobKind,
-  Performance, TeamHistory, TeamRatings, TraditionalDay,
+  Backtest, BacktestSummary, Bankroll, Bet, GameDetail, GamesOnDate, Health, InjuriesOnDate,
+  Job, JobKind, NewBet, Performance, TeamHistory, TeamRatings, TraditionalDay,
 } from "./types";
 
 // Empty in production (same origin as the API); `next dev` sets http://localhost:8000
@@ -48,10 +48,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(response.status, errorDetail(body?.detail) || response.statusText
       || `HTTP ${response.status}`);
   }
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 
 const q = encodeURIComponent;
+const json = (method: string, body: unknown): RequestInit => ({
+  method, headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+});
 
 export const api = {
   health: () => request<Health>("/api/health"),
@@ -72,11 +76,12 @@ export const api = {
   job: (id: string) => request<Job>(`/api/jobs/${q(id)}`),
   stopServer: () => request<{ status: string }>("/api/server/stop", { method: "POST" }),
   submitJob: (kind: JobKind, params: Record<string, unknown> = {}) =>
-    request<Job>(`/api/jobs/${kind}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(params),
-    }),
+    request<Job>(`/api/jobs/${kind}`, json("POST", params)),
+  bankroll: () => request<Bankroll>("/api/bankroll"),
+  setBankroll: (starting: number, unitPct: number) =>
+    request<Bankroll>("/api/bankroll", json("PUT", { starting, unit_pct: unitPct })),
+  placeBet: (bet: NewBet) => request<Bet>("/api/bets", json("POST", bet)),
+  deleteBet: (id: number) => request<void>(`/api/bets/${id}`, { method: "DELETE" }),
 };
 
 export function isBusy(err: unknown): boolean {

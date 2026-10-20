@@ -1,4 +1,4 @@
-import type { Game, Health, Job, Rest } from "@/lib/types";
+import type { Bankroll, Bet, Game, Health, Job, Rest } from "@/lib/types";
 
 // API payloads for component tests, shaped like the fixture league's responses
 export const NOW = "2021-11-27T17:00:00Z";
@@ -136,3 +136,19 @@ export const preseasonGame = (r: Rest | null = rest()): Game => {
     },
   };
 };
+
+// Bet tracking (ADR-026): a 1,000 bankroll with 1% units after a won, a lost and a pushed bet
+export const bet = (extra: Partial<Bet> = {}): Bet => ({
+  bet_id: 1, game_id: "0022100047", placed_at: NOW, market: "moneyline", side: "home",
+  line: null, odds: 1.8, stake: 10, result: "won", profit: 8,
+  game: {
+    game_date_et: "2021-11-27", tip_off_utc: "2021-11-28T00:00:00Z", season_type: "regular",
+    status: "scheduled", home: game().home, away: game().away, home_pts: null, away_pts: null,
+  },
+  ...extra,
+});
+
+export const bankroll = (extra: Partial<Bankroll> = {}): Bankroll => ({
+  starting: 1000, unit_pct: 1, current: 988, unit: 9.88, profit: -12, in_play: 30,
+  record: { won: 1, lost: 1, push: 1, pending: 1 }, roi: -0.4, bets: [], ...extra,
+});

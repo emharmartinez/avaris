@@ -309,3 +309,46 @@ export interface Health {
   today: string;
   job: Job | null;
 }
+
+// Bet tracking (ADR-026): odds are decimal; a bet's line is its side's own spread, or the total
+export type BetMarket = "moneyline" | "spread" | "total";
+export type BetSide = "home" | "away" | "over" | "under";
+export type BetResult = "pending" | "won" | "lost" | "push";
+
+export interface NewBet {
+  game_id: string;
+  market: BetMarket;
+  side: BetSide;
+  line: number | null;
+  odds: number;
+  stake: number;
+}
+
+export interface Bet extends NewBet {
+  bet_id: number;
+  placed_at: string;
+  result: BetResult; // graded from the final score
+  profit: number | null; // null while pending; a push returns the stake
+  game: {
+    game_date_et: string;
+    tip_off_utc: string | null;
+    season_type: SeasonType;
+    status: "scheduled" | "in_progress" | "final";
+    home: Team;
+    away: Team;
+    home_pts: number | null;
+    away_pts: number | null;
+  };
+}
+
+export interface Bankroll {
+  starting: number | null; // null until the user sets one
+  unit_pct: number | null;
+  current: number | null; // starting + settled profit
+  unit: number | null; // unit_pct of the current bankroll
+  profit: number;
+  in_play: number; // stakes on pending bets
+  record: Record<BetResult, number>;
+  roi: number | null; // profit over won and lost stakes
+  bets: Bet[]; // newest first
+}
