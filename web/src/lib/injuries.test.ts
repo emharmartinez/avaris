@@ -38,6 +38,8 @@ describe("injuries", () => {
       .toBe("0% of full strength lost");
     expect(impactText({ full_strength: 100, lost: null, lost_share: null }))
       .toBe("no report");
+    // A report in force before the team's first game cannot be valued (ADR-025)
+    expect(impactText(null, true)).toBe("strength lost unknown before first game");
   });
 
   it("names players, falling back to the id", () => {

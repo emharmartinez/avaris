@@ -94,21 +94,21 @@ def make_espn_client(settings: Settings) -> EspnClient:
 def refresh_espn(
     con: duckdb.DuckDBPyConnection, settings: Settings, now: datetime, progress: Progress
 ) -> None:
-    # Preseason rest list (ADR-022); a failure leaves the model prediction standing
+    # ESPN's list (ADR-022, ADR-025); a failure leaves the model prediction standing
     if not settings.espn.enabled:
         return
     client = make_espn_client(settings)
     try:
         ingest_espn(con, client, now, settings.espn.out_window_hours, progress=progress)
     except Exception as exc:
-        progress(f"WARNING ESPN injuries failed, no rest adjustment: {type(exc).__name__}: {exc}")
+        progress(f"WARNING ESPN injuries failed, no ESPN list: {type(exc).__name__}: {exc}")
     finally:
         client.close()
 
 
 def source_refresher(settings: Settings) -> Refresher:
-    # This season's schedule, game logs, rosters, injury reports and, when a preseason
-    # game is due, the ESPN injury list
+    # This season's schedule, game logs, rosters, injury reports and, when a preseason game
+    # or a team's first game of the season is due, the ESPN injury list
     def refresh(con: duckdb.DuckDBPyConnection, now: datetime, progress: Progress) -> None:
         today = et_date(now)
         season = season_for_date(today)
@@ -127,7 +127,7 @@ def source_refresher(settings: Settings) -> Refresher:
             finally:
                 injuries.close()
         finally:
-            # A stats or injury failure must not cost a due preseason game its ESPN list:
+            # A stats or injury failure must not cost a due game its ESPN list:
             # the snapshot is only useful before decision_ts
             refresh_espn(con, settings, now, progress)
 
@@ -253,8 +253,9 @@ def _injuries(fs: FeatureSet, rows: pd.DataFrame, names: dict[int, str]) -> list
 def _apply_rest(
     fs: FeatureSet, rows: pd.DataFrame, out: pd.DataFrame, params: RestParams
 ) -> None:
-    # Preseason games only (ADR-022): adjusted values in place, the model's in raw_*;
-    # NULL raw_* and rest everywhere else
+    # Preseason games (ADR-022): adjusted values in place, the model's in raw_*. Season
+    # openers with a snapshot get a display-only rest block (ADR-025); NULL raw_* and rest
+    # everywhere else
     rest = {str(r["game_id"]): {str(k): v for k, v in r.items()}
             for r in fs.rest.to_dict("records")}
     adjusted = [

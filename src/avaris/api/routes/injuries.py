@@ -12,7 +12,8 @@ router = APIRouter(prefix="/api/injuries", tags=["injuries"])
 @router.get("")
 def injuries(cur: Cursor, date: date) -> dict[str, Any]:
     # Per game on the date: strength lost per side and the entries of the report the
-    # prediction used; preseason games have no report, only ESPN's out list (rest, ADR-022)
+    # prediction used; preseason games have no report, only ESPN's out list (rest, ADR-022),
+    # and season openers carry both (ADR-025)
     games = rows(cur, """
         select g.game_id, g.season_type, g.home_team_id, g.away_team_id, p.report_ts,
             p.injuries, p.rest

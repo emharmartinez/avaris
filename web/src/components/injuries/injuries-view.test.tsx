@@ -2,7 +2,7 @@ import { screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import type { InjuriesOnDate, InjuryGame, RestList } from "@/lib/types";
-import { health, rest } from "@/test/data";
+import { fallbackRest, health, rest } from "@/test/data";
 import { renderWithQuery } from "@/test/render";
 import { server } from "@/test/server";
 import { InjuriesView } from "./injuries-view";
@@ -74,14 +74,16 @@ describe("InjuriesView", () => {
     expect(screen.getByText("Sat, Nov 27, 2021")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Today" })).toBeNull();
 
-    // Away side: share lost and the players behind it; home side had no report
+    // Away side: share lost and the players behind it; the home side is not valued yet (its
+    // first game of the season) and there is no ESPN list
     const away = within(card).getByRole("group", { name: "BOS impact" });
     expect(away).toHaveTextContent("13% of full strength lost");
     expect(away).toHaveTextContent("Player 2001");
     expect(away).toHaveTextContent("13.8");
     expect(away).toHaveTextContent("Player 2002");
     expect(away).toHaveTextContent("questionable");
-    expect(within(card).getByRole("group", { name: "BKN impact" })).toHaveTextContent("no report");
+    expect(within(card).getByRole("group", { name: "BKN impact" }))
+      .toHaveTextContent("strength lost unknown before first game");
 
     // Entries grouped by team, away first
     const rows = within(within(card).getByRole("table")).getAllByRole("row").slice(1);
@@ -133,6 +135,30 @@ describe("InjuriesView", () => {
     expect(cards[0]).toHaveTextContent("no ESPN snapshot before decision time");
     expect(cards[0]).toHaveTextContent("No ESPN list (unknown)");
     expect(cards[1]).toHaveTextContent("Preseason: no NBA report or ESPN list");
+  });
+
+  it("keeps a season opener's report and shows ESPN's list for each side not yet valued", async () => {
+    const f = fallbackRest();
+    const opener: InjuryGame = {
+      ...reported, game_id: "0022600005", home: TOR, away: NYK,
+      impact: { ...reported.impact, away: null, home: null },
+      rest: { adjusted: f.adjusted, note: f.note, snapshot_ts: f.snapshot_ts, k: f.k, home: f.home, away: f.away },
+      entries: [{ team_id: NYK.team_id, player_id: 1628973, player_name: "Brunson, Jalen", status: "out",
+        reason: "Rest" }],
+    };
+    serve({ date: "2026-10-21", games: [opener] });
+    renderWithQuery(<InjuriesView date="2026-10-21" />);
+    const card = await screen.findByRole("region", { name: "NYK @ TOR" });
+    expect(card).toHaveTextContent(/Report of .*ESPN list of/);
+    const away = within(card).getByRole("group", { name: "NYK impact" });
+    expect(away).toHaveTextContent("29.4 Game Score lost (ESPN)");
+    expect(away).toHaveTextContent("Jalen Brunson");
+    expect(within(card).getByRole("group", { name: "TOR impact" })).toHaveTextContent("0.0 Game Score lost (ESPN)");
+    const rows = within(within(card).getByRole("table")).getAllByRole("row").slice(1);
+    expect(rows.map((r) => within(r).getAllByRole("cell").map((c) => c.textContent))).toEqual([
+      ["NYK", "Brunson, Jalen", "out", "Rest"],
+    ]);
+    expect(card).not.toHaveTextContent("no report");
   });
 
   it("says when there are no games", async () => {

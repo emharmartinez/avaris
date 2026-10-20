@@ -1,8 +1,9 @@
 import { pct, signed } from "./format";
 import { winSplit } from "./today";
-import type { Prediction, Rest, RestSide } from "./types";
+import type { AdjustedRest, InjuryImpact, Prediction, Rest, RestSide } from "./types";
 
-// Preseason rest adjustment from ESPN's out list (ADR-022)
+// Preseason rest adjustment from ESPN's out list (ADR-022); outside preseason the list is
+// only shown, before a team's first game (ADR-025)
 export const REST_LABEL = "Rest-adjusted (ESPN)";
 
 export function restStatus(rest: Rest): string {
@@ -10,8 +11,16 @@ export function restStatus(rest: Rest): string {
 }
 
 // The rest block when the headline values are the adjusted ones, else null
-export function adjustedRest(p: Prediction): Rest | null {
-  return p.rest?.adjusted ? p.rest : null;
+export function adjustedRest(p: Prediction): AdjustedRest | null {
+  return p.rest?.adjusted ? (p.rest as AdjustedRest) : null;
+}
+
+// ESPN's list for a side whose NBA impact is unknown: preseason, or before the team's first
+// game of the season (ADR-025); null when the NBA impact is known or there is no list
+export function espnStandIn(
+  impact: InjuryImpact | null, rest: Pick<Rest, "home" | "away"> | null, side: "home" | "away",
+): RestSide | null {
+  return impact?.lost_share == null && rest ? rest[side] : null;
 }
 
 export interface RestRow {
@@ -20,7 +29,7 @@ export interface RestRow {
   adjusted: string;
 }
 
-export function restComparison(p: Prediction, rest: Rest): RestRow[] {
+export function restComparison(p: Prediction, rest: AdjustedRest): RestRow[] {
   return [
     { label: "Home win", raw: pct(rest.raw_p_home_win, 1), adjusted: pct(p.p_home_win, 1) },
     { label: "Margin (home)", raw: signed(rest.raw_margin_mu), adjusted: signed(p.margin.mu) },
@@ -52,7 +61,7 @@ export function restLostText(side: RestSide): string {
 }
 
 // The model's own margin and total, for the outputs whose coefficient is on
-function rawPointParts(rest: Rest): string[] {
+function rawPointParts(rest: AdjustedRest): string[] {
   return [
     ...(rest.k.margin ? [`margin ${signed(rest.raw_margin_mu)}`] : []),
     ...(rest.k.total ? [`total ${rest.raw_total_mu.toFixed(1)}`] : []),
@@ -66,7 +75,7 @@ function winMoved(rest: Rest): boolean {
 
 // The model's own values of the adjusted outputs, in one string so they never collide with
 // the adjusted ones; the win split away first, like the WinBar
-export function rawText(rest: Rest, home: string, away: string): string {
+export function rawText(rest: AdjustedRest, home: string, away: string): string {
   const s = winSplit(rest.raw_p_home_win);
   const win = winMoved(rest) ? [`${away} ${s.awayText} · ${home} ${s.homeText}`] : [];
   return `raw ${[...win, ...rawPointParts(rest)].join(", ")}`;

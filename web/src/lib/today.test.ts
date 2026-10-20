@@ -27,6 +27,10 @@ describe("injuryText", () => {
     expect(injuryText(null)).toBe("no report");
     expect(injuryText({ full_strength: 100, lost: null, lost_share: null })).toBe("no report");
   });
+
+  it("says a report in force cannot be valued before the team's first game", () => {
+    expect(injuryText(null, true)).toBe("unknown before first game");
+  });
 });
 
 describe("topDrivers", () => {

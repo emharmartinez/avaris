@@ -128,6 +128,28 @@ def test_preseason_uses_the_espn_list() -> None:
     assert out.inputs["injury_source"] == "espn"
 
 
+def test_before_a_teams_first_game_the_espn_list_stands_in() -> None:
+    # Opening night: the report is in force but cannot be valued yet (ADR-025)
+    base = pregame(features(home_gp=0, away_gp=0))
+    out = pregame(features(home_gp=0, away_gp=0, home_lost_report=math.nan,
+                           away_lost_report=math.nan, report_ts=REPORT_TS,
+                           home_lost_espn=10.0, away_lost_espn=0.0))
+    assert base is not None and out is not None
+    assert out.margin_mu == pytest.approx(base.margin_mu - INJURY_PTS * 10.0)
+    assert out.inputs["injury_source"] == "espn"
+
+
+def test_one_unvalued_side_puts_both_on_the_espn_list() -> None:
+    # One source for both teams: the home side has played and has a report and a usual, but
+    # the away side's report cannot be valued yet, so ESPN's list counts for both, no usual
+    out = pregame(features(home_gp=1, away_gp=0, home_lost_report=5.0, home_lost_usual=2.0,
+                           away_lost_report=math.nan, report_ts=REPORT_TS,
+                           home_lost_espn=8.0, away_lost_espn=3.0))
+    assert out is not None
+    assert out.inputs["injury_source"] == "espn"
+    assert out.inputs["injury"] == pytest.approx(INJURY_PTS * (3.0 - 8.0))
+
+
 @pytest.mark.parametrize("overrides", [
     {},
     {"home_lost_report": 20.0, "away_lost_report": math.nan, "report_ts": REPORT_TS},

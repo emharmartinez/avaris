@@ -80,7 +80,7 @@ export function GameView({ game }: { game: GameDetail }) {
         <InjuriesSection game={game} />
       </Section>
 
-      <RestSection prediction={prediction} home={home} away={away} />
+      <RestSection prediction={prediction} home={home} away={away} seasonType={game.season_type} />
 
       <RatingsChart game={game} />
     </div>

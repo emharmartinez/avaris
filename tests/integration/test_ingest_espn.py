@@ -13,19 +13,22 @@ from avaris.ingest.espn import EspnClient, ingest_espn
 from avaris.ingest.stats_client import Throttle
 from tests.conftest import ESPN_FIXTURE
 
-NYK, TOR = 1610612752, 1610612761
+NYK, TOR, BOS, ATL = 1610612752, 1610612761, 1610612738, 1610612737
 BRUNSON = 1628973
 TIP = datetime(2026, 10, 13, 23, 30)  # NYK @ TOR, naive UTC
 NOON = datetime(2026, 10, 13, 16, 0)
 WINDOW = 36.0
 
 
-def game(game_id: str, season_type: str, tip: datetime) -> dict[str, object]:
+def game(
+    game_id: str, season_type: str, tip: datetime, home: int = TOR, away: int = NYK,
+    season: str = "2026-27", status: str = "scheduled",
+) -> dict[str, object]:
     return {
-        "game_id": game_id, "season": "2026-27", "season_type": season_type,
+        "game_id": game_id, "season": season, "season_type": season_type,
         "game_date_et": (tip - timedelta(hours=5)).date(), "tip_off_utc": tip,
-        "home_team_id": TOR, "away_team_id": NYK, "home_pts": None, "away_pts": None,
-        "status": "scheduled", "venue": "Scotiabank Arena", "venue_city": "Toronto",
+        "home_team_id": home, "away_team_id": away, "home_pts": None, "away_pts": None,
+        "status": status, "venue": "Scotiabank Arena", "venue_city": "Toronto",
         "neutral_site": False,
     }
 
@@ -93,12 +96,45 @@ def test_an_unchanged_list_is_one_snapshot_with_two_fetches(
     assert len(snapshots(con)[lambda d: d["fetched_at"] == last]) == 6
 
 
+EARLIER = TIP - timedelta(days=2)
+
+
+@pytest.mark.parametrize("earlier", [
+    [],
+    [game("0012600040", "preseason", EARLIER, status="final")],  # preseason never counts
+    [game("0022600001", "regular", EARLIER, BOS, ATL, status="final")],  # other teams
+    [game("0022600001", "regular", EARLIER, TOR, ATL, status="final")],  # NYK's opener
+    [game("0022500001", "regular", EARLIER, season="2025-26", status="final")],  # last season
+    [game("0022600001", "regular", EARLIER)],  # scheduled but not played (postponed)
+])
+def test_a_teams_first_game_of_the_season_is_due(
+    con: duckdb.DuckDBPyConnection, client: EspnClient, stats_api: respx.MockRouter,
+    earlier: list[dict[str, object]],
+) -> None:
+    # Before a team's first game the NBA report cannot be valued, so ESPN's list stands in
+    # (ADR-025)
+    upsert(con, "games", pd.DataFrame([game("0022600020", "regular", TIP), *earlier]))
+    assert ingest_espn(con, client, NOON, WINDOW).fetched
+    assert stats_api.routes["espn"].call_count == 1
+
+
+def test_no_request_once_both_teams_have_opened_their_season(
+    con: duckdb.DuckDBPyConnection, client: EspnClient, stats_api: respx.MockRouter,
+) -> None:
+    upsert(con, "games", pd.DataFrame([
+        game("0022600001", "regular", EARLIER, status="final"),
+        game("0022600020", "regular", TIP),
+    ]))
+    assert not ingest_espn(con, client, NOON, WINDOW).fetched
+    assert stats_api.routes["espn"].call_count == 0
+
+
 @pytest.mark.parametrize(("season_type", "tip"), [
-    ("regular", TIP),  # no preseason game
     ("preseason", NOON + timedelta(hours=WINDOW, minutes=1)),  # too far ahead
     ("preseason", NOON - timedelta(minutes=1)),  # already started
+    ("regular", NOON + timedelta(hours=WINDOW, minutes=1)),
 ])
-def test_no_request_without_a_due_preseason_game(
+def test_no_request_without_a_due_game(
     con: duckdb.DuckDBPyConnection, client: EspnClient, stats_api: respx.MockRouter,
     season_type: str, tip: datetime,
 ) -> None:

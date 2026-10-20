@@ -1,7 +1,9 @@
 # The preseason rest adjustment (ADR-022) must leave everything else as it was: model
 # features, feature_hash and non-preseason predictions are byte-identical with and without
 # ESPN snapshots, preseason box scores and rest_params, and a snapshot fetched after a
-# game's decision_ts never changes its rest values
+# game's decision_ts never changes its rest values. Season openers read the list for
+# display only (ADR-025)
+import json
 import math
 import shutil
 from datetime import datetime, timedelta
@@ -15,7 +17,9 @@ import pytest
 from avaris.config import Settings
 from avaris.db import connect, upsert
 from avaris.features.build import FeatureSet, build_features
-from avaris.pipeline.daily import run_daily
+from avaris.models.registry import Registry
+from avaris.pipeline.daily import load_models, prediction_rows, run_daily
+from avaris.preseason.rest import FALLBACK, RestParams
 from tests.fixtures.live import models_settings, train_before_d1
 from tests.fixtures.synthetic import (
     ATL,
@@ -28,6 +32,7 @@ from tests.fixtures.synthetic import (
 GAME = "0012100001"  # 2021-22 preseason, ATL (home) v BOS; ATL's best player sits out
 TIP = datetime(2021, 10, 6, 0, 0)
 DECISION = TIP - timedelta(minutes=60)
+OPENER = "0022100001"  # 2021-22's first regular-season game: nobody has played yet
 STAR = REST_ABSENT[ATL]
 D1_NOON = datetime(2021, 11, 26, 17, 0)  # the synthetic league's first unplayed day
 
@@ -56,10 +61,14 @@ def add_rest_data(path: Path, con: duckdb.DuckDBPyConnection | None = None) -> N
             con.close()
 
 
-def rest_row(fs: FeatureSet, game_id: str) -> dict[str, Any]:
-    match = fs.rest[fs.rest["game_id"] == game_id]
+def one_row(frame: pd.DataFrame, game_id: str) -> dict[str, Any]:
+    match = frame[frame["game_id"] == game_id]
     assert len(match) == 1, game_id
     return {str(k): v for k, v in match.iloc[0].to_dict().items()}
+
+
+def rest_row(fs: FeatureSet, game_id: str) -> dict[str, Any]:
+    return one_row(fs.rest, game_id)
 
 
 @pytest.fixture
@@ -82,10 +91,50 @@ def test_model_features_are_byte_identical(plain: FeatureSet, with_rest: Feature
     assert not any("espn" in c for c in with_rest.features.columns)
 
 
-def test_rest_rows_are_preseason_nba_games_only(with_rest: FeatureSet) -> None:
-    features = with_rest.features
-    preseason = set(features.loc[features["season_type"] == "preseason", "game_id"])
-    assert set(with_rest.rest["game_id"]) == preseason
+def test_rest_rows_are_preseason_games_and_season_openers(with_rest: FeatureSet) -> None:
+    # Preseason, plus any other game before a team's first of the season, where the
+    # report cannot be valued and ESPN's list stands in for display (ADR-025)
+    f = with_rest.features
+    preseason = f["season_type"] == "preseason"
+    opener = ~preseason & ((f["home_gp"] == 0) | (f["away_gp"] == 0))
+    assert opener.any()
+    assert set(with_rest.rest["game_id"]) == set(f.loc[preseason | opener, "game_id"])
+
+
+def test_a_one_sided_opener_gets_a_rest_row(synthetic_db: Path) -> None:
+    # Without BKN v DEN on opening night, BKN's first game is ATL's second: only BKN's side
+    # is unknown, and the game still reads ESPN's list
+    con = duckdb.connect(str(synthetic_db))
+    con.execute("delete from games where game_id = '0022100002'")
+    con.close()
+    fs = build(synthetic_db)
+    game = one_row(fs.features, "0022100003")  # BKN (home) v ATL
+    assert (game["home_gp"], game["away_gp"]) == (0, 1)
+    assert math.isnan(game["home_lost_report"]) and not math.isnan(game["away_lost_report"])
+    assert rest_row(fs, "0022100003")["game_id"] == "0022100003"
+
+
+def test_a_season_opener_reads_the_list_before_decision_ts(
+    plain: FeatureSet, synthetic_db: Path, tmp_path: Path,
+) -> None:
+    game = one_row(plain.features, OPENER)
+    assert game["season_type"] == "regular" and game["home_gp"] == game["away_gp"] == 0
+    assert ATL in (game["home_team_id"], game["away_team_id"])
+    decision = pd.Timestamp(game["decision_ts"]).to_pydatetime()
+    path = tmp_path / "opener.duckdb"
+    path.write_bytes(synthetic_db.read_bytes())
+    con = duckdb.connect(str(path))
+    add_espn_snapshot(con, decision - timedelta(hours=1), [(ATL, STAR, "Out")])
+    add_espn_snapshot(con, decision + timedelta(minutes=5), [(ATL, STAR, "Out"),
+                                                             (BOS, 2000, "Out")])
+    con.close()
+    fs = build(path)
+    pd.testing.assert_frame_equal(plain.features, fs.features)
+    r = rest_row(fs, OPENER)
+    side, other = ("home", "away") if game["home_team_id"] == ATL else ("away", "home")
+    assert r["snapshot_ts"] == decision - timedelta(hours=1)
+    assert r[f"{side}_lost_espn"] > 0 and r[f"{other}_lost_espn"] == 0  # type: ignore[operator]
+    assert math.isnan(r[f"{side}_lost_actual"])  # no preseason box: never in the rest fit
 
 
 def test_rest_values_come_from_the_snapshot_before_decision_ts(with_rest: FeatureSet) -> None:
@@ -244,3 +293,41 @@ def test_a_rest_note_and_an_unmatched_player_flow_through(
     assert not players["Camp Invite"]["matched"] and players["Camp Invite"]["value"] == 0
     assert r["home_lost_espn"] == pytest.approx(players["Player 1000"]["value"])
     assert r["away_players"] == [] and r["away_lost_espn"] == 0
+
+
+def opener_prediction(root: Path, tmp_path: Path, name: str, rest_data: bool) -> pd.DataFrame:
+    path = tmp_path / f"{name}.duckdb"
+    shutil.copy(root / "league.duckdb", path)
+    con = duckdb.connect(str(path))
+    try:
+        fs = build_features(con)
+        if rest_data:
+            decision = one_row(fs.features, OPENER)["decision_ts"]
+            add_espn_snapshot(con, pd.Timestamp(decision).to_pydatetime() - timedelta(hours=1),
+                              [(ATL, STAR, "Out")])
+            fs = build_features(con)
+        games = con.execute("select game_id, tip_off_utc from games").df()
+    finally:
+        con.close()
+    rows = fs.features.merge(games, on="game_id")
+    rows = rows[rows["game_id"] == OPENER].reset_index(drop=True)
+    models = load_models(Registry(models_settings(root / "artifacts").models_dir))
+    params = RestParams(0.5, 0.4, 0.0, use_margin=True, use_total=True, use_win=False,
+                        fitted_at=D1_NOON)
+    return prediction_rows(fs, rows, models, {}, D1_NOON, params)
+
+
+def test_a_season_opener_shows_the_list_but_keeps_the_model_values(
+    trained: Path, tmp_path: Path,
+) -> None:
+    plain = opener_prediction(trained, tmp_path, "plain", rest_data=False)
+    shown = opener_prediction(trained, tmp_path, "shown", rest_data=True)
+    pd.testing.assert_frame_equal(plain.drop(columns="rest"), shown.drop(columns="rest"))
+    assert plain["raw_margin_mu"].isna().all()
+    block = json.loads(shown["rest"].iloc[0])
+    assert block["adjusted"] is False and block["note"] == FALLBACK
+    listed = [s for s in ("home", "away") if block[s]["players"]]
+    assert len(listed) == 1
+    side, other = listed[0], {"home": "away", "away": "home"}[listed[0]]
+    assert block[side]["players"][0]["player_id"] == STAR and block[side]["lost"] > 0
+    assert block[other] == {"lost": 0.0, "players": []}

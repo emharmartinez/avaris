@@ -42,10 +42,11 @@ uv run avaris ingest status --check            # includes injury report coverage
 ```
 uv run avaris ingest preseason-logs            # preseason box scores, 2014-15 to 2024-25 (fit only)
 uv run avaris rest-fit                         # fit k on 2015-16 to 2019-20, gate on 2020-21 to 2024-25
-uv run avaris ingest espn                      # ESPN's current list, only when a preseason game is due
+uv run avaris ingest espn                      # ESPN's current list, only when a game that reads it is due
 ```
 
-- `daily` fetches the ESPN list itself (one request) when a preseason game tips off within 36 h; `[espn] enabled = false` turns it off. Preseason only: regular season, play-in and playoffs never use it.
+- `daily` fetches the ESPN list itself (one request) when a preseason game or a team's first game of the season tips off within 36 h; `[espn] enabled = false` turns it off. Only preseason predictions are adjusted.
+- **Season openers (ADR-025):** before a team's first game its NBA report cannot be valued, so the app shows ESPN's list for that side instead. The prediction is not changed; the Traditional model counts the list.
 
 **Preseason win probability (ADR-023).** A preseason `p_home_win` is P(margin > 0) under the margin model's N(μ, σ), after any rest shift; the `home_win` classifier is overconfident there. `uv run avaris preseason-win-check` compares the two on the tuning window.
 
@@ -125,10 +126,10 @@ DuckDB at `data/avaris.duckdb` (gitignored):
 | `injury_report_files` | Report slots fetched (`ok`) or known missing |
 | `features` | One row per game as of `decision_ts`, with `feature_hash` (rebuilt by `avaris features build`) |
 | `team_ratings` | Elo, ORtg, DRtg, net rating, pace and games played per team as of each game |
-| `predictions` | One row per game: `status` (provisional or final), `decision_ts`, runs, `p_home_win`, margin and total μ and σ, drivers and injuries JSON; preseason rows also carry `raw_*` model values and a `rest` JSON block |
+| `predictions` | One row per game: `status` (provisional or final), `decision_ts`, runs, `p_home_win`, margin and total μ and σ, drivers and injuries JSON; preseason rows also carry `raw_*` model values and a `rest` JSON block, season openers a display-only `rest` block |
 | `prediction_scores` | Per final prediction after the game: log loss, Brier, errors, 80% interval hits, PIT |
 | `jobs` | Background jobs: kind, status, params, log tail |
-| `espn_injury_snapshots` | ESPN injury lists (preseason only), one set of rows per distinct list |
+| `espn_injury_snapshots` | ESPN injury lists (preseason and season openers), one set of rows per distinct list |
 | `espn_injury_fetches` | Each ESPN request and the snapshot in force at that time |
 | `preseason_player_games` | Preseason box scores per player, for `rest-fit` only (never features) |
 | `rest_params` | Fitted rest coefficients, which ones are enabled, and the fit report |

@@ -19,17 +19,22 @@ export function InjuriesSection({ game }: { game: GameDetail }) {
         <p className="text-sm text-muted-foreground">Report as of {formatTimestamp(prediction.report_ts)}</p>
       )}
       <div className="grid gap-4 lg:grid-cols-2">
-        <TeamInjuries team={game.away} impact={prediction?.injuries.away ?? null} entries={report.away} />
-        <TeamInjuries team={game.home} impact={prediction?.injuries.home ?? null} entries={report.home} />
+        {(["away", "home"] as const).map((side) => (
+          <TeamInjuries key={side} team={game[side]} impact={prediction?.injuries[side] ?? null}
+            entries={report[side]} reported={prediction?.report_ts != null} />
+        ))}
       </div>
     </div>
   );
 }
 
-function TeamInjuries({ team, impact, entries }: {
+// reported with no impact: the team has not played yet, so its report cannot be valued; the
+// ESPN list, if any, follows in its own section (ADR-025)
+function TeamInjuries({ team, impact, entries, reported }: {
   team: Team;
   impact: InjuryImpactFull | null;
   entries: InjuryEntry[];
+  reported: boolean;
 }) {
   const label = teamLabel(team);
   return (
@@ -37,12 +42,14 @@ function TeamInjuries({ team, impact, entries }: {
       <Card>
         <CardHeader>
           <CardTitle>{label}</CardTitle>
-          <CardDescription>{injuryText(impact)}</CardDescription>
+          <CardDescription>{injuryText(impact, reported)}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
             <h3 className="mb-1 text-xs font-medium text-muted-foreground">Strength lost</h3>
-            <PlayersTable players={impact?.players ?? []} />
+            {impact == null && reported
+              ? <p className="text-sm text-muted-foreground">Not valued before the team&apos;s first game</p>
+              : <PlayersTable players={impact?.players ?? []} />}
           </div>
           <div>
             <h3 className="mb-1 text-xs font-medium text-muted-foreground">Report entries</h3>
