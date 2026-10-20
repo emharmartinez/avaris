@@ -8,6 +8,8 @@ from typing import Any
 
 import duckdb
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -141,6 +143,13 @@ def create_app(
     for module in (predictions, games, teams, performance, backtests, injuries, jobs, server,
                    traditional, bets):
         app.include_router(module.router)
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+        # FastAPI echoes each bad input back, and an Infinity or NaN one cannot be written as
+        # JSON (a 500 instead of the 422); where and why is all the app reads
+        detail = [{k: e[k] for k in ("type", "loc", "msg") if k in e} for e in exc.errors()]
+        return JSONResponse({"detail": detail}, status_code=422)
 
     @app.get("/api/health")
     def health(cur: Cursor, jobs: Jobs) -> dict[str, Any]:

@@ -255,4 +255,22 @@ describe("EdgeView", () => {
     expect(within(spread).queryByRole("form")).toBeNull();
     expect(within(spread).getByRole("button", { name: "Bet DEN −4" })).toBeInTheDocument();
   });
+
+  it("bets the away side of a home underdog at its negative line", async () => {
+    const user = userEvent.setup();
+    const posted: { line: number }[] = [];
+    serve({ date: "2021-11-27", games: [game()] });
+    server.use(http.post("*/api/bets", async ({ request }) => {
+      posted.push(await request.json() as { line: number });
+      return HttpResponse.json(bet(), { status: 201 });
+    }));
+    renderWithQuery(<EdgeView date={null} gameId={null} onGameChange={vi.fn()} />);
+    const spread = await screen.findByRole("region", { name: "Spread" });
+    await user.type(within(spread).getByLabelText("DEN line"), "+3.5");
+    await user.type(within(spread).getByLabelText("ATL spread odds"), "1.91");
+    await user.click(within(spread).getByRole("button", { name: "Bet ATL −3.5" }));
+    await user.click(within(spread).getByRole("button", { name: "Record bet" }));
+    await within(spread).findByRole("status");
+    expect(posted.map((b) => b.line)).toEqual([-3.5]);
+  });
 });

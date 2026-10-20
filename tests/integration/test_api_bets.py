@@ -1,3 +1,4 @@
+import json
 from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
@@ -105,6 +106,32 @@ def test_bets_are_validated(
     client, d1, _ = games
     assert client.post("/api/bets", json={"game_id": d1[0], **payload}).status_code == 422
     assert bankroll(client)["bets"] == []
+
+
+def test_non_finite_numbers_are_refused(games: tuple[TestClient, list[str], list[str]]) -> None:
+    client, d1, _ = games
+    json_body = {"content-type": "application/json"}
+    for field in ("odds", "stake"):
+        body = {"game_id": d1[0], "market": "moneyline", "side": "home", "odds": 2, "stake": 10,
+                field: float("inf")}
+        response = client.post("/api/bets", content=json.dumps(body), headers=json_body)
+        assert response.status_code == 422
+    response = client.put("/api/bankroll", content='{"starting": Infinity, "unit_pct": 1}',
+                          headers=json_body)
+    assert response.status_code == 422
+    assert bankroll(client)["bets"] == []
+
+
+def test_a_game_in_progress_is_not_graded_from_its_partial_score(
+    games: tuple[TestClient, list[str], list[str]],
+) -> None:
+    client, _, d2 = games
+    con = client.app.state.con  # type: ignore[attr-defined]
+    con.execute("update games set status = 'in_progress', home_pts = 50, away_pts = 48 "
+                "where game_id = ?", [d2[0]])
+    bet = place(client, game_id=d2[0], market="moneyline", side="home", odds=2, stake=10)
+    assert bet["result"] == "pending" and bet["profit"] is None
+    assert bankroll(client)["in_play"] == 10
 
 
 def test_a_bet_needs_a_known_game(games: tuple[TestClient, list[str], list[str]]) -> None:

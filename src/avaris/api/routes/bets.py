@@ -18,13 +18,13 @@ from bets b join games g using (game_id)
 
 
 class BankrollIn(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     starting: float = Field(gt=0)
     unit_pct: float = Field(gt=0, le=100)
 
 
 class BetIn(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     game_id: str = Field(pattern=r"^[0-9]{10}$")
     market: Market
     side: Side

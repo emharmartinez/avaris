@@ -173,7 +173,8 @@ export function BetForm({ gameId, draft, label, unit, format, onDone }: {
       </div>
       {stake != null && (
         <p className="text-sm text-muted-foreground">
-          {inUnits == null ? "No bankroll set, so no unit. " : `${inUnits.toFixed(2)} units. `}
+          {inUnits != null ? `${inUnits.toFixed(2)} units. `
+            : unit === 0 ? "The bankroll is used up, so no unit. " : "No bankroll set, so no unit. "}
           To win {formatMoney(toWin(stake, draft.odds))}.
         </p>
       )}

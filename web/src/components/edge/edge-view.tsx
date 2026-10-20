@@ -326,7 +326,7 @@ function MarketCard({ title, description, inputs, result, labels, format, hint, 
           )}
           {draft ? (
             <BetForm
-              key={`${draft.side} ${draft.line} ${draft.odds}`}
+              key={`${draft.side} ${draft.line} ${draft.odds} ${betting.unit}`}
               gameId={betting.game.game_id} draft={draft} label={betLabel(draft, betting.game)}
               unit={betting.unit} format={format}
               onDone={(bet) => {
