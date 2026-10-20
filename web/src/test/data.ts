@@ -76,6 +76,33 @@ export const rest = (extra: Partial<Rest> = {}): Rest => ({
   ...extra,
 });
 
+// A season opener (ADR-025): the report is in force but cannot be valued before the team's
+// first game, so ESPN's list is shown beside it, never applied
+export const FALLBACK = "before a team's first game: ESPN's list shown; model values unchanged";
+
+export const fallbackRest = (extra: Partial<Rest> = {}): Rest => rest({
+  adjusted: false, note: FALLBACK, k: { margin: 0, total: 0, win: 0 }, win_from_margin: false,
+  raw_p_home_win: null, raw_margin_mu: null, raw_total_mu: null, ...extra,
+});
+
+export const openerGame = (r: Rest | null = fallbackRest()): Game => {
+  const base = preseasonGame(null);
+  return {
+    ...base,
+    game_id: "0022600005",
+    season_type: "regular",
+    game_date_et: "2026-10-21",
+    tip_off_utc: "2026-10-21T23:30:00Z",
+    prediction: {
+      ...game().prediction!,
+      decision_ts: "2026-10-21T22:30:00Z",
+      report_ts: "2026-10-21T22:30:00Z",
+      injury_impact: { home: null, away: null },
+      rest: r,
+    },
+  };
+};
+
 export const preseasonGame = (r: Rest | null = rest()): Game => {
   const base = game();
   return {

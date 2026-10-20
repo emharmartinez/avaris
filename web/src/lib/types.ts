@@ -73,10 +73,14 @@ export interface Rest {
   win_from_margin?: boolean; // the win was read off the adjusted margin (ADR-023); absent before it
   home: RestSide;
   away: RestSide;
-  raw_p_home_win: number;
-  raw_margin_mu: number;
-  raw_total_mu: number;
+  // The model's own values; null outside preseason, where the list is never applied (ADR-025)
+  raw_p_home_win: number | null;
+  raw_margin_mu: number | null;
+  raw_total_mu: number | null;
 }
+
+// A rest block whose values moved: the model's raw ones are always there
+export type AdjustedRest = Rest & { raw_p_home_win: number; raw_margin_mu: number; raw_total_mu: number };
 
 export interface Prediction {
   status: PredictionStatus;
@@ -91,7 +95,9 @@ export interface Prediction {
   // home_win is "points" in preseason (ADR-023); absent from a server older than that
   driver_scale?: Record<Target, DriverSet["scale"]>;
   injury_impact: { home: InjuryImpact | null; away: InjuryImpact | null };
-  rest: Rest | null; // null for every non-preseason game and vs non-NBA clubs
+  // ESPN's list: preseason (ADR-022) and before a team's first game of the season (ADR-025);
+  // null for every other game and vs non-NBA clubs
+  rest: Rest | null;
 }
 
 export interface PredictionFull extends Prediction {
@@ -274,7 +280,8 @@ export interface InjuryGame {
   home: Team;
   away: Team;
   report_ts: string | null;
-  rest: RestList | null;  // preseason only: ESPN's out list (no NBA report exists)
+  // ESPN's out list: preseason (no NBA report exists) and season openers (ADR-025)
+  rest: RestList | null;
   impact: { home: InjuryImpactFull | null; away: InjuryImpactFull | null };
   entries: InjuryEntry[];
 }

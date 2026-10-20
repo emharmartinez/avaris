@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { game, NOW, preseasonGame, rest } from "@/test/data";
+import { game, NOW, openerGame, preseasonGame, rest } from "@/test/data";
 import { renderWithQuery } from "@/test/render";
 import { GameCard } from "./game-card";
 
@@ -49,7 +49,7 @@ describe("GameCard", () => {
 
   it("says when a side has no injury report", () => {
     const g = game();
-    const prediction = { ...g.prediction!, injury_impact: { home: null, away: null } };
+    const prediction = { ...g.prediction!, report_ts: null, injury_impact: { home: null, away: null } };
     renderWithQuery(<GameCard game={{ ...g, prediction }} now={NOW} />);
     expect(screen.getAllByText("no report")).toHaveLength(2);
   });
@@ -116,6 +116,27 @@ describe("GameCard", () => {
       expect(tip).toHaveTextContent(name);
     }
     expect(tip).toHaveTextContent("Day-To-Day · 12.1");
+  });
+
+  it("shows ESPN's list for a season opener, without adjusting anything", () => {
+    renderWithQuery(<GameCard game={openerGame()} now={NOW} />);
+    expect(screen.getByText("Brunson, Towns, Anunoby +1 out (ESPN)")).toBeInTheDocument();
+    expect(screen.getByText("none out (ESPN)")).toBeInTheDocument();
+    expect(screen.queryByText("no report")).toBeNull();
+    expect(screen.queryByText("Rest-adjusted (ESPN)")).toBeNull();
+    expect(screen.queryByText(/^raw /)).toBeNull();
+  });
+
+  it("keeps the NBA impact of a side already valued and says when neither is known", () => {
+    const g = openerGame();
+    const known = { full_strength: 100.5, lost: 0, lost_share: 0 };
+    renderWithQuery(<GameCard now={NOW} game={{ ...g, prediction: {
+      ...g.prediction!, injury_impact: { home: known, away: null } } }} />);
+    expect(screen.getByText("0% strength lost")).toBeInTheDocument();
+    expect(screen.getByText("Brunson, Towns, Anunoby +1 out (ESPN)")).toBeInTheDocument();
+    expect(screen.queryByText("none out (ESPN)")).toBeNull();
+    renderWithQuery(<GameCard game={openerGame(null)} now={NOW} />);
+    expect(screen.getAllByText("unknown before first game")).toHaveLength(2);
   });
 
   it("adds nothing without a rest block or when it is not adjusted", () => {

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { preseasonGame, rest } from "@/test/data";
+import { FALLBACK, fallbackRest, openerGame, preseasonGame, rest } from "@/test/data";
 import {
-  adjustedRest, edgeRestNote, rawText, REST_LABEL, restComparison, restLostText, restOutText, restStatus,
+  adjustedRest, edgeRestNote, espnStandIn, rawText, REST_LABEL, restComparison, restLostText, restOutText,
+  restStatus,
 } from "./rest";
 
 const adjusted = preseasonGame().prediction!;
@@ -23,12 +24,34 @@ describe("adjustedRest", () => {
     expect(adjustedRest(adjusted)).toBe(adjusted.rest);
     expect(adjustedRest(notAdjusted)).toBeNull();
     expect(adjustedRest({ ...adjusted, rest: null })).toBeNull();
+    expect(adjustedRest(openerGame().prediction!)).toBeNull();
+  });
+});
+
+describe("espnStandIn", () => {
+  const list = fallbackRest();
+  const known = { full_strength: 100, lost: 5, lost_share: 0.05 };
+
+  it("is ESPN's side when the NBA impact is unknown", () => {
+    expect(espnStandIn(null, list, "away")).toBe(list.away);
+    expect(espnStandIn({ full_strength: 0, lost: null, lost_share: null }, list, "home")).toBe(list.home);
+  });
+
+  it("is null when the NBA impact is known or there is no list", () => {
+    expect(espnStandIn(known, list, "away")).toBeNull();
+    expect(espnStandIn(null, null, "away")).toBeNull();
+  });
+});
+
+describe("restStatus outside preseason", () => {
+  it("says the list is shown, not applied", () => {
+    expect(restStatus(fallbackRest())).toBe(FALLBACK);
   });
 });
 
 describe("restComparison", () => {
   it("formats raw and adjusted win, margin and total like the headline", () => {
-    expect(restComparison(adjusted, adjusted.rest!)).toEqual([
+    expect(restComparison(adjusted, adjustedRest(adjusted)!)).toEqual([
       { label: "Home win", raw: "37.9%", adjusted: "61.2%" },
       { label: "Margin (home)", raw: "−3.4", adjusted: "+3.9" },
       { label: "Total", raw: "221.0", adjusted: "214.6" },
@@ -50,15 +73,15 @@ const fromMargin = preseasonGame(rest({ k: { margin: 0.11, total: 0, win: 0 }, w
 
 describe("rawText", () => {
   it("gives the raw value of each adjusted output in one string, the split away first", () => {
-    expect(rawText(adjusted.rest!, "TOR", "NYK")).toBe("raw NYK 62% · TOR 38%, margin −3.4, total 221.0");
+    expect(rawText(adjustedRest(adjusted)!, "TOR", "NYK")).toBe("raw NYK 62% · TOR 38%, margin −3.4, total 221.0");
   });
 
   it("leaves out outputs whose coefficient is off", () => {
-    expect(rawText(marginOnly.rest!, "TOR", "NYK")).toBe("raw margin −3.4");
+    expect(rawText(adjustedRest(marginOnly)!, "TOR", "NYK")).toBe("raw margin −3.4");
   });
 
   it("gives the raw split when the win followed the adjusted margin (ADR-023)", () => {
-    expect(rawText(fromMargin.rest!, "TOR", "NYK")).toBe("raw NYK 62% · TOR 38%, margin −3.4");
+    expect(rawText(adjustedRest(fromMargin)!, "TOR", "NYK")).toBe("raw NYK 62% · TOR 38%, margin −3.4");
     expect(edgeRestNote(fromMargin, "TOR"))
       .toBe("Preseason: rest-adjusted from ESPN list (raw TOR 37.9%, margin −3.4)");
   });

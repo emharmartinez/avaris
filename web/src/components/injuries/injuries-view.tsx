@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useHealth, useInjuries } from "@/hooks/use-api";
 import { formatDate, formatTimestamp, shiftDate, teamLabel } from "@/lib/format";
 import { groupEntries, impactText, playerName } from "@/lib/injuries";
-import { restLostText } from "@/lib/rest";
+import { espnStandIn, restLostText } from "@/lib/rest";
 import type { InjuriesOnDate, InjuryGame, InjuryImpactFull, RestList, RestSide, Team } from "@/lib/types";
 
 const dayHref = (day: string) => `/injuries/?date=${day}`;
@@ -59,9 +59,13 @@ function GameList({ data }: { data: InjuriesOnDate }) {
 }
 
 function InjuryCard({ game }: { game: InjuryGame }) {
-  if (game.rest) return <EspnCard game={game} rest={game.rest} />;
+  if (game.rest && game.season_type === "preseason") return <EspnCard game={game} rest={game.rest} />;
   const titleId = `injuries-${game.game_id}`;
   const groups = groupEntries(game);
+  const sides = [["away", game.away], ["home", game.home]] as const;
+  // Before a team's first game its report cannot be valued: ESPN's list stands in (ADR-025)
+  const espn = sides.map(([side]) => espnStandIn(game.impact[side], game.rest, side));
+  const espnTs = espn.some(Boolean) ? game.rest?.snapshot_ts : null;
   return (
     <section aria-labelledby={titleId}>
       <Card className="h-full">
@@ -71,12 +75,17 @@ function InjuryCard({ game }: { game: InjuryGame }) {
             {game.report_ts ? `Report of ${formatTimestamp(game.report_ts)}`
               : game.season_type === "preseason" ? "Preseason: no NBA report or ESPN list"
                 : "No report used"}
+            {espnTs && ` · ESPN list of ${formatTimestamp(espnTs)} before the first game`}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <SideImpact team={game.away} impact={game.impact.away} />
-            <SideImpact team={game.home} impact={game.impact.home} />
+            {sides.map(([side, team], i) => {
+              const list = espn[i];
+              return list
+                ? <EspnSide key={side} team={team} side={list} source />
+                : <SideImpact key={side} team={team} impact={game.impact[side]} reported={game.report_ts != null} />;
+            })}
           </div>
           {groups.length === 0 ? (
             <p className="text-sm text-muted-foreground">No players listed on the report.</p>
@@ -108,13 +117,17 @@ function InjuryCard({ game }: { game: InjuryGame }) {
   );
 }
 
-function SideImpact({ team, impact }: { team: Team; impact: InjuryImpactFull | null }) {
+function SideImpact({ team, impact, reported }: {
+  team: Team;
+  impact: InjuryImpactFull | null;
+  reported: boolean;
+}) {
   const label = teamLabel(team);
   return (
     <div role="group" aria-label={`${label} impact`} className="space-y-1 text-sm">
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-medium">{label}</span>
-        <span className="text-muted-foreground">{impactText(impact)}</span>
+        <span className="text-muted-foreground">{impactText(impact, reported)}</span>
       </div>
       {impact && impact.players.length > 0 && (
         <ul className="space-y-0.5 tabular-nums">
@@ -179,13 +192,16 @@ function EspnCard({ game, rest }: { game: InjuryGame; rest: RestList }) {
   );
 }
 
-function EspnSide({ team, side }: { team: Team; side: RestSide }) {
+// source: name ESPN beside the value, on a card that also carries the NBA report
+function EspnSide({ team, side, source = false }: { team: Team; side: RestSide; source?: boolean }) {
   const label = teamLabel(team);
   return (
     <div role="group" aria-label={`${label} impact`} className="space-y-1 text-sm">
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-medium">{label}</span>
-        <span className="text-muted-foreground">{restLostText(side)}</span>
+        <span className="text-muted-foreground">
+          {restLostText(side)}{source && side.lost != null ? " (ESPN)" : ""}
+        </span>
       </div>
       {side.players.length > 0 && (
         <ul className="space-y-0.5 tabular-nums">

@@ -2,7 +2,7 @@ import { screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { beforeAll, describe, expect, it } from "vitest";
 import { server } from "@/test/server";
-import { game, rest } from "@/test/data";
+import { fallbackRest, game, rest } from "@/test/data";
 import { renderWithQuery } from "@/test/render";
 import type { GameDetail, PredictionFull, Ratings } from "@/lib/types";
 import { GameLoader } from "./game-loader";
@@ -97,8 +97,19 @@ describe("GameLoader", () => {
     expect(within(home).getByText("No players out")).toBeInTheDocument();
   });
 
+  it("says a season opener's report cannot be valued, and shows ESPN's list below", async () => {
+    serve(detail({}, { injuries: { home: null, away: null }, rest: fallbackRest() }));
+    renderWithQuery(<GameLoader id="0022100047" />);
+    const home = await screen.findByRole("region", { name: "DEN injuries" });
+    expect(within(home).getByText("unknown before first game")).toBeInTheDocument();
+    expect(within(home).getByText("Not valued before the team's first game")).toBeInTheDocument();
+    expect(within(home).queryByText("No players out")).toBeNull();
+    expect(within(home).getByText("Jamal Murray")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "ESPN injury list" })).toBeInTheDocument();
+  });
+
   it("shows the preseason rest section after the injuries, only with a rest block", async () => {
-    serve(detail({}, { rest: rest() }));
+    serve(detail({ season_type: "preseason" }, { rest: rest() }));
     const { unmount } = renderWithQuery(<GameLoader id="0022100047" />);
     const section = await screen.findByRole("region", { name: "Preseason rest" });
     const injuries = screen.getByRole("region", { name: "DEN injuries" });

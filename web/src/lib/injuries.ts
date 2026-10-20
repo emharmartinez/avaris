@@ -27,7 +27,9 @@ export function groupEntries(game: InjuryGame): EntryGroup[] {
     }));
 }
 
-export function impactText(impact: InjuryImpact | null): string {
+// reported: a report was in force; with no impact the team has not played yet (ADR-025)
+export function impactText(impact: InjuryImpact | null, reported = false): string {
+  if (impact == null && reported) return "strength lost unknown before first game";
   if (impact == null || impact.lost_share == null) return "no report";
   return `${pct(impact.lost_share)} of full strength lost`;
 }

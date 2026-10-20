@@ -14,7 +14,9 @@ export function winSplit(pHome: number): WinSplit {
   return { home: pHome, away: 1 - pHome, homeText: `${homePct}%`, awayText: `${100 - homePct}%` };
 }
 
-export function injuryText(impact: InjuryImpact | null): string {
+// reported: a report was in force; with no impact the team has not played yet (ADR-025)
+export function injuryText(impact: InjuryImpact | null, reported = false): string {
+  if (impact == null && reported) return "unknown before first game";
   return impact?.lost_share == null ? "no report" : `${pct(impact.lost_share)} strength lost`;
 }
 

@@ -3,29 +3,34 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatTimestamp, teamLabel } from "@/lib/format";
-import { restComparison, restLostText, restStatus } from "@/lib/rest";
-import type { Prediction, Rest, RestPlayer, RestSide, Team } from "@/lib/types";
+import { adjustedRest, restComparison, restLostText, restStatus } from "@/lib/rest";
+import type { AdjustedRest, Prediction, RestPlayer, RestSide, SeasonType, Team } from "@/lib/types";
 
-// Preseason only (ADR-022): who ESPN listed out, and the model's raw values beside the
-// rest-adjusted ones. ESPN's notes are untrusted and rendered as plain text
-export function RestSection({ prediction, home, away }: {
+// Who ESPN listed out, and in preseason the model's raw values beside the rest-adjusted ones
+// (ADR-022); before a team's first game of the season the list is only shown (ADR-025).
+// ESPN's notes are untrusted and rendered as plain text
+export function RestSection({ prediction, home, away, seasonType }: {
   prediction: Prediction | null;
   home: Team;
   away: Team;
+  seasonType: SeasonType;
 }) {
   const titleId = useId();
   const rest = prediction?.rest;
   if (prediction == null || rest == null) return null;
+  const adjusted = adjustedRest(prediction);
   return (
     <section aria-labelledby={titleId} className="space-y-4">
-      <h2 id={titleId} className="text-lg font-semibold tracking-tight">Preseason rest</h2>
+      <h2 id={titleId} className="text-lg font-semibold tracking-tight">
+        {seasonType === "preseason" ? "Preseason rest" : "ESPN injury list"}
+      </h2>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
         {rest.adjusted ? <Badge variant="secondary">{restStatus(rest)}</Badge> : <span>{restStatus(rest)}</span>}
         <span>
           {rest.snapshot_ts ? `ESPN list as of ${formatTimestamp(rest.snapshot_ts)}` : "No ESPN list"}
         </span>
       </div>
-      {rest.adjusted && <Comparison prediction={prediction} rest={rest} />}
+      {adjusted && <Comparison prediction={prediction} rest={adjusted} />}
       <div className="grid gap-4 lg:grid-cols-2">
         <TeamRest team={away} side={rest.away} />
         <TeamRest team={home} side={rest.home} />
@@ -34,7 +39,7 @@ export function RestSection({ prediction, home, away }: {
   );
 }
 
-function Comparison({ prediction, rest }: { prediction: Prediction; rest: Rest }) {
+function Comparison({ prediction, rest }: { prediction: Prediction; rest: AdjustedRest }) {
   const { k } = rest;
   return (
     <Card>

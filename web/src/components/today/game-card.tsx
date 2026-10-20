@@ -9,7 +9,7 @@ import {
   teamName,
 } from "@/lib/format";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { adjustedRest, rawText, REST_LABEL, restOutText } from "@/lib/rest";
+import { adjustedRest, espnStandIn, rawText, REST_LABEL, restOutText } from "@/lib/rest";
 import { injuryText, topDrivers } from "@/lib/today";
 import type { Game, Prediction, RestSide } from "@/lib/types";
 import { WinBar } from "./win-bar";
@@ -93,14 +93,17 @@ function PredictionSummary({ game, prediction }: { game: Game; prediction: Predi
           detail={`80%: ${formatInterval(total, false)}`} />
       </div>
       <div className="grid grid-cols-2 gap-4 text-sm">
-        {([["away", away], ["home", home]] as const).map(([side, team]) => (
-          <div key={side}>
-            <div className="text-xs text-muted-foreground">Injuries {teamLabel(team)}</div>
-            {prediction.rest
-              ? <RestOut side={prediction.rest[side]} />
-              : <div>{injuryText(injuries[side])}</div>}
-          </div>
-        ))}
+        {([["away", away], ["home", home]] as const).map(([side, team]) => {
+          const espn = espnStandIn(injuries[side], prediction.rest, side);
+          return (
+            <div key={side}>
+              <div className="text-xs text-muted-foreground">Injuries {teamLabel(team)}</div>
+              {espn
+                ? <RestOut side={espn} />
+                : <div>{injuryText(injuries[side], prediction.report_ts != null)}</div>}
+            </div>
+          );
+        })}
       </div>
       <div>
         <div className="mb-1 text-xs text-muted-foreground">
@@ -129,7 +132,7 @@ function Stat({ label, value, detail }: { label: string; value: string; detail: 
   );
 }
 
-// Preseason: ESPN's out list, every player on hover or focus
+// ESPN's out list (preseason, or before a team's first game), every player on hover or focus
 function RestOut({ side }: { side: RestSide }) {
   const text = restOutText(side);
   if (side.players.length === 0) return <div>{text}</div>;
