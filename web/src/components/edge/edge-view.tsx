@@ -266,6 +266,8 @@ function MarketCard({ title, description, inputs, result, labels, format, hint, 
   const [picked, setPicked] = useState<0 | 1 | null>(null);
   const [recorded, setRecorded] = useState<Bet | null>(null);
   const draft = picked == null ? null : bets?.[picked] ?? null;
+  // A cleared line or price closes the form, so typing a new one does not reopen it
+  if (picked != null && draft == null) setPicked(null);
   const priced = result?.sides.some((s) => s.implied != null);
   const push = result?.sides[0].push ?? 0;
   return (

@@ -240,4 +240,19 @@ describe("EdgeView", () => {
     const table = await screen.findByRole("table", { name: "Bets" });
     expect(within(table).getByRole("row", { name: /DEN ML/ })).toHaveTextContent("Won");
   });
+
+  it("closes an open bet form when its line is cleared", async () => {
+    const user = userEvent.setup();
+    serve({ date: "2021-11-27", games: [game()] });
+    renderWithQuery(<EdgeView date={null} gameId={null} onGameChange={vi.fn()} />);
+    const spread = await screen.findByRole("region", { name: "Spread" });
+    await user.type(within(spread).getByLabelText("DEN line"), "-3.5");
+    await user.type(within(spread).getByLabelText("DEN spread odds"), "1.91");
+    await user.click(within(spread).getByRole("button", { name: "Bet DEN −3.5" }));
+    expect(within(spread).getByRole("form")).toBeInTheDocument();
+    await user.clear(within(spread).getByLabelText("DEN line"));
+    await user.type(within(spread).getByLabelText("DEN line"), "-4");
+    expect(within(spread).queryByRole("form")).toBeNull();
+    expect(within(spread).getByRole("button", { name: "Bet DEN −4" })).toBeInTheDocument();
+  });
 });

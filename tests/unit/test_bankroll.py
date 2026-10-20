@@ -24,6 +24,12 @@ def test_grade_a_final(market: str, side: str, line: float | None, result: str) 
     assert grade(market, side, line, 110, 100) == result
 
 
+@pytest.mark.parametrize(("line", "result"), [(-3.5, "won"), (-4.0, "push"), (-4.5, "lost")])
+def test_grade_an_away_favorite(line: float, result: str) -> None:
+    # Home typed +3.5 (underdog), so the away side is -3.5: a 104-100 away win covers -3.5
+    assert grade("spread", "away", line, 100, 104) == result
+
+
 def test_grade_is_pending_without_a_score() -> None:
     assert grade("moneyline", "home", None, None, None) == "pending"
     assert grade("total", "over", 210.5, 110, None) == "pending"
