@@ -72,7 +72,7 @@ def get(client: TestClient, url: str) -> Any:
 
 def test_health(client: TestClient) -> None:
     body = get(client, "/api/health")
-    assert body["status"] == "ok" and body["schema_version"] == 9 and body["job"] is None
+    assert body["status"] == "ok" and body["schema_version"] == 10 and body["job"] is None
 
 
 def test_predictions_today(client: TestClient) -> None:
