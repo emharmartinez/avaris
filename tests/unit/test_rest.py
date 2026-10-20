@@ -7,7 +7,14 @@ import pytest
 from scipy.stats import norm
 
 from avaris.db import connect
-from avaris.preseason.rest import DISABLED, RestParams, apply_rest, load_params
+from avaris.preseason.rest import (
+    DISABLED,
+    FALLBACK,
+    NO_SNAPSHOT,
+    RestParams,
+    apply_rest,
+    load_params,
+)
 
 FITTED = datetime(2026, 10, 13, 20, 0)
 PARAMS = RestParams(k_margin=0.5, k_total=0.4, k_win=0.05, use_margin=True, use_total=True,
@@ -35,11 +42,35 @@ def rest(home: float, away: float, snapshot: datetime | None = SNAPSHOT) -> dict
     }
 
 
-def test_non_preseason_rows_pass_through() -> None:
-    out = apply_rest(model_row("regular"), rest(0, 12), PARAMS)
+def test_non_preseason_rows_without_a_rest_row_pass_through() -> None:
+    out = apply_rest(model_row("regular"), None, PARAMS)
     expected = {k: v for k, v in model_row("regular").items() if k != "margin_sigma"}
     assert out == {**expected, "raw_p_home_win": None, "raw_margin_mu": None,
                    "raw_total_mu": None, "rest": None}
+
+
+@pytest.mark.parametrize("season_type", ["regular", "cup_final", "play_in", "playoffs"])
+def test_outside_preseason_the_list_is_shown_but_never_applied(season_type: str) -> None:
+    # Before a team's first game its report cannot be valued: ESPN's list stands in, for
+    # display only; the prediction stays the model's (ADR-025)
+    out = apply_rest(model_row(season_type), rest(0.0, 12.0), PARAMS)
+    expected = {k: v for k, v in model_row(season_type).items() if k != "margin_sigma"}
+    assert out == {**expected, "raw_p_home_win": None, "raw_margin_mu": None,
+                   "raw_total_mu": None, "rest": out["rest"]}
+    block = out["rest"]
+    assert isinstance(block, dict)
+    assert block["adjusted"] is False and block["win_from_margin"] is False
+    assert block["k"] == {"margin": 0.0, "total": 0.0, "win": 0.0}
+    assert block["note"] == FALLBACK
+    assert block["snapshot_ts"] == "2026-10-13T18:00:00Z"
+    assert block["away"] == {"lost": 12.0, "players": [BRUNSON]}
+
+
+def test_outside_preseason_a_missing_snapshot_still_says_so() -> None:
+    block = apply_rest(model_row("regular"), rest(0, 0, snapshot=None), PARAMS)["rest"]
+    assert isinstance(block, dict)
+    assert block["adjusted"] is False and block["note"] == NO_SNAPSHOT
+    assert block["home"] == {"lost": None, "players": []}
 
 
 def test_a_preseason_game_without_a_rest_row_passes_through() -> None:

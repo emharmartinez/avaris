@@ -313,7 +313,10 @@ class _Loop:
         row["league_pace"] = _nan(league_pace)
         row["altitude_m"] = venue.altitude_m if venue else math.nan
         self.feature_rows.append(row)
-        if preseason and {home, away} <= self.nba_teams:
+        # ESPN's list: preseason (ADR-022), and before a team's first game of the season,
+        # where its report cannot be valued; there it is shown, never applied (ADR-025)
+        opener = row["home_gp"] == 0 or row["away_gp"] == 0
+        if (preseason or opener) and {home, away} <= self.nba_teams:
             self.rest_rows.append(self.rest(game, tip, decision_ts))
 
     def value(self, player_id: int, season: str) -> float:
@@ -329,7 +332,8 @@ class _Loop:
         return self.espn_fetches[i][1]
 
     def rest(self, game: dict[str, Any], tip: datetime, decision_ts: datetime) -> dict[str, Any]:
-        # Preseason only: what the rest adjustment reads (ADR-022)
+        # What the rest adjustment reads (ADR-022); a season opener has no preseason box
+        # score, so its lost_actual is NaN and it never enters the rest fit (ADR-025)
         game_id, season = str(game["game_id"]), str(game["season"])
         previous = season_label(season_start_year(season) - 1)
         snapshot_ts = self.snapshot(tip, decision_ts)
