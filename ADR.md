@@ -2,6 +2,17 @@
 
 One entry per binding decision. Newest first. Status is `accepted`, `superseded` or `proposed`.
 
+## ADR-026: The Edge tab tracks a bankroll and the bets the user records
+
+- **Date:** 2026-10-20 · **Status:** accepted · narrows ADR-014 and ADR-020 (user-entered bets are stored; still no odds ingestion)
+- **Decision:**
+  - **Bankroll:** one row (`bankroll`: starting amount, unit as a % of the bankroll), set and edited on the Edge tab (`GET`/`PUT /api/bankroll`). The bankroll is the starting amount plus the profit of settled bets; a unit is `unit_pct` of that current bankroll, so it grows and shrinks with it (1,000 at 1% is 10).
+  - **Bets:** the user picks a priced side on the Edge tab (moneyline, spread or total) and records the stake they actually placed, one unit by default (`POST /api/bets`, `DELETE /api/bets/{id}` with an inline confirm). `bets` stores the game, market, side, the side's own line, decimal odds, stake and `placed_at`. Nothing else is stored.
+  - **Grading on read:** a bet's result (`pending`, `won`, `lost`, `push`) and profit are derived from `games` whenever they are read, once the game is final: the side's margin plus its line, or the total against the line; a whole-number line can push (stake returned). No job, no stored result, so a score correction or an edited bankroll needs no rewrite. A postponed game's bet stays pending until deleted.
+  - Writes go through the server's connection (single writer) and refuse cross-site requests like the jobs; `--dev` CORS allows `PUT` and `DELETE` for loopback origins.
+- **Why:** user request: track the bets actually placed, show what a unit stake is for the bankroll, and move the bankroll with wins and losses, alongside the Edge calculator.
+- **Consequences:** ADR-014 still holds for the pipeline: no odds client, odds tables, market blend or fetched prices. Typed odds that are not recorded as a bet stay in the browser (ADR-020). Bets never feed features, models, Performance or the evaluation ladder, and evaluation stays on proper scoring rules.
+
 ## ADR-025: ESPN's injury list stands in before a team's first game of the season
 
 - **Date:** 2026-10-20 · **Status:** accepted · widens ADR-022's list to season openers, display only
