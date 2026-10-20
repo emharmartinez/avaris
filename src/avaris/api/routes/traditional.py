@@ -19,8 +19,9 @@ FEATURES = [
     *(f"{side}_{stat}_std" for side in ("home", "away") for stat in ("ortg", "drtg", "pace")),
     *(f"{side}_lost_{kind}" for side in ("home", "away") for kind in ("report", "usual")),
 ]
-# Each game with its latest features row (point-in-time at decision_ts) and, in preseason,
-# the value ESPN lists out as the prediction's rest block holds it (ADR-022); `tipped` is
+# Each game with its latest features row (point-in-time at decision_ts) and, in preseason and
+# season openers, the value ESPN lists out as the prediction's rest block holds it (ADR-022,
+# ADR-025); `tipped` is
 # whether the listed tip-off has passed
 GAMES_SQL = f"""
 select g.game_id, g.season_type, g.tip_off_utc, g.status, g.home_team_id, g.away_team_id,

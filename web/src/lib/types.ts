@@ -145,7 +145,7 @@ export interface TraditionalInputs {
   home_b2b: number;
   away_b2b: number;
   injury: number; // home margin points from absences beyond each team's usual
-  injury_source: "report" | "espn" | null; // NBA injury report, else ESPN's list (preseason)
+  injury_source: "report" | "espn" | null; // NBA injury report, else ESPN's list (preseason, season openers)
   home_lost: number | null; // Game Score lost beyond the usual
   away_lost: number | null;
 }

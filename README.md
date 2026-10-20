@@ -126,7 +126,7 @@ DuckDB at `data/avaris.duckdb` (gitignored):
 | `injury_report_files` | Report slots fetched (`ok`) or known missing |
 | `features` | One row per game as of `decision_ts`, with `feature_hash` (rebuilt by `avaris features build`) |
 | `team_ratings` | Elo, ORtg, DRtg, net rating, pace and games played per team as of each game |
-| `predictions` | One row per game: `status` (provisional or final), `decision_ts`, runs, `p_home_win`, margin and total μ and σ, drivers and injuries JSON; preseason rows also carry `raw_*` model values and a `rest` JSON block |
+| `predictions` | One row per game: `status` (provisional or final), `decision_ts`, runs, `p_home_win`, margin and total μ and σ, drivers and injuries JSON; preseason rows also carry `raw_*` model values and a `rest` JSON block, season openers a display-only `rest` block |
 | `prediction_scores` | Per final prediction after the game: log loss, Brier, errors, 80% interval hits, PIT |
 | `jobs` | Background jobs: kind, status, params, log tail |
 | `espn_injury_snapshots` | ESPN injury lists (preseason and season openers), one set of rows per distinct list |

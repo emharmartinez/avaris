@@ -65,9 +65,9 @@ class FeatureSet:
     team_ratings: pd.DataFrame  # one row per team and game
     availability: pd.DataFrame  # per team, game and player: rate, minutes, absences
     venues: pd.DataFrame  # game_id, venue
-    # Preseason NBA-v-NBA games only, never model inputs (ADR-022): per side, value of the
-    # players ESPN lists out as of decision_ts (lost_espn, NaN without a snapshot) and of
-    # the players who sat out the box score (lost_actual, for the fit only)
+    # NBA-v-NBA preseason games and season openers (ADR-025), never model inputs (ADR-022):
+    # per side, value of the players ESPN lists out as of decision_ts (lost_espn, NaN without
+    # a snapshot) and of the players who sat out the box score (lost_actual, for the fit only)
     rest: pd.DataFrame
 
 
