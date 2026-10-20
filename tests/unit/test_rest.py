@@ -10,7 +10,6 @@ from avaris.db import connect
 from avaris.preseason.rest import (
     DISABLED,
     FALLBACK,
-    NO_SNAPSHOT,
     RestParams,
     apply_rest,
     load_params,
@@ -66,11 +65,10 @@ def test_outside_preseason_the_list_is_shown_but_never_applied(season_type: str)
     assert block["away"] == {"lost": 12.0, "players": [BRUNSON]}
 
 
-def test_outside_preseason_a_missing_snapshot_still_says_so() -> None:
-    block = apply_rest(model_row("regular"), rest(0, 0, snapshot=None), PARAMS)["rest"]
-    assert isinstance(block, dict)
-    assert block["adjusted"] is False and block["note"] == NO_SNAPSHOT
-    assert block["home"] == {"lost": None, "players": []}
+def test_outside_preseason_no_snapshot_means_no_block() -> None:
+    # Nothing to show: the side reads "unknown before first game" instead of an empty list
+    out = apply_rest(model_row("regular"), rest(0, 0, snapshot=None), PARAMS)
+    assert out["rest"] is None and out["margin_mu"] == -2.0
 
 
 def test_a_preseason_game_without_a_rest_row_passes_through() -> None:

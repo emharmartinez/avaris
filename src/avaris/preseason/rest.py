@@ -54,17 +54,20 @@ def apply_rest(
 ) -> dict[str, Any]:
     # Preseason: shift margin_mu and total_mu by the value ESPN lists out, read p_home_win
     # off the shifted margin (ADR-023), keep the model's values as raw_*, and describe it
-    # all in the rest block. A season opener's block only shows the list (ADR-025)
+    # all in the rest block. A season opener's block only shows the list, and there is none
+    # without a snapshot (ADR-025)
     out: dict[str, Any] = {
         k: row[k] for k in ("season_type", "p_home_win", "margin_mu", "total_mu")}
     preseason = row["season_type"] == "preseason"
     out.update(raw_p_home_win=None, raw_margin_mu=None, raw_total_mu=None, rest=None)
     if rest is None:
         return out
+    snapshot = None if pd.isna(rest["snapshot_ts"]) else pd.Timestamp(rest["snapshot_ts"])
+    if not preseason and snapshot is None:
+        return out
     if preseason:
         out.update(raw_p_home_win=row["p_home_win"], raw_margin_mu=row["margin_mu"],
                    raw_total_mu=row["total_mu"])
-    snapshot = None if pd.isna(rest["snapshot_ts"]) else pd.Timestamp(rest["snapshot_ts"])
     home, away = _known(rest["home_lost_espn"]), _known(rest["away_lost_espn"])
     k = {
         "margin": params.k_margin if preseason and params.use_margin else 0.0,

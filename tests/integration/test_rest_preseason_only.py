@@ -101,6 +101,19 @@ def test_rest_rows_are_preseason_games_and_season_openers(with_rest: FeatureSet)
     assert set(with_rest.rest["game_id"]) == set(f.loc[preseason | opener, "game_id"])
 
 
+def test_a_one_sided_opener_gets_a_rest_row(synthetic_db: Path) -> None:
+    # Without BKN v DEN on opening night, BKN's first game is ATL's second: only BKN's side
+    # is unknown, and the game still reads ESPN's list
+    con = duckdb.connect(str(synthetic_db))
+    con.execute("delete from games where game_id = '0022100002'")
+    con.close()
+    fs = build(synthetic_db)
+    game = one_row(fs.features, "0022100003")  # BKN (home) v ATL
+    assert (game["home_gp"], game["away_gp"]) == (0, 1)
+    assert math.isnan(game["home_lost_report"]) and not math.isnan(game["away_lost_report"])
+    assert rest_row(fs, "0022100003")["game_id"] == "0022100003"
+
+
 def test_a_season_opener_reads_the_list_before_decision_ts(
     plain: FeatureSet, synthetic_db: Path, tmp_path: Path,
 ) -> None:

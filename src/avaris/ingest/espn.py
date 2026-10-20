@@ -17,7 +17,8 @@ from avaris.ingest.stats_client import Throttle
 from avaris.ingest.teams import team_ids_by_name
 from avaris.seasons import ET, et_date, season_for_date, season_start_year
 
-# Preseason only (ADR-022): NBA injury reports do not cover the preseason
+# NBA injury reports do not cover the preseason (ADR-022) and cannot be valued before a
+# team's first game of the season (ADR-025)
 ESPN_API = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba"
 ESPN_INJURIES_URL = f"{ESPN_API}/injuries"
 # Live scores for the Traditional tab (ADR-024): one ET date per request
@@ -192,8 +193,8 @@ class EspnIngestSummary:
 
 def espn_due(con: duckdb.DuckDBPyConnection, now_utc: datetime, window_hours: float) -> bool:
     # A game that reads the list tips off in (now, now + window] and has no final prediction
-    # yet: a preseason game (ADR-022), or a team's first game of the season, whose report
-    # cannot be valued yet (ADR-025)
+    # yet: a preseason game (ADR-022), or a game where a team has no final non-preseason game
+    # this season, whose report cannot be valued yet (ADR-025)
     row = con.execute(
         """
         select count(*) from games g
@@ -204,7 +205,7 @@ def espn_due(con: duckdb.DuckDBPyConnection, now_utc: datetime, window_hours: fl
                 where not exists (
                     select 1 from games e
                     where e.season = g.season and e.season_type <> 'preseason'
-                        and e.tip_off_utc < g.tip_off_utc
+                        and e.status = 'final' and e.tip_off_utc < g.tip_off_utc
                         and t.team_id in (e.home_team_id, e.away_team_id))))
         """,
         [now_utc, now_utc + timedelta(hours=window_hours)],
