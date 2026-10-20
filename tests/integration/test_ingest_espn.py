@@ -93,12 +93,38 @@ def test_an_unchanged_list_is_one_snapshot_with_two_fetches(
     assert len(snapshots(con)[lambda d: d["fetched_at"] == last]) == 6
 
 
+@pytest.mark.parametrize("earlier_type", [None, "preseason"])
+def test_a_teams_first_game_of_the_season_is_due(
+    con: duckdb.DuckDBPyConnection, client: EspnClient, stats_api: respx.MockRouter,
+    earlier_type: str | None,
+) -> None:
+    # Opening night: the NBA report cannot be valued yet, so ESPN's list stands in (ADR-025);
+    # preseason games do not count as played
+    games = [game("0022600001", "regular", TIP)]
+    if earlier_type:
+        games.append(game("0012600040", earlier_type, TIP - timedelta(days=5)))
+    upsert(con, "games", pd.DataFrame(games))
+    assert ingest_espn(con, client, NOON, WINDOW).fetched
+    assert stats_api.routes["espn"].call_count == 1
+
+
+def test_no_request_once_both_teams_have_opened_their_season(
+    con: duckdb.DuckDBPyConnection, client: EspnClient, stats_api: respx.MockRouter,
+) -> None:
+    upsert(con, "games", pd.DataFrame([
+        game("0022600001", "regular", TIP - timedelta(days=2)),
+        game("0022600020", "regular", TIP),
+    ]))
+    assert not ingest_espn(con, client, NOON, WINDOW).fetched
+    assert stats_api.routes["espn"].call_count == 0
+
+
 @pytest.mark.parametrize(("season_type", "tip"), [
-    ("regular", TIP),  # no preseason game
     ("preseason", NOON + timedelta(hours=WINDOW, minutes=1)),  # too far ahead
     ("preseason", NOON - timedelta(minutes=1)),  # already started
+    ("regular", NOON + timedelta(hours=WINDOW, minutes=1)),
 ])
-def test_no_request_without_a_due_preseason_game(
+def test_no_request_without_a_due_game(
     con: duckdb.DuckDBPyConnection, client: EspnClient, stats_api: respx.MockRouter,
     season_type: str, tip: datetime,
 ) -> None:

@@ -190,13 +190,22 @@ class EspnIngestSummary:
     unmatched: int = 0
 
 
-def preseason_due(con: duckdb.DuckDBPyConnection, now_utc: datetime, window_hours: float) -> bool:
-    # A preseason game tips off in (now, now + window] and has no final prediction yet
+def espn_due(con: duckdb.DuckDBPyConnection, now_utc: datetime, window_hours: float) -> bool:
+    # A game that reads the list tips off in (now, now + window] and has no final prediction
+    # yet: a preseason game (ADR-022), or a team's first game of the season, whose report
+    # cannot be valued yet (ADR-025)
     row = con.execute(
         """
         select count(*) from games g
-        where g.season_type = 'preseason' and g.tip_off_utc > ? and g.tip_off_utc <= ?
+        where g.tip_off_utc > ? and g.tip_off_utc <= ?
             and g.game_id not in (select game_id from predictions where status = 'final')
+            and (g.season_type = 'preseason' or exists (
+                select 1 from (values (g.home_team_id), (g.away_team_id)) t(team_id)
+                where not exists (
+                    select 1 from games e
+                    where e.season = g.season and e.season_type <> 'preseason'
+                        and e.tip_off_utc < g.tip_off_utc
+                        and t.team_id in (e.home_team_id, e.away_team_id))))
         """,
         [now_utc, now_utc + timedelta(hours=window_hours)],
     ).fetchone()
@@ -231,10 +240,10 @@ def ingest_espn(
     window_hours: float,
     progress: Progress = lambda _msg: None,
 ) -> EspnIngestSummary:
-    # One request, only when a preseason game is due. An unchanged list adds a fetch row
-    # pointing at the stored snapshot, so reruns leave predictions untouched
+    # One request, only when a game that reads the list is due. An unchanged list adds a
+    # fetch row pointing at the stored snapshot, so reruns leave predictions untouched
     summary = EspnIngestSummary()
-    if not preseason_due(con, now_utc, window_hours):
+    if not espn_due(con, now_utc, window_hours):
         return summary
     payload = client.get_injuries(now_utc)
     summary.fetched = True
