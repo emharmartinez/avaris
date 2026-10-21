@@ -7,19 +7,21 @@ import { OddsFormatToggle } from "@/components/odds-format-toggle";
 import { PageHeader, QueryState } from "@/components/query-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useGames } from "@/hooks/use-api";
+import { useBankroll, useGames } from "@/hooks/use-api";
+import { betLabel, formatMoney } from "@/lib/bankroll";
 import {
-  DEFAULT_ODDS_FORMAT, evaluateMarket, formatOdds, moneylineMarket, parseLine, parseOdds,
-  parseTotal, spreadMarket, totalMarket,
+  DEFAULT_ODDS_FORMAT, evaluateMarket, formatLine, formatOdds, formatTotal, moneylineMarket,
+  parseLine, parseOdds, parseTotal, spreadMarket, totalMarket,
   type MarketResult, type OddsFormat, type Outcome, type Pair,
 } from "@/lib/edge";
 import { formatDate, formatTip, pct, shiftDate, signed, teamLabel } from "@/lib/format";
 import { edgeRestNote } from "@/lib/rest";
 import { cn } from "@/lib/utils";
-import type { Game, GamesOnDate, Prediction } from "@/lib/types";
+import type { Bet, Game, GamesOnDate, Prediction } from "@/lib/types";
+import { BankrollCard, BetForm, BetsTable, type BetDraft } from "./bankroll";
+import { TextInput } from "./text-input";
 
 type PredictedGame = Game & { prediction: Prediction };
 
@@ -31,7 +33,9 @@ export function EdgeView({ date, gameId, onGameChange }: {
   onGameChange: (id: string) => void;
 }) {
   const query = useGames(date);
+  const book = useBankroll();
   const day = date ?? query.data?.date ?? null;
+  const unit = book.data?.unit ?? null;
   // The odds format outlives a change of game or date; the typed odds do not
   const [format, setFormat] = useState<OddsFormat>(DEFAULT_ODDS_FORMAT);
   return (
@@ -51,24 +55,34 @@ export function EdgeView({ date, gameId, onGameChange }: {
           </nav>
         )}
       </PageHeader>
+      <QueryState query={book} label="bankroll">
+        {(data) => <BankrollCard bankroll={data} />}
+      </QueryState>
       <QueryState query={query} label="predictions">
         {(data) => (
           <GamePicker
             data={data} gameId={gameId} onGameChange={onGameChange}
-            format={format} onFormatChange={setFormat}
+            format={format} onFormatChange={setFormat} unit={unit}
           />
         )}
       </QueryState>
+      {book.data && book.data.bets.length > 0 && (
+        <section aria-labelledby="bets-title" className="space-y-3">
+          <h2 id="bets-title" className="text-lg font-semibold">Your bets</h2>
+          <BetsTable bets={book.data.bets} format={format} />
+        </section>
+      )}
     </div>
   );
 }
 
-function GamePicker({ data, gameId, onGameChange, format, onFormatChange }: {
+function GamePicker({ data, gameId, onGameChange, format, onFormatChange, unit }: {
   data: GamesOnDate;
   gameId: string | null;
   onGameChange: (id: string) => void;
   format: OddsFormat;
   onFormatChange: (f: OddsFormat) => void;
+  unit: number | null;
 }) {
   const games = data.games.filter((g): g is PredictedGame => g.prediction != null);
   const game = games.find((g) => g.game_id === gameId) ?? games[0];
@@ -94,7 +108,9 @@ function GamePicker({ data, gameId, onGameChange, format, onFormatChange }: {
           ))}
         </SelectContent>
       </Select>
-      <Calculator key={game.game_id} game={game} format={format} onFormatChange={onFormatChange} />
+      <Calculator
+        key={game.game_id} game={game} format={format} onFormatChange={onFormatChange} unit={unit}
+      />
     </div>
   );
 }
@@ -115,10 +131,11 @@ const EMPTY = Object.fromEntries(ODDS_FIELDS.map((f) => [f, { text: "" }])) as O
 const inputOdds = (decimal: number, format: OddsFormat) =>
   formatOdds(decimal, format).replace("−", "-");
 
-function Calculator({ game, format, onFormatChange }: {
+function Calculator({ game, format, onFormatChange, unit }: {
   game: PredictedGame;
   format: OddsFormat;
   onFormatChange: (f: OddsFormat) => void;
+  unit: number | null;
 }) {
   const [odds, setOdds] = useState<OddsInputs>(EMPTY);
   const [spreadLine, setSpreadLine] = useState("");
@@ -146,6 +163,16 @@ function Calculator({ game, format, onFormatChange }: {
     { outcome: outcomes[0], odds: price(fields[0]) },
     { outcome: outcomes[1], odds: price(fields[1]) },
   ]);
+  // The sides a bet can be recorded on: each priced one, at its own line
+  const drafts = (market: BetDraft["market"], sides: Pair<BetDraft["side"]>,
+    lines: Pair<number | null>, fields: Pair<OddsField>): Pair<BetDraft | null> => {
+    const draft = (i: 0 | 1): BetDraft | null => {
+      const odds = price(fields[i]);
+      return odds == null ? null : { market, side: sides[i], line: lines[i], odds };
+    };
+    return [draft(0), draft(1)];
+  };
+  const betting = { game, unit };
 
   return (
     <div className="space-y-4">
@@ -171,6 +198,8 @@ function Calculator({ game, format, onFormatChange }: {
         result={evaluate(moneylineMarket(p.p_home_win), ["mlAway", "mlHome"])}
         labels={[away, home]}
         format={format}
+        bets={drafts("moneyline", ["away", "home"], [null, null], ["mlAway", "mlHome"])}
+        betting={betting}
       />
 
       <MarketCard
@@ -188,6 +217,9 @@ function Calculator({ game, format, onFormatChange }: {
         result={spread == null ? null : evaluate(spreadMarket(p.margin, spread), ["spAway", "spHome"])}
         labels={spread == null ? null : [`${away} ${formatLine(-spread)}`, `${home} ${formatLine(spread)}`]}
         format={format}
+        bets={spread == null ? null
+          : drafts("spread", ["away", "home"], [spread === 0 ? 0 : -spread, spread], ["spAway", "spHome"])}
+        betting={betting}
         hint={`Enter ${home}'s line, negative when ${home} is favored.`}
       />
 
@@ -206,26 +238,20 @@ function Calculator({ game, format, onFormatChange }: {
         result={total == null ? null : evaluate(totalMarket(p.total, total), ["over", "under"])}
         labels={total == null ? null : [`Over ${formatTotal(total)}`, `Under ${formatTotal(total)}`]}
         format={format}
+        bets={total == null ? null : drafts("total", ["over", "under"], [total, total], ["over", "under"])}
+        betting={betting}
         hint="Enter the total points line."
       />
 
       <p className="text-xs text-muted-foreground">
         Edge is the model probability minus the implied probability; EV is per 100 staked, with a
-        push returning the stake. Odds stay in this page and are never saved.
+        push returning the stake. Odds stay in this page; only the bets you record are saved.
       </p>
     </div>
   );
 }
 
-function formatLine(x: number): string {
-  return x === 0 ? "pk" : signed(x, Number.isInteger(x) ? 0 : 1);
-}
-
-function formatTotal(x: number): string {
-  return Number.isInteger(x) ? x.toString() : x.toFixed(1);
-}
-
-function MarketCard({ title, description, inputs, result, labels, format, hint }: {
+function MarketCard({ title, description, inputs, result, labels, format, hint, bets, betting }: {
   title: string;
   description: string;
   inputs: React.ReactNode;
@@ -233,8 +259,15 @@ function MarketCard({ title, description, inputs, result, labels, format, hint }
   labels: Pair<string> | null;
   format: OddsFormat;
   hint?: string;
+  bets: Pair<BetDraft | null> | null;
+  betting: { game: PredictedGame; unit: number | null };
 }) {
   const titleId = useId();
+  const [picked, setPicked] = useState<0 | 1 | null>(null);
+  const [recorded, setRecorded] = useState<Bet | null>(null);
+  const draft = picked == null ? null : bets?.[picked] ?? null;
+  // A cleared line or price closes the form, so typing a new one does not reopen it
+  if (picked != null && draft == null) setPicked(null);
   const priced = result?.sides.some((s) => s.implied != null);
   const push = result?.sides[0].push ?? 0;
   return (
@@ -291,6 +324,34 @@ function MarketCard({ title, description, inputs, result, labels, format, hint }
               )}
             </>
           )}
+          {draft ? (
+            <BetForm
+              key={`${draft.side} ${draft.line} ${draft.odds} ${betting.unit}`}
+              gameId={betting.game.game_id} draft={draft} label={betLabel(draft, betting.game)}
+              unit={betting.unit} format={format}
+              onDone={(bet) => {
+                setPicked(null);
+                setRecorded(bet);
+              }}
+            />
+          ) : bets?.some((b) => b != null) && (
+            <div className="flex flex-wrap gap-2">
+              {bets.map((b, i) => b && (
+                <Button key={b.side} variant="outline" size="sm" onClick={() => {
+                  setPicked(i as 0 | 1);
+                  setRecorded(null);
+                }}>
+                  Bet {betLabel(b, betting.game)}
+                </Button>
+              ))}
+            </div>
+          )}
+          {recorded && (
+            <p role="status" className="text-sm text-muted-foreground">
+              Recorded {betLabel(recorded, betting.game)}: {formatMoney(recorded.stake)} at{" "}
+              {formatOdds(recorded.odds, format)}.
+            </p>
+          )}
         </CardContent>
       </Card>
     </section>
@@ -318,26 +379,5 @@ function OddsInput({ label, value, onChange, format }: {
         : null}
       placeholder={format === "american" ? "-110" : "1.91"}
     />
-  );
-}
-
-function TextInput({ label, value, onChange, error, placeholder }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  error: string | null;
-  placeholder: string;
-}) {
-  const id = useId();
-  return (
-    <div className="space-y-1">
-      <label htmlFor={id} className="text-xs font-medium text-muted-foreground">{label}</label>
-      <Input
-        id={id} value={value} placeholder={placeholder} autoComplete="off" spellCheck={false}
-        aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : undefined}
-        onChange={(e) => onChange(e.target.value)}
-      />
-      {error && <p id={`${id}-error`} className="text-xs text-destructive">{error}</p>}
-    </div>
   );
 }

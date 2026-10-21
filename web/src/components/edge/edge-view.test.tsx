@@ -2,8 +2,8 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
-import type { GamesOnDate } from "@/lib/types";
-import { game, preseasonGame, rest } from "@/test/data";
+import type { Bankroll, GamesOnDate } from "@/lib/types";
+import { bankroll, bet, game, preseasonGame, rest } from "@/test/data";
 import { renderWithQuery } from "@/test/render";
 import { server } from "@/test/server";
 import { EdgeView } from "./edge-view";
@@ -13,7 +13,8 @@ const BKN = { team_id: 1610612751, abbreviation: "BKN", name: "Brooklyn Nets" };
 const unpredicted = game({ game_id: "0022100048", home: BKN, away: BOS, prediction: null });
 const second = game({ game_id: "0022100049", home: BOS, away: BKN });
 
-const serve = (body: GamesOnDate, onRequest?: (url: URL) => void) => server.use(
+const serve = (body: GamesOnDate, onRequest?: (url: URL) => void, book: Bankroll = bankroll()) => server.use(
+  http.get("*/api/bankroll", () => HttpResponse.json(book)),
   http.get("*/api/predictions/today", ({ request }) => {
     onRequest?.(new URL(request.url));
     return HttpResponse.json(body);
@@ -175,5 +176,101 @@ describe("EdgeView", () => {
     rerender(<EdgeView date={null} gameId="0012600013" onGameChange={vi.fn()} />);
     expect(await screen.findByRole("combobox", { name: "Game" })).toHaveTextContent("NYK @ TOR");
     expect(screen.queryByText(/rest-adjusted/i)).toBeNull();
+  });
+
+  it("records a bet on a priced side, one unit by default", async () => {
+    const user = userEvent.setup();
+    const posted: unknown[] = [];
+    serve({ date: "2021-11-27", games: [game()] });
+    server.use(http.post("*/api/bets", async ({ request }) => {
+      posted.push(await request.json());
+      return HttpResponse.json(bet({ odds: 1.91, stake: 9.88 }), { status: 201 });
+    }));
+    renderWithQuery(<EdgeView date={null} gameId={null} onGameChange={vi.fn()} />);
+    const moneyline = await screen.findByRole("region", { name: "Moneyline" });
+    expect(within(moneyline).queryByRole("button", { name: /^Bet/ })).toBeNull(); // no odds yet
+    await user.type(within(moneyline).getByLabelText("DEN moneyline"), "1.91");
+    await user.click(within(moneyline).getByRole("button", { name: "Bet DEN ML" }));
+
+    const form = within(moneyline).getByRole("form", { name: "Bet DEN ML" });
+    expect(within(form).getByLabelText("Stake")).toHaveValue("9.88"); // 1% of 988
+    expect(form).toHaveTextContent("1.00 units. To win 8.99.");
+    await user.click(within(form).getByRole("button", { name: "Record bet" }));
+    expect(await within(moneyline).findByRole("status")).toHaveTextContent("Recorded DEN ML: 9.88 at 1.91.");
+    expect(posted).toEqual([{ market: "moneyline", side: "home", line: null, odds: 1.91, game_id: "0022100047", stake: 9.88 }]);
+    expect(within(moneyline).queryByRole("form")).toBeNull();
+  });
+
+  it("bets a spread at the side's own line and a total at its line", async () => {
+    const user = userEvent.setup();
+    const posted: unknown[] = [];
+    serve({ date: "2021-11-27", games: [game()] });
+    server.use(http.post("*/api/bets", async ({ request }) => {
+      posted.push(await request.json());
+      return HttpResponse.json(bet(), { status: 201 });
+    }));
+    renderWithQuery(<EdgeView date={null} gameId={null} onGameChange={vi.fn()} />);
+    const spread = await screen.findByRole("region", { name: "Spread" });
+    await user.type(within(spread).getByLabelText("DEN line"), "-3.5");
+    await user.type(within(spread).getByLabelText("ATL spread odds"), "1.95");
+    await user.click(within(spread).getByRole("button", { name: "Bet ATL +3.5" }));
+    const stake = within(spread).getByLabelText("Stake");
+    await user.clear(stake);
+    await user.type(stake, "25");
+    expect(within(spread).getByRole("form")).toHaveTextContent("2.53 units. To win 23.75.");
+    await user.click(within(spread).getByRole("button", { name: "Record bet" }));
+    await within(spread).findByRole("status");
+
+    const total = screen.getByRole("region", { name: "Total" });
+    await user.type(within(total).getByLabelText("Total line"), "224");
+    await user.type(within(total).getByLabelText("Under odds"), "1.87");
+    await user.click(within(total).getByRole("button", { name: "Bet Under 224" }));
+    await user.click(within(total).getByRole("button", { name: "Record bet" }));
+    await within(total).findByRole("status");
+    expect(posted).toEqual([
+      { market: "spread", side: "away", line: 3.5, odds: 1.95, game_id: "0022100047", stake: 25 },
+      { market: "total", side: "under", line: 224, odds: 1.87, game_id: "0022100047", stake: 9.88 },
+    ]);
+  });
+
+  it("shows the bankroll and the bets recorded", async () => {
+    serve({ date: "2021-11-27", games: [game()] }, undefined, bankroll({ bets: [bet()] }));
+    renderWithQuery(<EdgeView date={null} gameId={null} onGameChange={vi.fn()} />);
+    expect(await screen.findByRole("group", { name: "Bankroll" })).toHaveTextContent("988.00");
+    const table = await screen.findByRole("table", { name: "Bets" });
+    expect(within(table).getByRole("row", { name: /DEN ML/ })).toHaveTextContent("Won");
+  });
+
+  it("closes an open bet form when its line is cleared", async () => {
+    const user = userEvent.setup();
+    serve({ date: "2021-11-27", games: [game()] });
+    renderWithQuery(<EdgeView date={null} gameId={null} onGameChange={vi.fn()} />);
+    const spread = await screen.findByRole("region", { name: "Spread" });
+    await user.type(within(spread).getByLabelText("DEN line"), "-3.5");
+    await user.type(within(spread).getByLabelText("DEN spread odds"), "1.91");
+    await user.click(within(spread).getByRole("button", { name: "Bet DEN −3.5" }));
+    expect(within(spread).getByRole("form")).toBeInTheDocument();
+    await user.clear(within(spread).getByLabelText("DEN line"));
+    await user.type(within(spread).getByLabelText("DEN line"), "-4");
+    expect(within(spread).queryByRole("form")).toBeNull();
+    expect(within(spread).getByRole("button", { name: "Bet DEN −4" })).toBeInTheDocument();
+  });
+
+  it("bets the away side of a home underdog at its negative line", async () => {
+    const user = userEvent.setup();
+    const posted: { line: number }[] = [];
+    serve({ date: "2021-11-27", games: [game()] });
+    server.use(http.post("*/api/bets", async ({ request }) => {
+      posted.push(await request.json() as { line: number });
+      return HttpResponse.json(bet(), { status: 201 });
+    }));
+    renderWithQuery(<EdgeView date={null} gameId={null} onGameChange={vi.fn()} />);
+    const spread = await screen.findByRole("region", { name: "Spread" });
+    await user.type(within(spread).getByLabelText("DEN line"), "+3.5");
+    await user.type(within(spread).getByLabelText("ATL spread odds"), "1.91");
+    await user.click(within(spread).getByRole("button", { name: "Bet ATL −3.5" }));
+    await user.click(within(spread).getByRole("button", { name: "Record bet" }));
+    await within(spread).findByRole("status");
+    expect(posted.map((b) => b.line)).toEqual([-3.5]);
   });
 });

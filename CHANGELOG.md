@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Added
+- Bankroll and bet tracking on the Edge tab (ADR-026): set a starting bankroll and a unit size (% of the bankroll; 1,000 at 1% is a 10 unit), record a bet from any priced side with the stake you placed (one unit by default), and see each bet graded from the final score (won, lost, push) into the bankroll, profit, ROI and record. Bets are stored in DuckDB (`bankroll`, `bets`, migration 10; `GET`/`PUT /api/bankroll`, `POST /api/bets`, `DELETE /api/bets/{id}`). They never feed the models or evaluation
+
 ### Changed
 - Traditional tab live scores refresh faster: the browser polls every 10 s (was 30 s) and the server caches the scoreboard for 5 s (was 30 s), so a live card trails the feed by about 10 s instead of up to about 60 s
 - Odds open in decimal on the Edge and Traditional tabs; both have a Decimal/American toggle (Traditional's is new)

@@ -104,6 +104,16 @@ def test_dev_cors_allows_loopback_origins(dev_client: TestClient, origin: str) -
     assert preflight.headers["access-control-allow-origin"] == origin
 
 
+@pytest.mark.parametrize(("path", "method"), [("/api/bankroll", "PUT"), ("/api/bets/1", "DELETE")])
+def test_dev_cors_allows_bet_writes(dev_client: TestClient, path: str, method: str) -> None:
+    preflight = dev_client.options(path, headers={
+        "Origin": "http://localhost:3000", "Access-Control-Request-Method": method,
+        "Access-Control-Request-Headers": "content-type",
+    })
+    assert preflight.status_code == 200
+    assert method in preflight.headers["access-control-allow-methods"]
+
+
 @pytest.mark.parametrize("origin", [
     "http://evil.example", "http://localhost.evil.example:3000", "http://127.0.0.1.nip.io",
     "null",

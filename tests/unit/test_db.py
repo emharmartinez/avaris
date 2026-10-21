@@ -13,6 +13,7 @@ PHASE_3_TABLES = {"features", "team_ratings"}
 PHASE_5_TABLES = {"predictions", "prediction_scores", "jobs"}
 REST_TABLES = {"espn_injury_snapshots", "espn_injury_fetches", "preseason_player_games",
                "rest_params"}  # migration 8
+BET_TABLES = {"bankroll", "bets"}  # migration 10 (ADR-026)
 
 
 def tables(con: duckdb.DuckDBPyConnection) -> set[str]:
@@ -205,4 +206,20 @@ def test_migration_9_adds_usual_lost_to_a_populated_version_8_db(tmp_path: Path)
     row = con.execute(
         "select home_lost_report, home_lost_usual, away_lost_usual from features").fetchone()
     assert row == (12.5, None, None)
-    assert con.execute("select max(version) from schema_version").fetchone() == (9,)
+    assert con.execute("select max(version) from schema_version").fetchone() == (len(MIGRATIONS),)
+
+
+def test_migration_10_adds_bankroll_and_bets(tmp_path: Path) -> None:
+    con = connect(tmp_path / "a.duckdb")
+    assert tables(con) >= BET_TABLES
+    con.execute("insert into bankroll values (1, 1000, 1, now())")
+    with pytest.raises(duckdb.ConstraintException):
+        con.execute("insert into bankroll values (2, 1000, 1, now())")  # one bankroll
+    con.execute("insert into bets (game_id, placed_at, market, side, odds, stake) "
+                "values ('g', now(), 'moneyline', 'home', 1.9, 10)")
+    con.execute("insert into bets (game_id, placed_at, market, side, line, odds, stake) "
+                "values ('g', now(), 'total', 'over', 220.5, 1.9, 10)")
+    assert con.execute("select bet_id from bets order by bet_id").fetchall() == [(1,), (2,)]
+    with pytest.raises(duckdb.ConstraintException):
+        con.execute("insert into bets (game_id, placed_at, market, side, odds, stake) "
+                    "values ('g', now(), 'moneyline', 'home', 1.0, 10)")

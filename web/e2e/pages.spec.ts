@@ -100,6 +100,38 @@ test("edge: pick a game from the sidebar tab, type odds, read the edge", async (
     .toBeVisible();
 });
 
+test("edge: set a bankroll, record a bet, see it settle into the bankroll", async ({ page }) => {
+  await page.goto("/edge/?date=2021-11-26");
+  await page.getByLabel("Starting bankroll").fill("1000");
+  await page.getByLabel("Unit size (% of bankroll)").fill("1");
+  await expect(page.getByText("1 unit = 10.00")).toBeVisible();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("group", { name: "1 unit" })).toContainText("10.00");
+
+  // D1 finals are 110-100 home wins: BOS beat DEN
+  await page.getByRole("combobox", { name: "Game" }).click();
+  await page.getByRole("option", { name: /DEN @ BOS/ }).click();
+  const moneyline = page.getByRole("region", { name: "Moneyline" });
+  await moneyline.getByLabel("BOS moneyline").fill("1.80");
+  await moneyline.getByRole("button", { name: "Bet BOS ML" }).click();
+  await expect(moneyline.getByLabel("Stake")).toHaveValue("10.00");
+  await moneyline.getByRole("button", { name: "Record bet" }).click();
+  await expect(moneyline.getByRole("status")).toHaveText("Recorded BOS ML: 10.00 at 1.80.");
+
+  const bets = page.getByRole("table", { name: "Bets" });
+  await expect(bets.getByRole("row", { name: /BOS ML/ })).toContainText("Won");
+  await expect(bets.getByRole("row", { name: /BOS ML/ })).toContainText("+8.00");
+  await expect(page.getByRole("group", { name: "Bankroll" })).toContainText("1,008.00");
+  await expect(page.getByRole("group", { name: "1 unit" })).toContainText("10.08");
+
+  // Survives a reload (stored by the API), then a deleted bet leaves the bankroll as it was
+  await page.reload();
+  await bets.getByRole("button", { name: "Delete bet" }).click();
+  await bets.getByRole("button", { name: "Confirm delete" }).click();
+  await expect(bets).toBeHidden();
+  await expect(page.getByRole("group", { name: "Bankroll" })).toContainText("1,000.00");
+});
+
 test("traditional: live lines from the scoreboard, finals graded the day before", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("link", { name: "Traditional" }).click();

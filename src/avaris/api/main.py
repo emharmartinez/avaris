@@ -8,7 +8,9 @@ from typing import Any
 
 import duckdb
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.types import Scope
@@ -17,6 +19,7 @@ from avaris.api.deps import LOOPBACK_HOSTS, Cursor, Jobs, is_cross_site, json_va
 from avaris.api.lifecycle import IdleWatch, Monotonic
 from avaris.api.routes import (
     backtests,
+    bets,
     games,
     injuries,
     jobs,
@@ -130,15 +133,23 @@ def create_app(
         return response
 
     if settings.server.dev_cors:
-        # Dev only: job posts from loopback origins are already allowed (not_cross_site)
+        # Dev only: writes from loopback origins are already allowed (not_cross_site)
         app.add_middleware(CORSMiddleware, allow_origin_regex=LOOPBACK_ORIGIN,
-                           allow_methods=["GET", "POST"], allow_headers=["content-type"])
+                           allow_methods=["GET", "POST", "PUT", "DELETE"],
+                           allow_headers=["content-type"])
     # Added last, so it runs first (preflights included). DNS rebinding: a remote page
     # resolved to 127.0.0.1 still sends its own host name
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=sorted(LOOPBACK_HOSTS))
     for module in (predictions, games, teams, performance, backtests, injuries, jobs, server,
-                   traditional):
+                   traditional, bets):
         app.include_router(module.router)
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+        # FastAPI echoes each bad input back, and an Infinity or NaN one cannot be written as
+        # JSON (a 500 instead of the 422); where and why is all the app reads
+        detail = [{k: e[k] for k in ("type", "loc", "msg") if k in e} for e in exc.errors()]
+        return JSONResponse({"detail": detail}, status_code=422)
 
     @app.get("/api/health")
     def health(cur: Cursor, jobs: Jobs) -> dict[str, Any]:

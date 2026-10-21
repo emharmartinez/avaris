@@ -50,3 +50,6 @@ export const useTraditional = (date: string | null) =>
     queryFn: () => api.traditional(date),
     refetchInterval: (query) => pollInterval(query.state.data),
   });
+
+// Bet tracking (ADR-026): the bankroll, its unit and every bet, graded by the API
+export const useBankroll = () => useQuery({ queryKey: ["bankroll"], queryFn: api.bankroll });

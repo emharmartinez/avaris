@@ -1,4 +1,5 @@
 import { normalCdf } from "./distribution";
+import { signed } from "./format";
 
 // Edge calculator (ADR-020): odds the user types in, compared with the model in the browser.
 // Nothing here is stored or fetched. Odds are carried as decimal prices.
@@ -32,6 +33,14 @@ export function formatOdds(decimal: number, format: OddsFormat): string {
 export function parseLine(raw: string): number | null {
   if (/^\s*(pk|pick|pick'?em)\s*$/i.test(raw)) return 0;
   return toNumber(raw);
+}
+
+export function formatLine(x: number): string {
+  return x === 0 ? "pk" : signed(x, Number.isInteger(x) ? 0 : 1);
+}
+
+export function formatTotal(x: number): string {
+  return Number.isInteger(x) ? x.toString() : x.toFixed(1);
 }
 
 export function parseTotal(raw: string): number | null {

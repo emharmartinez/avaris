@@ -299,6 +299,27 @@ MIGRATIONS: list[str] = [
     alter table features add column home_lost_usual double;
     alter table features add column away_lost_usual double;
     """,
+    # Bet tracking (ADR-026): one bankroll and the bets the user records; results are graded
+    # from games on read, never stored
+    """
+    create table bankroll (
+        id integer primary key check (id = 1),
+        starting double not null check (starting > 0),
+        unit_pct double not null check (unit_pct > 0 and unit_pct <= 100),
+        updated_at timestamp not null
+    );
+    create sequence bets_seq;
+    create table bets (
+        bet_id bigint primary key default nextval('bets_seq'),
+        game_id varchar not null,
+        placed_at timestamp not null,
+        market varchar not null check (market in ('moneyline', 'spread', 'total')),
+        side varchar not null check (side in ('home', 'away', 'over', 'under')),
+        line double,  -- the side's own spread or the total; null for moneyline
+        odds double not null check (odds > 1),  -- decimal
+        stake double not null check (stake > 0)
+    );
+    """,
 ]
 
 
